@@ -18,7 +18,8 @@ def build_soc(input):
     builder = Builder(
         soc, 
         output_dir=path.splitext(path.basename(input.name))[0],
-        csr_csv="csr.csv")
+        csr_csv=path.join(path.splitext(path.basename(input.name))[0], "csr.csv")
+    )
     builder.build(run=False)
 
 
