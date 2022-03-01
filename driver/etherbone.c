@@ -26,17 +26,6 @@ struct eb_connection {
 
 
 int eb_send(struct eb_connection *conn, const void *bytes, size_t len) {
-    // Temporary print the result to the command line as we don't have a card to test yet.
-    const uint8_t *data = bytes;
-    for (size_t i=0; i<len; i+=4) {
-        LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-            (unsigned char)data[i+0],
-            (unsigned char)data[i+1],
-            (unsigned char)data[i+2],
-            (unsigned char)data[i+3]);
-    }
-    return 0;
-    
     if (conn->is_direct)
         return sendto(conn->fd, bytes, len, 0, conn->addr->ai_addr, conn->addr->ai_addrlen);
     return write(conn->fd, bytes, len);

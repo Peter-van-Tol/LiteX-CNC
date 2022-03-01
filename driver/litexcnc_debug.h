@@ -15,20 +15,16 @@
 //    along with this program; if not, write to the Free Software
 //    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 //
-#ifndef __INCLUDE_LITEXCNC_ETH_H__
-#define __INCLUDE_LITEXCNC_ETH_H__
+#ifndef __INCLUDE_LITEXCNC_DEBUG_H__
+#define __INCLUDE_LITEXCNC_DEBUG_H__
 
-#define LITEXCNC_ETH_NAME    "litexcnc_eth"
-#define LITEXCNC_ETH_VERSION "0.01"
-#define MAX_ETH_BOARDS 4
-
-#include "etherbone.h"
+#define LITEXCNC_DEBUG_NAME    "litexcnc_debug"
+#define LITEXCNC_DEBUG_VERSION "0.01"
+#define MAX_DEBUG_BOARDS 1
 
 typedef struct {
-    // Connection by etherbone, required for sending/receiving data.
-    struct eb_connection* connection;
     // Definition of the FPGA (containing pins, steppers, PWM, ec.)
     litexcnc_fpga_t fpga;
-} litexcnc_eth_t;
+} litexcnc_debug_t;
 
 #endif
