@@ -2,6 +2,7 @@
     "baseclass": "litex_boards.targets.colorlight_5a_75x.BaseSoC",
     "board": "5a-75e",
     "revision": "7.1",
+    "clock_frequency": 50000000,
     "ethphy": {
         "tx_delay": 0
     },
@@ -36,5 +37,8 @@
         {"pin": "j4:4"},
         {"pin": "j4:5"},
         {"pin": "j4:6"}
+    ],
+    "pwm": [
+        {"pin": "j5:0"}
     ]
 }
