@@ -1,5 +1,5 @@
 loadrt litexcnc
-loadrt litexcnc_eth config_file="/workspace/examples/5a-75e.json"
+loadrt litexcnc_debug config_file="/workspace/examples/5a-75e.json"
 setp test.0.gpio.j3:0.out 1
 show pin
 loadrt threads name1=test-thread period1=500000000
