@@ -24,6 +24,7 @@ typedef struct litexcnc_struct litexcnc_t;
 #include "rtapi.h"
 
 #include "gpio.h"
+#include "pwm.h"
 
 #define LITEXCNC_NAME    "litexcnc"
 #define LITEXCNC_VERSION "0.15"
@@ -63,14 +64,17 @@ struct litexcnc_fpga_struct {
 
 struct litexcnc_struct {
     litexcnc_fpga_t *fpga;
+    uint32_t clock_frequency;
 
     struct {
         size_t num_gpio_inputs;
         size_t num_gpio_outputs;
+        size_t num_pwm_instances;
     } config;
 
     // the litexcnc "Functions"
     litexcnc_gpio_t gpio;
+    litexcnc_pwm_t pwm;
 
 
     struct rtapi_list_head list;

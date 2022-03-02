@@ -18,9 +18,12 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 from typing import List, Type
 from pydantic import BaseModel, Field, validator
 
+from litex.soc.cores.pwm import PWM as _PWM
+
 # Local imports
 from .gpio import GPIO
 from .mmio import MMIO
+from .pwm import PWM
 from .etherbone import Etherbone, EthPhy
 
 
@@ -56,6 +59,12 @@ class LitexCNC_Firmware(BaseModel):
         max_items=32,
         unique_items=True
     )
+    pwm: List[PWM] = Field(
+        [],
+        item_type=PWM,
+        max_items=32,
+        unique_items=True
+    )
 
     @validator('baseclass', pre=True)
     def import_baseclass(cls, value):
@@ -80,6 +89,7 @@ class LitexCNC_Firmware(BaseModel):
                     etherbone: Etherbone,
                     gpio_in: List[GPIO],
                     gpio_out: List[GPIO],
+                    pwm: List[PWM],
                     sys_clk_freq=int(50e6)
                     ):
 
@@ -113,7 +123,8 @@ class LitexCNC_Firmware(BaseModel):
                 # Create memory mapping for IO
                 self.submodules.MMIO_inst = MMIO(
                     gpio_in=gpio_in,
-                    gpio_out=gpio_out
+                    gpio_out=gpio_out,
+                    pwm=pwm
                 )
 
                 # Create GPIO in
@@ -122,7 +133,7 @@ class LitexCNC_Firmware(BaseModel):
                     for index, gpio 
                     in enumerate(gpio_in)
                 ])
-                self.gpio_inputs = [pad for pad in self.platform.request_all("gpio_in")]
+                self.gpio_inputs = [pad for pad in self.platform.request_all("gpio_in").l]
                 self.sync += [
                     self.MMIO_inst.gpio_in.status.eq(Cat([gpio for gpio in self.gpio_inputs ])),
                     self.MMIO_inst.gpio_in.we.eq(True)
@@ -134,13 +145,31 @@ class LitexCNC_Firmware(BaseModel):
                     for index, gpio 
                     in enumerate(gpio_out)
                 ])
-                self.gpio_outputs = [pad for pad in self.platform.request_all("gpio_out")]
+                self.gpio_outputs = [pad for pad in self.platform.request_all("gpio_out").l]
                 self.sync += [
                     gpio.eq(self.MMIO_inst.gpio_out.storage[i])
                     for i, gpio
                     in enumerate(self.gpio_outputs)
                 ]
 
+                # Create PWM
+                # - create the physical output pins
+                self.platform.add_extension([
+                    ("pwm", index, Pins(pwm_instance.pin), IOStandard(pwm_instance.io_standard))
+                    for index, pwm_instance 
+                    in enumerate(pwm)
+                ])
+                self.pwm_outputs = [pad for pad in self.platform.request_all("pwm").l]
+                # - create the generators
+                for index, _ in enumerate(pwm):
+                    # Add the PWM-module to the platform
+                    _pwm = _PWM(self.pwm_outputs[index])
+                    self.submodules += _pwm
+                    self.sync+=[
+                        _pwm.enable.eq(getattr(self.MMIO_inst, f'pwm_{index}_enable').storage),
+                        _pwm.period.eq(getattr(self.MMIO_inst, f'pwm_{index}_period').storage),
+                        _pwm.width.eq(getattr(self.MMIO_inst, f'pwm_{index}_width').storage)
+                    ]
 
         return _LitexCNC_SoC(
             board=self.board,
@@ -148,4 +177,5 @@ class LitexCNC_Firmware(BaseModel):
             ethphy= self.ethphy,
             etherbone=self.etherbone,
             gpio_in=self.gpio_in,
-            gpio_out=self.gpio_out)
+            gpio_out=self.gpio_out,
+            pwm=self.pwm)

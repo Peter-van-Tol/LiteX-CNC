@@ -33,13 +33,6 @@
 #include "gpio.h"
 
 
-
-// Include all other files. This makes separation in different files possible,
-// while still compiling a single file. NOTE: the #include directive just copies
-// the whole contents of that file into this source-file.
-#include "gpio.c"
-
-
 #ifdef MODULE_INFO
 MODULE_INFO(linuxcnc, "component:litexcnc:Board driver for FPGA boards supported by litex.");
 MODULE_INFO(linuxcnc, "funct:read:1:Read all registers.");
@@ -64,6 +57,8 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     if ((*litexcnc->fpga->io_error) != 0) return;
 
     // Process the read data
+    // litexcnc_pwm_process_read(litexcnc, pointer);
+    // litexcnc_pwm_process_read(litexcnc, pointer);
 
 }
 
@@ -71,15 +66,21 @@ static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
     // Prepare the write of the data
-    uint8_t data[4];
-    memset((uint8_t*)data,0,sizeof(data));
+    // - determine data sie
+    size_t data_size;
+    data_size += LITEXCNC_BOARD_GPIO_OUT_DATA_SIZE(litexcnc);
+    data_size += LITEXCNC_BOARD_PWM_DATA_SIZE(litexcnc);
+    // - create a data array with the correct size
+    uint8_t data[data_size];
+    memset((uint8_t*)data, 0, sizeof(data));
     uint8_t* pointer = data;
     
-    litexcnc_gpio_prepare_write(litexcnc, pointer);
+    // Process all functions
+    litexcnc_gpio_prepare_write(litexcnc, &pointer);
+    litexcnc_pwm_prepare_write(litexcnc, &pointer);
 
-    // // TEMP: print the result
-    // LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n", (unsigned char)data[0], (unsigned char)data[1], (unsigned char)data[2], (unsigned char)data[3]);
-    litexcnc->fpga->write(litexcnc->fpga, data, 4);
+    // Write the result
+    litexcnc->fpga->write(litexcnc->fpga, data, data_size);
 
     // // if there are comm problems, wait for the user to fix it
     // if ((*litexcnc->fpga->io_error) != 0) return;
@@ -120,7 +121,21 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         goto fail0;
     }
 
+    // Store the clock-frequency from the file
+    struct json_object *clock_frequency;
+    if (!json_object_object_get_ex(config, "clock_frequency", &clock_frequency)) {
+        LITEXCNC_ERR_NO_DEVICE("Missing required JSON key: '%s'\n", "clock_frequency");
+        json_object_put(clock_frequency);
+        json_object_put(config);
+        goto fail1;
+    }
+    litexcnc->clock_frequency = json_object_get_int(clock_frequency);
+    json_object_put(clock_frequency);
+
     if (litexcnc_gpio_init(litexcnc, config) < 0) {
+        goto fail0;
+    }
+    if (litexcnc_pwm_init(litexcnc, config) < 0) {
         goto fail0;
     }
 
@@ -175,3 +190,8 @@ void rtapi_app_exit(void) {
 }
 
 
+// Include all other files. This makes separation in different files possible,
+// while still compiling a single file. NOTE: the #include directive just copies
+// the whole contents of that file into this source-file.
+#include "gpio.c"
+#include "pwm.c"
