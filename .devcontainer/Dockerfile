@@ -25,6 +25,7 @@ RUN apt-get install -y \
       autoconf \
       python \
       python-tk \
+      libffi-dev \
       libudev-dev \
       libmodbus-dev \
       libusb-1.0-0-dev \
@@ -43,9 +44,28 @@ RUN apt-get install -y \
       libglu1-mesa-dev \
       libgl1-mesa-dev \
       libxmu-dev \
-      yapps2
+      yapps2 \
+      libjson-c-dev \
+      libgdbm-dev \
+      libncurses5-dev \
+      libnspr4 \
+      libnspr4-dev \
+      libnss3 \
+      libnss3-dev \
+      libssl-dev 
 
 WORKDIR /opt
+
+# Install Python
+RUN curl -O https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tar.xz && \
+    tar -xf Python-3.8.2.tar.xz && \ 
+    cd Python-3.8.2 && \
+    ./configure --enable-optimizations && \
+    make -j 4 && \
+    make install && \
+    cd .. && \
+    rm -r Python-3.8.2 && \
+    rm Python-3.8.2.tar.xz
 
 # Clone LinuxCNC, checkout the correct tag and build it
 RUN git clone https://github.com/LinuxCNC/linuxcnc.git && \
@@ -55,5 +75,29 @@ RUN git clone https://github.com/LinuxCNC/linuxcnc.git && \
     ./configure uspace && \
     cd ../src && \
     ./autogen.sh && \
-    ./configure --with-realtime=uspace && \
-    make
+    ./configure --with-realtime=uspace &&\
+    make && \
+    echo '# set PATH so it includes oss-cad-suite' >> /etc/profile && \
+    echo 'if [ -d "/opt/linuxcnc/bin" ] ; then' >> /etc/profile && \
+    echo 'PATH="/opt/linuxcnc/bin:$PATH"' >> /etc/profile && \
+    echo 'fi' >> /etc/profile && \
+    echo '# set PATH so it includes oss-cad-suite' >> /etc/profile && \
+    echo 'if [ -d "/opt/linuxcnc/scripts" ] ; then' >> /etc/profile && \
+    echo 'PATH="/opt/linuxcnc/scripts:$PATH"' >> /etc/profile && \
+    echo 'fi' >> /etc/profile
+
+# Install LiteX (inlcuding toolchain)
+RUN mkdir LiteX && \
+    cd LiteX && \
+    wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py && \
+    pip3 install --user  meson ninja && \
+    python3 litex_setup.py --init --install --config=standard --gcc=riscv
+
+# Install 
+RUN wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-02-27/oss-cad-suite-linux-x64-20220227.tgz  && \
+    tar -xvf oss-cad-suite-linux-x64-20220227.tgz -C /opt/ && \
+    rm oss-cad-suite-linux-x64-20220227.tgz  && \
+    echo '# set PATH so it includes oss-cad-suite' >> /etc/profile && \
+    echo 'if [ -d "/opt/oss-cad-suite/bin" ] ; then' >> /etc/profile && \
+    echo 'PATH="/opt/oss-cad-suite/bin:$PATH"' >> /etc/profile && \
+    echo 'fi' >> /etc/profile
