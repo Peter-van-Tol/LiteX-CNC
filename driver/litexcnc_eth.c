@@ -131,8 +131,6 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     json_object_put(config);
 
     // Connect the functions for reading and writing the data to the device
-    rtapi_snprintf(board->fpga.name, sizeof(board->fpga.name), "test.0");
-    //rtapi_snprintf(board->fpga.name, sizeof(board->fpga.name), "hm2_%.*s.%d", (int)strlen(llio_name), llio_name, llio_idx(llio_name));
     board->fpga.comp_id = comp_id;
     board->fpga.read    = litexcnc_eth_read;
     board->fpga.write   = litexcnc_eth_write;

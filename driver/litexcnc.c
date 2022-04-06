@@ -121,6 +121,37 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         goto fail0;
     }
 
+    // Store the name of the board
+    struct json_object *board_name;
+    if (!json_object_object_get_ex(config, "board_name", &board_name)) {
+        LITEXCNC_WARN_NO_DEVICE("Missing optional JSON key: '%s'\n", "board_name");
+        LITEXCNC_WARN_NO_DEVICE("Missing optional JSON key: '%s'\n", "board_name");
+        json_object_put(board_name);
+        rtapi_snprintf(fpga->name, sizeof(fpga->name), "litexcnc.0"); //TODO: add counter
+    } else {
+        rtapi_snprintf(fpga->name, sizeof(fpga->name), json_object_get_string(board_name));
+    }
+    // Check the name of the board for validity
+    size_t i;
+    for (i = 0; i < HAL_NAME_LEN+1; i ++) {
+        if (fpga->name[i] == '\0') break;
+        if (!isprint(fpga->name[i])) {
+            LITEXCNC_ERR_NO_DEVICE("Invalid board name (contains non-printable character)\n");
+            r = -EINVAL;
+            goto fail1;
+        }
+    }
+    if (i == HAL_NAME_LEN+1) {
+        LITEXCNC_ERR_NO_DEVICE("Invalid board name (not NULL terminated)\n");
+        r = -EINVAL;
+        goto fail1;
+    }
+    if (i == 0) {
+        LITEXCNC_ERR_NO_DEVICE("Invalid board name (zero length)\n");
+        r = -EINVAL;
+        goto fail1;
+    }    
+
     // Store the clock-frequency from the file
     struct json_object *clock_frequency;
     if (!json_object_object_get_ex(config, "clock_frequency", &clock_frequency)) {
