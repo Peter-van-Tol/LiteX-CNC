@@ -1,16 +1,19 @@
-# This file assumes that the firmware located in ../firmware/5a-75e-hello-gpio/ is loaded to the FPGA
+# This file assumes that the firmware located in ../firmware/5a-75e-hello-gpio/ is loaded 
+# to the FPGA. The corresponding json-configuration is loacted in the ../../examples 
+# folder. Modify paths as required for your setup!
+#
 # USAGE:
 #    halrun -I test_pwm_knight_rider.hal
 loadrt litexcnc
 loadrt litexcnc_eth config_file="/home/pi/5a-75e-hello-gpio.json"
 loadrt threads name1=test-thread period1=50000000
-addf test.0.write test-thread
+addf test_PWM_GPIO.write test-thread
 loadrt siggen
 addf siggen.0.update test-thread
 # The siggen function run from -1 to 1, we scale the PWM. NOTE: we could
 # also scale siggen, but the goal is here to test PWM, not siggen.
 # The formula is duty_cycle = (value / scale) + offset 
-setp test.0.pwm.j1:2.scale 2
-setp test.0.pwm.j1:2.offset 0.5
-net pwm-out siggen.0.sawtooth => test.0.pwm.j1:2.value
+setp test_PWM_GPIO.pwm.j1:2.scale 2
+setp test_PWM_GPIO.pwm.j1:2.offset 0.5
+net pwm-out siggen.0.sawtooth => test_PWM_GPIO.pwm.j1:2.value
 start

@@ -1,4 +1,5 @@
 {
+    "board_name": "example_5a-75a",
     "baseclass": "litex_boards.targets.colorlight_5a_75x.BaseSoC",
     "board": "5a-75a",
     "revision": "7.1",

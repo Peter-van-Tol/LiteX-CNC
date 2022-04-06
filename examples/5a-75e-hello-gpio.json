@@ -1,4 +1,5 @@
 {
+    "board_name": "test_PWM_GPIO",
     "baseclass": "litex_boards.targets.colorlight_5a_75x.BaseSoC",
     "board": "5a-75e",
     "revision": "6.0",
