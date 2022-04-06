@@ -19,7 +19,7 @@
 #define __INCLUDE_LITEXCNC_ETH_H__
 
 #define LITEXCNC_ETH_NAME    "litexcnc_eth"
-#define LITEXCNC_ETH_VERSION "0.01"
+#define LITEXCNC_ETH_VERSION "0.02"
 #define MAX_ETH_BOARDS 4
 
 #include "etherbone.h"

@@ -47,7 +47,7 @@ int eb_fill_write8(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, size
     eth_pkt[8] = 0;		     // No Wishbone flags are set (cyc, wca, wff, etc.)
     eth_pkt[9] = 0x0f;	     // Byte enable
     // Indicate a write action
-    eth_pkt[10] = size << 2; // Write count (in WORD-count)
+    eth_pkt[10] = size >> 2; // Write count (in WORD-count, bitshift to divide by 4)
     eth_pkt[11] = 0;	     // Read count
     // Store the address
     address = htobe32(address);
@@ -63,6 +63,15 @@ void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data
     uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
     memset((void*) eth_pkt, 0, sizeof(eth_pkt));
     eb_fill_write8(eth_pkt, address, data, size);
+
+    // LITEXCNC_PRINT_NO_DEVICE("Write:\n");
+    // for (size_t i=0; i<(16+size); i+=4) {
+    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+    //         (unsigned char)eth_pkt[i+0],
+    //         (unsigned char)eth_pkt[i+1],
+    //         (unsigned char)eth_pkt[i+2],
+    //         (unsigned char)eth_pkt[i+3]);
+    // }
 
     // Send the data to the device
     eb_send(conn, eth_pkt, 16+size);
