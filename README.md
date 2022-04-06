@@ -21,7 +21,27 @@ This project would not be possible without:
 ## Drivers
 
 ### Installation
-The installation of the driver is independent from the configuration. The `Makefile`s for the drivers are located in the `\driver\build\`-folder. This folder includes also the installation script `make_all.sh`, which compiles the drivers, copies it to LinuxCNC and cleans up the intermediate files.
+The installation of the driver is independent from the configuration. In order to install the driver, a modified version of `halcompile` is created. The script `halcompile` is a Python-script which creates and executes the required MakeFiles. Because the driver required [json-c](https://github.com/json-c/json-c), an extra flag had to be added.
+
+Firstly install the `json-c` library:
+```bash
+sudo apt-get update
+sudo apt install libjson-c-dev
+```
+
+Next, locate the `halcompile` script and replace it with the modified version:
+```bash
+whereis halcompile
+sudop cp <path/of/modified/version/halcompile.py> </whereis/path/halcompile>
+```
+
+>> **NOTE**: When the file `halcompile` cannot be found, make sure you have `linuxcnc-dev` installed, i.e. `sudo apt-get install linuxcnc-dev`.
+
+Now, the LiteX-CNC can be build and installed using `halcompile`:
+```bash
+cd <folder/with/driver/source>
+sudo halcompile --install litexcnc.c litexcnc_eth.c litexcnc_debug.c 
+```
 
 ### Usage
 Typically main litexcnc driver is loaded first:
