@@ -4,7 +4,6 @@ from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
 from litex_boards.targets.colorlight_5a_75x import _CRG
 
 from litex.soc.cores.clock import *
-from litex.soc.cores.pwm import PWM
 from litex.soc.integration.soc_core import *
 from litex.soc.cores.spi_flash import ECP5SPIFlash
 from litex.soc.cores.led import LedChaser
@@ -163,7 +162,7 @@ class LitexCNC_Firmware(BaseModel):
                 # - create the generators
                 for index, _ in enumerate(pwm):
                     # Add the PWM-module to the platform
-                    _pwm = _PWM(self.pwm_outputs[index])
+                    _pwm = _PWM(self.pwm_outputs[index], with_csr=False)
                     self.submodules += _pwm
                     self.sync+=[
                         _pwm.enable.eq(getattr(self.MMIO_inst, f'pwm_{index}_enable').storage),
