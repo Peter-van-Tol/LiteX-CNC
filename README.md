@@ -4,8 +4,8 @@ This project aims to make a generic CNC firmware and driver for FPGA cards which
 
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty to obtain a MESA card.
 
-> **Experimental**
-> At this moment this code is purely experimental and untested by the lack of a working FPGA which is supported by LiteX. A test card (Colorlight 5a-75e from AliExpress) has been ordered. As soon as this card has been received, the code will be tested.
+> **Experimental** <br>
+> At this moment this code is experimental and requires expansion. A test card has been received and a test setup has been created with an Raspberry Pi. The modules GPIO and PWM are tested and are working. Expansion of the project with stepgen, encoders, watchdog, etc. is now required.
 
 ## Acknowledgements
 This project would not be possible without:
@@ -35,7 +35,7 @@ whereis halcompile
 sudop cp <path/of/modified/version/halcompile.py> </whereis/path/halcompile>
 ```
 
->> **NOTE**: When the file `halcompile` cannot be found, make sure you have `linuxcnc-dev` installed, i.e. `sudo apt-get install linuxcnc-dev`.
+> **NOTE**: When the file `halcompile` cannot be found, make sure you have `linuxcnc-dev` installed, i.e. `sudo apt-get install linuxcnc-dev`.
 
 Now, the LiteX-CNC can be build and installed using `halcompile`:
 ```bash
