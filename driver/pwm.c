@@ -307,7 +307,7 @@ uint8_t litexcnc_pwm_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
     return 0;
 }
 
-uint8_t litexcnc_pwm_process_read(litexcnc_t *litexcnc, uint8_t* data) {
+uint8_t litexcnc_pwm_process_read(litexcnc_t *litexcnc, uint8_t **data) {
     // This function is deliberately empty as no data is read back from the board
     // to the HAL component.
 }

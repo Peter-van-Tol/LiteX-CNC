@@ -32,8 +32,13 @@ int eb_send(struct eb_connection *conn, const void *bytes, size_t len) {
 
 }
 
+int eb_recv(struct eb_connection *conn, void *bytes, size_t max_len) {
+    if (conn->is_direct)
+        return recvfrom(conn->read_fd, bytes, max_len, 0, NULL, NULL);
+    return read(conn->fd, bytes, max_len);
+}
 
-int eb_fill_write8(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, size_t size) {
+int eb_create_packet(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, size_t size, int is_read) {
     // Etherbone header
     eth_pkt[0] = 0x4e;	     // Magic byte 0
     eth_pkt[1] = 0x6f;	     // Magic byte 1
@@ -46,14 +51,54 @@ int eb_fill_write8(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, size
     // Record
     eth_pkt[8] = 0;		     // No Wishbone flags are set (cyc, wca, wff, etc.)
     eth_pkt[9] = 0x0f;	     // Byte enable
-    // Indicate a write action
-    eth_pkt[10] = size >> 2; // Write count (in WORD-count, bitshift to divide by 4)
-    eth_pkt[11] = 0;	     // Read count
-    // Store the address
-    address = htobe32(address);
-    memcpy(&eth_pkt[12], &address, sizeof(address));
-    // Copy the data
-    memcpy(&eth_pkt[16], data, size);
+    
+    if (is_read) {
+        // Indicate a read action
+        eth_pkt[10] = 0;         // Write count 
+        eth_pkt[11] = size >> 2; // Read count (in WORD-count, bitshift to divide by 4)
+        // Store the address
+        address = htobe32(address);
+    } else {
+        // Indicate a write action
+        eth_pkt[10] = size >> 2; // Write count (in WORD-count, bitshift to divide by 4)
+        eth_pkt[11] = 0;	     // Read count
+        // Store the address
+        address = htobe32(address);
+        memcpy(&eth_pkt[12], &address, sizeof(address));
+        // Copy the data
+        memcpy(&eth_pkt[16], data, size);
+    }
+}
+
+int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size) {
+    // Create a buffer for the header (16 bytes) + payload (<size> bytes) and
+    // copy the header + data to it
+    uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
+    memset((void*) eth_pkt, 0, sizeof(eth_pkt));
+    eb_create_packet(eth_pkt, address, data, size, 1);
+
+    // Send the data to the device
+    eb_send(conn, eth_pkt, 16+size);
+
+    // Check response
+    uint8_t response[16+size];
+    int count = eb_recv(conn, response, sizeof(response));
+    if (count != sizeof(response)) {
+        fprintf(stderr, "Unexpected read length: %d\n", count);
+        return -1;
+    }
+
+    // Unpack results
+    memcpy(data, &response[16], size);
+
+    // LITEXCNC_PRINT_NO_DEVICE("Read:\n");
+    // for (size_t i=0; i<(size); i+=4) {
+    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+    //         (unsigned char)data[i+0],
+    //         (unsigned char)data[i+1],
+    //         (unsigned char)data[i+2],
+    //         (unsigned char)data[i+3]);
+    // }
 }
 
 
@@ -62,7 +107,7 @@ void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data
     // copy the header + data to it
     uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
     memset((void*) eth_pkt, 0, sizeof(eth_pkt));
-    eb_fill_write8(eth_pkt, address, data, size);
+    eb_create_packet(eth_pkt, address, data, size, 0);
 
     // LITEXCNC_PRINT_NO_DEVICE("Write:\n");
     // for (size_t i=0; i<(16+size); i+=4) {
@@ -128,12 +173,6 @@ int eb_fill_read32(uint8_t wb_buffer[20], uint32_t address) {
 }
 
 
-
-int eb_recv(struct eb_connection *conn, void *bytes, size_t max_len) {
-    if (conn->is_direct)
-        return recvfrom(conn->read_fd, bytes, max_len, 0, NULL, NULL);
-    return read(conn->fd, bytes, max_len);
-}
 
 void eb_write32(struct eb_connection *conn, uint32_t val, uint32_t addr) {
     uint8_t raw_pkt[20];

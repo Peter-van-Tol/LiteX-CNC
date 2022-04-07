@@ -46,6 +46,14 @@ typedef struct litexcnc_struct litexcnc_t;
 #define LITEXCNC_INFO(fmt, device, args...)     rtapi_print_msg(RTAPI_MSG_INFO, LITEXCNC_NAME "/%s: " fmt, device, ## args)
 #define LITEXCNC_DBG(fmt, device, args...)      rtapi_print_msg(RTAPI_MSG_DBG,  LITEXCNC_NAME "/%s: " fmt, device, ## args)
 
+// ------------------------------------
+// Definitions of data size
+// ------------------------------------
+// Basically these are the summations of all the data sizes from the
+// sub-modules
+#define LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc) LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc)
+#define LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc) LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc)
+
 typedef struct litexcnc_fpga_struct litexcnc_fpga_t;
 struct litexcnc_fpga_struct {
     char name[HAL_NAME_LEN+1];
@@ -54,9 +62,15 @@ struct litexcnc_fpga_struct {
     // Functions to read and write data from the board
     // - on success these two return TRUE (not zero)
     // - on failure they return FALSE (0) and set *self->io_error (below) to TRUE
-    int (*read)(litexcnc_fpga_t *self, void *buffer, int size);
-    int (*write)(litexcnc_fpga_t *self, const uint8_t *buffer, int size);
+    int (*read)(litexcnc_fpga_t *self);
+    int (*write)(litexcnc_fpga_t *self);
     hal_bit_t *io_error;
+
+    // Buffers for reading and writing data
+    uint8_t *write_buffer;
+    size_t write_buffer_size;
+    uint8_t *read_buffer;
+    size_t read_buffer_size;
     
     // For the low-level driver to hang their struct on
     void *private;  

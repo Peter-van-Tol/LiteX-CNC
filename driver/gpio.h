@@ -65,12 +65,12 @@ typedef struct {
 
 } litexcnc_gpio_t;
 
-#define LITEXCNC_BOARD_GPIO_OUT_DATA_SIZE(litexcnc) (((litexcnc->gpio.num_output_pins)>>5) + ((litexcnc->gpio.num_output_pins & 0x1F)?1:0)) *4
-#define LITEXCNC_BOARD_GPIO_IN_DATA_SIZE(litexcnc) (((litexcnc->gpio.num_input_pins)>>5) + ((litexcnc->gpio.num_input_pins & 0x1F)?1:0)) * 4
+#define LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) (((litexcnc->gpio.num_output_pins)>>5) + ((litexcnc->gpio.num_output_pins & 0x1F)?1:0)) *4
+#define LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) (((litexcnc->gpio.num_input_pins)>>5) + ((litexcnc->gpio.num_input_pins & 0x1F)?1:0)) * 4
 
 // Functions for creating, reading and writing GPIO pins
 int litexcnc_gpio_init(litexcnc_t *litexcnc, json_object *config);
 uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data);
-uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t* buffer);
+uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t** data);
 
 #endif

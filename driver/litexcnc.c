@@ -54,36 +54,36 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
     // if there are comm problems, wait for the user to fix it
-    if ((*litexcnc->fpga->io_error) != 0) return;
+    // if ((*litexcnc->fpga->io_error) != 0) return;
+
+    // Clear buffer
+    memset(litexcnc->fpga->read_buffer, 0, litexcnc->fpga->read_buffer_size);
+
+    // Read the state from the FPGA
+    litexcnc->fpga->read(litexcnc->fpga);
 
     // Process the read data
-    // litexcnc_pwm_process_read(litexcnc, pointer);
-    // litexcnc_pwm_process_read(litexcnc, pointer);
-
+    uint8_t* pointer = litexcnc->fpga->read_buffer;
+    litexcnc_gpio_process_read(litexcnc, &pointer);
+    litexcnc_pwm_process_read(litexcnc, &pointer);
 }
 
 static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
-    // Prepare the write of the data
-    // - determine data sie
-    size_t data_size;
-    data_size += LITEXCNC_BOARD_GPIO_OUT_DATA_SIZE(litexcnc);
-    data_size += LITEXCNC_BOARD_PWM_DATA_SIZE(litexcnc);
-    // - create a data array with the correct size
-    uint8_t data[data_size];
-    memset((uint8_t*)data, 0, sizeof(data));
-    uint8_t* pointer = data;
-    
+    // // if there are comm problems, wait for the user to fix it
+    // if ((*litexcnc->fpga->io_error) != 0) return;
+
+    // Clear buffer
+    memset(litexcnc->fpga->write_buffer, 0, litexcnc->fpga->write_buffer_size);
+
     // Process all functions
+    uint8_t* pointer = litexcnc->fpga->write_buffer;
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
 
-    // Write the result
-    litexcnc->fpga->write(litexcnc->fpga, data, data_size);
-
-    // // if there are comm problems, wait for the user to fix it
-    // if ((*litexcnc->fpga->io_error) != 0) return;
+    // Write the data to the FPGA
+    litexcnc->fpga->write(litexcnc->fpga);
 }
 
 static void litexcnc_cleanup(litexcnc_t *litexcnc) {
@@ -163,12 +163,35 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     litexcnc->clock_frequency = json_object_get_int(clock_frequency);
     json_object_put(clock_frequency);
 
+    // Initialize modules
     if (litexcnc_gpio_init(litexcnc, config) < 0) {
         goto fail0;
     }
     if (litexcnc_pwm_init(litexcnc, config) < 0) {
         goto fail0;
     }
+
+    // Create the buffers for reading and writing data
+    // - write buffer
+    litexcnc->fpga->write_buffer_size = LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc);
+    uint8_t *write_buffer = rtapi_kmalloc(litexcnc->fpga->write_buffer_size, RTAPI_GFP_KERNEL);
+    if (litexcnc == NULL) {
+        LITEXCNC_PRINT_NO_DEVICE("out of memory!\n");
+        r = -ENOMEM;
+        goto fail1;
+    }
+    memset(write_buffer, 0, litexcnc->fpga->write_buffer_size);
+    litexcnc->fpga->write_buffer = write_buffer;
+    // - read buffer
+    litexcnc->fpga->read_buffer_size = LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc);
+    uint8_t *read_buffer = rtapi_kmalloc(litexcnc->fpga->read_buffer_size, RTAPI_GFP_KERNEL);
+    if (litexcnc == NULL) {
+        LITEXCNC_PRINT_NO_DEVICE("out of memory!\n");
+        r = -ENOMEM;
+        goto fail1;
+    }
+    memset(read_buffer, 0, litexcnc->fpga->read_buffer_size);
+    litexcnc->fpga->read_buffer = read_buffer;
 
     // Export functions
     // - read function

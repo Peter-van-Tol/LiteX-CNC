@@ -8,6 +8,7 @@ loadrt litexcnc
 loadrt litexcnc_eth config_file="/home/pi/5a-75e-hello-gpio.json"
 loadrt threads name1=test-thread period1=50000000
 addf test_PWM_GPIO.write test-thread
+addf test_PWM_GPIO.read test-thread
 loadrt siggen
 addf siggen.0.update test-thread
 # The siggen function run from -1 to 1, we scale the PWM. NOTE: we could
@@ -15,5 +16,6 @@ addf siggen.0.update test-thread
 # The formula is duty_cycle = (value / scale) + offset 
 setp test_PWM_GPIO.pwm.j1:2.scale 2
 setp test_PWM_GPIO.pwm.j1:2.offset 0.5
+setp test_PWM_GPIO.pwm.j1:2.enable 1
 net pwm-out siggen.0.sawtooth => test_PWM_GPIO.pwm.j1:2.value
 start

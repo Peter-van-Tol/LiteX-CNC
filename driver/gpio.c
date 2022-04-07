@@ -134,7 +134,7 @@ uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 
     // Process all the bytes
     uint8_t mask = 0x80;
-    for (size_t i=LITEXCNC_BOARD_GPIO_OUT_DATA_SIZE(litexcnc)*8; i>0; i--) {
+    for (size_t i=LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible pins. We only
         // should add data from existing pins
         if (i < litexcnc->gpio.num_output_pins) {
@@ -152,26 +152,15 @@ uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 }
 
 
-uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t* buffer) {
-
-    // NOTE: the data is stored in the FPGA as a 32-bit unsigned integer, the data
-    // should be always in 4-byte words, containing a maximum of 4 * 8 = 32 pins for
-    // each word.
-    uint8_t n_words = (litexcnc->gpio.num_input_pins) >> 5;
-    // - determine whether a part of the last word has been used. If so, take that
-    //   part into account as whole word
-    if (litexcnc->gpio.num_input_pins & 0x1F) {
-        n_words += 1;
-    }
+uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
     // Process all the bytes
     uint8_t mask = 0x80;
-    for (size_t i=n_words*4*8; i>0; i--) {
+    for (size_t i=LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible pins. We only
-        // should set data for existing pins
-        if (i < litexcnc->gpio.num_input_pins) {
-            // TODO
-            if (*buffer & mask) {
+        // should add data to existing pins
+        if (i < litexcnc->gpio.num_output_pins) {
+            if (*(*data) & mask) {
                 // GPIO active
                 *(litexcnc->gpio.input_pins[i-1].hal.pin.in) = 1;
                 *(litexcnc->gpio.input_pins[i-1].hal.pin.in_not) = 0;
@@ -186,7 +175,7 @@ uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t* buffer) {
         mask >>= 1;
         if (!mask) {
             mask = 0x80;  // Reset the mask
-            buffer++; // Proceed the buffer to the next element
+            (*data)++; // Proceed the buffer to the next element
         }
     }
 }

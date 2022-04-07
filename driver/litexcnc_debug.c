@@ -74,21 +74,21 @@ static void dict_free(struct rtapi_list_head *head) {
 }
 
 
-static int litexcnc_debug_read(litexcnc_fpga_t *this, void *data, int size) {
+static int litexcnc_debug_read(litexcnc_fpga_t *this) {
     litexcnc_debug_t *board = this->private;
     
     // TODO: no support for read in debug mode
 }
 
 
-static int litexcnc_debug_write(litexcnc_fpga_t *this, const uint8_t *data, int size) {
+static int litexcnc_debug_write(litexcnc_fpga_t *this) {
     litexcnc_debug_t *board = this->private;
-    for (size_t i=0; i<size; i+=4) {
+    for (size_t i=0; i<this->write_buffer_size; i+=4) {
         LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-            (unsigned char)data[i+0],
-            (unsigned char)data[i+1],
-            (unsigned char)data[i+2],
-            (unsigned char)data[i+3]);
+            (unsigned char)this->write_buffer[i+0],
+            (unsigned char)this->write_buffer[i+1],
+            (unsigned char)this->write_buffer[i+2],
+            (unsigned char)this->write_buffer[i+3]);
     }
 }
 
