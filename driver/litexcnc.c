@@ -79,6 +79,7 @@ static void litexcnc_write(void *void_litexcnc, long period) {
 
     // Process all functions
     uint8_t* pointer = litexcnc->fpga->write_buffer;
+    litexcnc_watchdog_prepare_write(litexcnc, &pointer);
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
 
@@ -164,6 +165,9 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     json_object_put(clock_frequency);
 
     // Initialize modules
+    if (litexcnc_watchdog_init(litexcnc, config) < 0) {
+        goto fail0;
+    }
     if (litexcnc_gpio_init(litexcnc, config) < 0) {
         goto fail0;
     }
@@ -247,5 +251,6 @@ void rtapi_app_exit(void) {
 // Include all other files. This makes separation in different files possible,
 // while still compiling a single file. NOTE: the #include directive just copies
 // the whole contents of that file into this source-file.
+#include "watchdog.c"
 #include "gpio.c"
 #include "pwm.c"

@@ -24,6 +24,7 @@ from .gpio import GPIO
 from .mmio import MMIO
 from .pwm import PWM
 from .etherbone import Etherbone, EthPhy
+from .watchdog import WatchDogModule
 
 
 class LitexCNC_Firmware(BaseModel):
@@ -126,6 +127,17 @@ class LitexCNC_Firmware(BaseModel):
                     pwm=pwm
                 )
 
+                # Create watchdog
+                watchdog = WatchDogModule(timeout=self.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
+                self.submodules += watchdog
+                self.sync+=[
+                    # Watchdog input (fixed values)
+                    watchdog.enable.eq(self.MMIO_inst.watchdog_data.storage[31]),
+                    # Watchdog output (status whether the dog has bitten)
+                    self.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
+                    self.MMIO_inst.watchdog_has_bitten.we.eq(True)
+                ]
+
                 # Create GPIO in
                 self.platform.add_extension([
                     ("gpio_in", index, Pins(gpio.pin), IOStandard(gpio.io_standard))
@@ -134,7 +146,7 @@ class LitexCNC_Firmware(BaseModel):
                 ])
                 self.gpio_inputs = [pad for pad in self.platform.request_all("gpio_in").l]
                 self.sync += [
-                    self.MMIO_inst.gpio_in.status.eq(Cat([gpio for gpio in self.gpio_inputs ])),
+                    self.MMIO_inst.gpio_in.status.eq(Cat([gpio for gpio in self.gpio_inputs])),
                     self.MMIO_inst.gpio_in.we.eq(True)
                 ]
 
@@ -146,7 +158,7 @@ class LitexCNC_Firmware(BaseModel):
                 ])
                 self.gpio_outputs = [pad for pad in self.platform.request_all("gpio_out").l]
                 self.sync += [
-                    gpio.eq(self.MMIO_inst.gpio_out.storage[i])
+                    gpio.eq(self.MMIO_inst.gpio_out.storage[i] & ~watchdog.has_bitte)
                     for i, gpio
                     in enumerate(self.gpio_outputs)
                 ]
@@ -165,7 +177,9 @@ class LitexCNC_Firmware(BaseModel):
                     _pwm = _PWM(self.pwm_outputs[index], with_csr=False)
                     self.submodules += _pwm
                     self.sync+=[
-                        _pwm.enable.eq(getattr(self.MMIO_inst, f'pwm_{index}_enable').storage),
+                        _pwm.enable.eq(
+                            getattr(self.MMIO_inst, f'pwm_{index}_enable').storage
+                            & ~watchdog.has_bitten),
                         _pwm.period.eq(getattr(self.MMIO_inst, f'pwm_{index}_period').storage),
                         _pwm.width.eq(getattr(self.MMIO_inst, f'pwm_{index}_width').storage)
                     ]

@@ -31,7 +31,15 @@ class MMIO(Module, AutoCSR):
         lead to errors (writing to the wrong registers) or the FPGA being hung up (when
         writing to a read-only register).
         """
-        # OUTPUT
+        # OUTPUT (as seen from the PC!)
+        # - Watchdog
+        self.watchdog_data = CSRStorage(
+            size=32, 
+            description="Watchdog data.\nByte containing the enabled flag (bit 31) and the time (bit 30 - 0)."
+            "out in cpu cycles.", 
+            name='watchdog_data',
+            write_from_dev=True
+        )
         # - GPIO
         self.gpio_out = CSRStorage(size=int(math.ceil(float(len(gpio_out))/32))*32, description="gpio_out", name='gpio_out', write_from_dev=False)
         # - PWM
@@ -40,5 +48,12 @@ class MMIO(Module, AutoCSR):
             setattr(self, f'pwm_{index}_period', CSRStorage(size=32, description=f'pwm_{index}_period', name=f'pwm_{index}_period', write_from_dev=False))
             setattr(self, f'pwm_{index}_width', CSRStorage(size=32, description=f'pwm_{index}_width', name=f'pwm_{index}_width', write_from_dev=False))
 
-        # INPUT
+        # INPUT (as seen from the PC!)
+        # - Watchdog
+        self.watchdog_has_bitten = CSRStatus(
+            size=1, 
+            description="Watchdog has bitten.\nFlag which is set when timeout has occurred.", 
+            name='watchdog_has_bitten'
+        )
+        # - GPIO
         self.gpio_in = CSRStatus(size=int(math.ceil(float(len(gpio_in))/32))*32, description="gpio_in", name='gpio_in')

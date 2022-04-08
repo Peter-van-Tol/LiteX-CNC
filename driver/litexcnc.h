@@ -25,6 +25,7 @@ typedef struct litexcnc_struct litexcnc_t;
 
 #include "gpio.h"
 #include "pwm.h"
+#include "watchdog.h"
 
 #define LITEXCNC_NAME    "litexcnc"
 #define LITEXCNC_VERSION "0.15"
@@ -51,8 +52,8 @@ typedef struct litexcnc_struct litexcnc_t;
 // ------------------------------------
 // Basically these are the summations of all the data sizes from the
 // sub-modules
-#define LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc) LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc)
-#define LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc) LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc)
+#define LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_WRITE_SIZE + LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc)
+#define LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc) LITEXCNC_WATCHDOG_READ_WRITE_SIZE + LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc)
 
 typedef struct litexcnc_fpga_struct litexcnc_fpga_t;
 struct litexcnc_fpga_struct {
@@ -86,7 +87,8 @@ struct litexcnc_struct {
         size_t num_pwm_instances;
     } config;
 
-    // the litexcnc "Functions"
+    // the litexcnc "Components"
+    litexcnc_watchdog_t *watchdog;
     litexcnc_gpio_t gpio;
     litexcnc_pwm_t pwm;
 
