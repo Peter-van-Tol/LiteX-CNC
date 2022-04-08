@@ -133,7 +133,7 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     // Check whether the watchdog did bite
     if (*(*data)) {
         LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten");
-        litexcnc->watchdog->hal.pin.has_bitten = 1;
+        *(litexcnc->watchdog->hal.pin.has_bitten) = 1;
     }
 
     // Proceed the buffer to the next element
