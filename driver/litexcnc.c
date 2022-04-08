@@ -64,6 +64,7 @@ static void litexcnc_read(void* void_litexcnc, long period) {
 
     // Process the read data
     uint8_t* pointer = litexcnc->fpga->read_buffer;
+    litexcnc_watchdog_process_read(litexcnc, &pointer);
     litexcnc_gpio_process_read(litexcnc, &pointer);
     litexcnc_pwm_process_read(litexcnc, &pointer);
 }
