@@ -78,6 +78,12 @@ static void dict_free(struct rtapi_list_head *head) {
 
 static int litexcnc_eth_read(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
+    
+    // This is essential as the colorlight card crashes when two packets come close to each other.
+	// This prevents crashes in the litex eth core. 
+	// Also turn of mDNS request from linux to the colorlight card. (avahi-daemon)
+	eb_wait_for_tx_buffer_empty(board->connection);
+
     // Read the data (etherbone.h), the address is based now on a fixed number in order
     // to read the GPIO out, as the board is not suitable for input yet.
     eb_read8(board->connection, this->write_buffer_size + 0x04, this->read_buffer, this->read_buffer_size);
@@ -86,8 +92,19 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
 
 static int litexcnc_eth_write(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
+    
+    // This is essential as the colorlight card crashes when two packets come close
+    // to each other. This prevents crashes in the litex eth core. 
+	// Also turn of mDNS request from linux to the colorlight card. (avahi-daemon)
+	eb_wait_for_tx_buffer_empty(board->connection);
+
     // Write the data (etberbone.h)
     eb_write8(board->connection, 0x00, this->write_buffer, this->write_buffer_size);
+
+    // If we missed a paket earlier with timeout AND this packet arrives later, there 
+    // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
+    // discard that packet to avoid such a queue.
+	//eb_discard_pending_packet(board->connection, this->write_buffer_size);
 }
 
 

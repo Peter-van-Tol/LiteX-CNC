@@ -68,6 +68,9 @@ int eb_create_packet(uint8_t* eth_buffer, uint32_t address, const uint8_t* data,
 void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data, size_t size);
 int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size);
 
+void eb_wait_for_tx_buffer_empty(struct eb_connection *conn);
+void eb_discard_pending_packet(struct eb_connection *conn, size_t size);
+
 struct eb_connection *eb_connect(const char *addr, const char *port, int is_direct);
 void eb_disconnect(struct eb_connection **conn);
 uint32_t eb_read32(struct eb_connection *conn, uint32_t addr);

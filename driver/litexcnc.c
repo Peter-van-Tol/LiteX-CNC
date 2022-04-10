@@ -53,9 +53,6 @@ static int comp_id;
 static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
-    // if there are comm problems, wait for the user to fix it
-    // if ((*litexcnc->fpga->io_error) != 0) return;
-
     // Clear buffer
     memset(litexcnc->fpga->read_buffer, 0, litexcnc->fpga->read_buffer_size);
 
@@ -72,9 +69,6 @@ static void litexcnc_read(void* void_litexcnc, long period) {
 static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
-    // // if there are comm problems, wait for the user to fix it
-    // if ((*litexcnc->fpga->io_error) != 0) return;
-
     // Clear buffer
     memset(litexcnc->fpga->write_buffer, 0, litexcnc->fpga->write_buffer_size);
 
@@ -86,6 +80,22 @@ static void litexcnc_write(void *void_litexcnc, long period) {
 
     // Write the data to the FPGA
     litexcnc->fpga->write(litexcnc->fpga);
+}
+
+static void litexcnc_communicate(void *void_litexcnc, long period) {
+
+    // // if there are comm problems, wait for the user to fix it
+    // if ((*litexcnc->fpga->io_error) != 0) return;
+
+    // Check whether buffer is empty (prevent two packages to be sent at the same time)
+    
+    // Read data to the device
+    // litexcnc_read(void_litexcnc, period);
+
+    // Possible sleep?
+
+    // Write data from the device
+    litexcnc_write(void_litexcnc, period);
 }
 
 static void litexcnc_cleanup(litexcnc_t *litexcnc) {
@@ -199,6 +209,15 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     litexcnc->fpga->read_buffer = read_buffer;
 
     // Export functions
+    // // - communicate function
+    // char name[HAL_NAME_LEN + 1];
+    // rtapi_snprintf(name, sizeof(name), "%s.communicate", litexcnc->fpga->name);
+    // r = hal_export_funct(name, litexcnc_communicate, litexcnc, 1, 0, litexcnc->fpga->comp_id);
+    // if (r != 0) {
+    //     LITEXCNC_ERR("Error %d exporting `communicate` function %s\n", r, name);
+    //     r = -EINVAL;
+    //     goto fail1;
+    // }
     // - read function
     char name[HAL_NAME_LEN + 1];
     rtapi_snprintf(name, sizeof(name), "%s.read", litexcnc->fpga->name);

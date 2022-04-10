@@ -11,7 +11,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <netdb.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/time.h> 
 #include <netinet/in.h>
 
 #include "etherbone.h"
@@ -24,6 +26,59 @@ struct eb_connection {
     struct addrinfo* addr;
 };
 
+
+unsigned long timestampUsec()  // this can roll over! for debug only
+{
+	struct timeval timestamp;
+	
+	gettimeofday(&timestamp, NULL);
+	
+	return(timestamp.tv_sec * 1000000 + ( timestamp.tv_usec));
+}
+
+// sleep for some microseconds.
+// this method will allow for rescheduling
+void usecSleep(long usec) {
+    long ts1=timestampUsec();
+	
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = usec;
+	select(0, NULL, NULL, NULL, &tv);
+	
+    long ts2=timestampUsec();
+    long dura = ts2 - ts1; // can roll...
+    if ( dura > 0 && dura > usec + 100) {
+	    fprintf(stderr, "colorcnc debug: overslept %ld instad of %ld usec\n", dura, usec);
+    }
+}
+
+
+void eb_wait_for_tx_buffer_empty(struct eb_connection *conn) {
+    int tx_queue_len = 0, first = 1;
+    int tx_queue_max_len = 0;
+    int peekCount = 0;
+    long time1 = timestampUsec();
+    
+    while ( first || tx_queue_len > 0) {
+	    if (tx_queue_len > 0) usecSleep(10);
+	    int rc = ioctl(conn->fd, TIOCOUTQ, &tx_queue_len);
+	    if ( rc < 0) {
+		    perror("colorcnc: cannot ioctl?");
+		    exit(1);
+	    }
+	    if ( tx_queue_len > tx_queue_max_len ) tx_queue_max_len = tx_queue_len;
+	    first = 0;
+	    ++peekCount;
+    }
+    
+    long time2 = timestampUsec();
+    long dura = time2 - time1;
+    if (dura > 300) {
+	    //fprintf(stderr, "colorcnc debug: waited for socket tx_queue to clear for %ld usec, %d samples, max len %d\n", dura, peekCount, tx_queue_max_len);
+    }
+    
+}
 
 int eb_send(struct eb_connection *conn, const void *bytes, size_t len) {
     if (conn->is_direct)
@@ -120,6 +175,38 @@ void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data
 
     // Send the data to the device
     eb_send(conn, eth_pkt, 16+size);
+}
+
+// https://stackoverflow.com/questions/38071732/how-to-check-if-udp-packet-received-in-c-linux
+void eb_discard_pending_packet(struct eb_connection *conn, size_t size)
+{
+	
+    int retval;
+    fd_set rfds;
+    // NO wait
+    struct timeval tv = {0,0};
+
+    uint8_t buffer[size];
+
+    if (!conn->is_direct) {
+	    return;
+    }
+
+    FD_ZERO(&rfds);
+    FD_SET(conn->fd, &rfds);
+
+    retval = select(1, &rfds, NULL, NULL, &tv);
+
+    if (retval == -1) {
+        perror("select()");
+        exit(1);
+    }
+    
+    if (retval > 0) {
+        // read data and ignore
+        int rc = eb_recv(conn, buffer, sizeof(buffer));
+        fprintf(stderr,"colorcnc: found qeued packet. Ignore that data, size %d\n", rc);
+    }
 }
 
 
