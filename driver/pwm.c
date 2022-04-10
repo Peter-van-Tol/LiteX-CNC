@@ -244,54 +244,48 @@ uint8_t litexcnc_pwm_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
             instance->hal.param.scale_recip = 1.0 / *(instance->hal.pin.scale);
 	    }
 
-        // Recalculate period only required when pwm_freq changes
-        if ( *(instance->hal.pin.pwm_freq) < 1.0 ) {
-            *(instance->hal.pin.pwm_freq) = 1.0;
-            // TODO: print message
-        }
-        if ( *(instance->hal.pin.pwm_freq) != instance->memo.pwm_freq ) {
-            // Store value to detect future scale changes
-            instance->memo.scale = *(instance->hal.pin.scale);
-            // Calculate the new width
-            *(instance->hal.pin.curr_period) = (litexcnc->clock_frequency / *(instance->hal.pin.pwm_freq)) + 0.5;
-            instance->hal.param.period_recip = 1.0 / *(instance->hal.pin.curr_period);
-        }
-
-        // Convert value command to duty cycle
+        // Calculate the duty cycle
+        // - convert value command to duty cycle
         duty_cycle = *(instance->hal.pin.value) * instance->hal.param.scale_recip + *(instance->hal.pin.offset);
-        // Unidirectional mode, no negative output
+        // - unidirectional mode, no negative output
         if ( duty_cycle < 0.0 ) {
             duty_cycle = 0.0;
         }
-
-        // Limit the duty-cylce (NOTE: this code is prepared for bi-directional mode,
-        // so some code is redundant)
-        if (duty_cycle >= 0.0) {
-            if ( duty_cycle > *(instance->hal.pin.max_dc) ) {
-                duty_cycle = *(instance->hal.pin.max_dc);
-            } else if ( duty_cycle < *(instance->hal.pin.min_dc) ) {
-                duty_cycle = *(instance->hal.pin.min_dc);
-            }
-            //pwmgen->direction = 0;
-            duty_cycle = duty_cycle;
-        } else {
-            if ( duty_cycle < -*(instance->hal.pin.max_dc) ) {
-                duty_cycle = -*(instance->hal.pin.max_dc);
-            } else if ( duty_cycle > -*(instance->hal.pin.min_dc) ) {
-                duty_cycle = -*(instance->hal.pin.min_dc);
-            }
-            // pwmgen->direction = 1;
-            duty_cycle = -duty_cycle;
+        // - limit the duty-cylce 
+        if ( duty_cycle > *(instance->hal.pin.max_dc) ) {
+            duty_cycle = *(instance->hal.pin.max_dc);
+        } else if ( duty_cycle < *(instance->hal.pin.min_dc) ) {
+            duty_cycle = *(instance->hal.pin.min_dc);
         }
 
-        // Convert duty-cycle to period -> round to the nearest duty cycle
-	    *(instance->hal.pin.curr_width) = (*(instance->hal.pin.curr_period) * duty_cycle) + 0.5;
-	    /* save rounded value to curr_dc pin */
-	    if ( duty_cycle >= 0 ) {
-		    *(instance->hal.pin.curr_dc) = *(instance->hal.pin.curr_width) * instance->hal.param.period_recip;
-	    } else {
-		    *(instance->hal.pin.curr_dc) = -*(instance->hal.pin.curr_width) * instance->hal.param.period_recip;
-	    }
+        if (*(instance->hal.pin.pwm_freq) != 0) {
+            // PWM mode
+            // - recalculate period only required when pwm_freq changes
+            if ( *(instance->hal.pin.pwm_freq) < 1.0 ) {
+                *(instance->hal.pin.pwm_freq) = 1.0;
+                // TODO: print message
+            }
+            if ( *(instance->hal.pin.pwm_freq) != instance->memo.pwm_freq ) {
+                // Store value to detect future scale changes
+                instance->memo.scale = *(instance->hal.pin.scale);
+                // Calculate the new width
+                *(instance->hal.pin.curr_period) = (litexcnc->clock_frequency / *(instance->hal.pin.pwm_freq)) + 0.5;
+                instance->hal.param.period_recip = 1.0 / *(instance->hal.pin.curr_period);
+            }
+            // - convert duty-cycle to period -> round to the nearest duty cycle
+            *(instance->hal.pin.curr_width) = (*(instance->hal.pin.curr_period) * duty_cycle) + 0.5;
+            // - save rounded value to curr_dc pin
+            if ( duty_cycle >= 0 ) {
+                *(instance->hal.pin.curr_dc) = *(instance->hal.pin.curr_width) * instance->hal.param.period_recip;
+            } else {
+                *(instance->hal.pin.curr_dc) = -*(instance->hal.pin.curr_width) * instance->hal.param.period_recip;
+            }
+        } else {
+            // PDM mode
+            *(instance->hal.pin.curr_period) = 0;
+            // In PDM mode, the duty cycle is store as a 16-bit integer which is send as the width
+            *(instance->hal.pin.curr_width) = (0xFFFF * duty_cycle);
+        }
 
         // Add the PWM generator to the data
         litexcnc_pwm_data_t output;

@@ -17,12 +17,10 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 from typing import List, Type
 from pydantic import BaseModel, Field, validator
 
-from litex.soc.cores.pwm import PWM as _PWM
-
 # Local imports
 from .gpio import GPIO
 from .mmio import MMIO
-from .pwm import PWM
+from .pwm import PWM, PwmPdmModule
 from .etherbone import Etherbone, EthPhy
 from .watchdog import WatchDogModule
 
@@ -158,7 +156,7 @@ class LitexCNC_Firmware(BaseModel):
                 ])
                 self.gpio_outputs = [pad for pad in self.platform.request_all("gpio_out").l]
                 self.sync += [
-                    gpio.eq(self.MMIO_inst.gpio_out.storage[i] & ~watchdog.has_bitte)
+                    gpio.eq(self.MMIO_inst.gpio_out.storage[i] & ~watchdog.has_bitten)
                     for i, gpio
                     in enumerate(self.gpio_outputs)
                 ]
@@ -174,7 +172,7 @@ class LitexCNC_Firmware(BaseModel):
                 # - create the generators
                 for index, _ in enumerate(pwm):
                     # Add the PWM-module to the platform
-                    _pwm = _PWM(self.pwm_outputs[index], with_csr=False)
+                    _pwm = PwmPdmModule(self.pwm_outputs[index], with_csr=False)
                     self.submodules += _pwm
                     self.sync+=[
                         _pwm.enable.eq(
