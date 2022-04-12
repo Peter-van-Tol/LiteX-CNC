@@ -136,6 +136,12 @@ class LitexCNC_Firmware(BaseModel):
                     self.MMIO_inst.watchdog_has_bitten.we.eq(True)
                 ]
 
+                # Create a wall-clock
+                self.sync+=[
+                    # Increment the wall_clock
+                    self.MMIO_inst.wall_clock.status.eq(self.MMIO_inst.wall_clock.status + 1),
+                ]
+
                 # Create GPIO in
                 self.platform.add_extension([
                     ("gpio_in", index, Pins(gpio.pin), IOStandard(gpio.io_standard))

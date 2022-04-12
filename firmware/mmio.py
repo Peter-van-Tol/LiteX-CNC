@@ -21,10 +21,13 @@ class MMIO(Module, AutoCSR):
         The order of the registers in the memory is in the same order as defined in
         this class. This can be inspected by reviewing the generated csr.csv. The driver
         expects the information blocks in the following order:
-        - READ:
+        - WRITE:
+          - Watchdog;
           - GPIO;
           - PWM;
-        - WRITE:
+        - READ:
+          - Watchdog;
+          - Wall clock;
           - GPIO;
 
         When the order of the MMIO is mis-aligned with respect to the driver this might
@@ -40,6 +43,7 @@ class MMIO(Module, AutoCSR):
             name='watchdog_data',
             write_from_dev=True
         )
+        
         # - GPIO
         self.gpio_out = CSRStorage(size=int(math.ceil(float(len(gpio_out))/32))*32, description="gpio_out", name='gpio_out', write_from_dev=False)
         # - PWM
@@ -54,6 +58,15 @@ class MMIO(Module, AutoCSR):
             size=1, 
             description="Watchdog has bitten.\nFlag which is set when timeout has occurred.", 
             name='watchdog_has_bitten'
+        )
+        # - Wall-clock
+        self.wall_clock = CSRStatus(
+            size=64, 
+            description="Wall-clock.\n Counter which contains the amount of clock cycles which have "
+            "been passed since the start of the device. The width of the counter is 64-bits, which "
+            "means that a roll-over will practically never occur during the runtime of a "
+            "machine (order of magnitude centuries at 1 GHz).",  
+            name='wall_clock'
         )
         # - GPIO
         self.gpio_in = CSRStatus(size=int(math.ceil(float(len(gpio_in))/32))*32, description="gpio_in", name='gpio_in')

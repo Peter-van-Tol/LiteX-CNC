@@ -62,6 +62,7 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     // Process the read data
     uint8_t* pointer = litexcnc->fpga->read_buffer;
     litexcnc_watchdog_process_read(litexcnc, &pointer);
+    litexcnc_wallclock_process_read(litexcnc, &pointer);
     litexcnc_gpio_process_read(litexcnc, &pointer);
     litexcnc_pwm_process_read(litexcnc, &pointer);
 }
@@ -74,7 +75,8 @@ static void litexcnc_write(void *void_litexcnc, long period) {
 
     // Process all functions
     uint8_t* pointer = litexcnc->fpga->write_buffer;
-    litexcnc_watchdog_prepare_write(litexcnc, &pointer);
+    litexcnc_watchdog_prepare_write(litexcnc, &pointer, long period);
+    litexcnc_wallclock_prepare_write(litexcnc, &pointer);
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
 
@@ -272,5 +274,6 @@ void rtapi_app_exit(void) {
 // while still compiling a single file. NOTE: the #include directive just copies
 // the whole contents of that file into this source-file.
 #include "watchdog.c"
+#include "wallclock.c"
 #include "gpio.c"
 #include "pwm.c"
