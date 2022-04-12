@@ -102,14 +102,21 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, json_object *config) {
 
 }
 
-uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
+uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
 
     // Recalculate timeout_cycles only required when timeout_ns changed
     if (litexcnc->watchdog->hal.param.timeout_ns != litexcnc->watchdog->memo.timeout_ns ) {
         // Store value to detect future scale changes
         litexcnc->watchdog->memo.timeout_ns = litexcnc->watchdog->hal.param.timeout_ns;
         // Validate new value (give warning when it is to close to the period of the thread)
-        // TODO
+        if (litexcnc->watchdog->hal.param.timeout_ns < (1.5 * period)) {
+            LITEXCNC_PRINT(
+                "Watchdog timeout (%u ns) is dangerously short compared to litexcnc_write() period (%ld ns)\n",
+                litexcnc->watchdog->hal.param.timeout_ns,
+                period
+            );
+        }
+        // Convert the time to cycles
         litexcnc->watchdog->hal.param.timeout_cycles = litexcnc->watchdog->memo.timeout_ns * ((double) litexcnc->clock_frequency / (double) 1e9) - 1;
         // Limit the value to 0x7FFFFFFF
         if (litexcnc->watchdog->hal.param.timeout_cycles > 0x7FFFFFFF) {
@@ -132,10 +139,10 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
     // Check whether the watchdog did bite
     if (*(*data)) {
-        LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten");
+        // LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten");
         *(litexcnc->watchdog->hal.pin.has_bitten) = 1;
     }
 
-    // Proceed the buffer to the next element
-    (*data)++; 
+    // Proceed the buffer to the next element (note: 4-byte Words!)
+    (*data)+=4; 
 }
