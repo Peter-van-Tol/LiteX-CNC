@@ -73,6 +73,14 @@ class StepgenModule(Module, AutoDoc):
                                               |__________________
         DIR   ________________________________/
 
+        Improvements on LinuxCNC stepgen.c:
+        - When the machine is at rest and starts a commanded move, it can be moved
+          the opposite way. This means that the dir-signal is toggled and thus a wait
+          time is applied before the step-pin is toggled.
+        - When changing direction between two steps, it is not necessary to wait. That's
+          why there are signals for DDS (1+3+4) and for wait. Only when a step is 
+          commanded during the DDS period, the stepgen is temporarily paused by setting
+          the wait-Signal HIGH.
         """
         )
 
