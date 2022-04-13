@@ -1,10 +1,29 @@
-
+# Imports for creating a json-definition
+from pydantic import BaseModel, Field
 
 # Imports for creating a LiteX/Migen module
 from turtle import position, speed
 from litex.soc.interconnect.csr import *
 from migen import *
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
+
+
+class StepGen(BaseModel):
+    step_pin: str = Field(
+        description="The pin on the FPGA-card for the step signal."
+    )
+    dir_pin: str = Field(
+        None,
+        description="The pin on the FPGA-card for the dir signal."
+    )
+    name: str = Field(
+        None,
+        description="The name of the stepgen as used in LinuxCNC HAL-file (optional). "
+    )
+    io_standard: str = Field(
+        "LVCMOS33",
+        description="The IO Standard (voltage) to use for the pins."
+    )
 
 
 class StepgenCounter(Module, AutoDoc):
@@ -73,17 +92,18 @@ class StepgenModule(Module, AutoDoc):
             self.dir_setup_counter
         ]
         self.hold_dds = Signal()
+        self.wait = Signal()
 
         # Output parameters
         self.step = Signal()
         self.step_prev = Signal()
-        self.dir = Signal()
+        self.dir = Signal(reset=True)
 
         # Main parameters for position, speed and acceleration
         self.enable = Signal()
         self.position = Signal(64)
-        self.speed = Signal(32)
-        self.speed_target = Signal(32)
+        self.speed = Signal(32, reset=0x80000000)
+        self.speed_target = Signal(32, reset=0x80000000)
         self.max_acceleration = Signal(32)
 
         # Optionally, use a different clock domain
@@ -93,7 +113,7 @@ class StepgenModule(Module, AutoDoc):
         # applied. The speed is not updated when the direction has changed and we are
         # still waiting for the dir_setup to time out.
         sync += If(
-            ~self.hold_dds,
+            ~self.wait,
             If(
                 ~self.max_acceleration,
                 # Case: no maximum acceleration defined, directly apply the requested speed
@@ -121,25 +141,28 @@ class StepgenModule(Module, AutoDoc):
         # Update the position
         sync += If(
             # Check whether the system is enabled and we are not waiting for the dir_setup
-            self.enable & ~self.hold_dds,
-            If(
-                # Check the MSB of the speed, this indicates the direction of the travel
-                self.speed[31],
-                self.position.eq(self.position + self.speed[:31])
-            ).Else(
-                self.position.eq(self.position - self.speed[:31])
-            )
+            self.enable & ~self.wait,
+            self.position.eq(self.position + self.speed - 0x80000000)
         )
 
         # Translate the position to steps by looking at the n'th bit (pick-off)
         sync += If(
             self.position[pick_off] != self.step_prev,
-            # The relevant bit has toggled, make a step to the next position by
-            # resetting the counters
-            self.step_prev.eq(self.position[pick_off]),
-            self.steplen_counter.counter.eq(self.steplen),
-            self.dir_hold_counter.counter.eq(self.steplen + self.dir_hold_time),
-            self.dir_setup_counter.counter.eq(self.steplen + self.dir_hold_time + self.dir_setup_time)
+            # Corner-case: The machine is at rest and starts to move in the opposite
+            # direction. Wait with stepping the machine until the dir setup time has
+            # passed.
+            If(
+                ~self.hold_dds,
+                # The relevant bit has toggled, make a step to the next position by
+                # resetting the counters
+                self.step_prev.eq(self.position[pick_off]),
+                self.steplen_counter.counter.eq(self.steplen),
+                self.dir_hold_counter.counter.eq(self.steplen + self.dir_hold_time),
+                self.dir_setup_counter.counter.eq(self.steplen + self.dir_hold_time + self.dir_setup_time),
+                self.wait.eq(False)
+            ).Else(
+                self.wait.eq(True) 
+            )
         )
         # Reset the DDS flag when dir_setup_counter has lapsed
         sync += If(
@@ -161,6 +184,13 @@ class StepgenModule(Module, AutoDoc):
             # Enable the Hold DDS, but wait with changing the dir pin until the 
             # dir_hold_counter has been elapsed
             self.hold_dds.eq(1),
+            # Corner-case: The machine is at rest and starts to move in the opposite
+            # direction. In this case the dir pin is toggled, while a step can follow
+            # suite. We wait in this case the minimum dir_setup_time
+            If(
+                self.dir_setup_counter.counter == 0,
+                self.dir_setup_counter.counter.eq(self.dir_setup_time)
+            ),
             If(
                 self.dir_hold_counter.counter == 0,
                 self.dir.eq(self.speed[31])
@@ -179,22 +209,22 @@ if __name__ == "__main__":
         i = 0
         # Setup the stepgen
         yield(stepgen.enable.eq(1))
-        yield(stepgen.speed_target.eq(int(2**28 / 128)))
+        yield(stepgen.speed_target.eq(0x80000000 - int(2**28 / 128)))
         yield(stepgen.steplen.eq(16))
         yield(stepgen.dir_hold_time.eq(16))
         yield(stepgen.dir_setup_time.eq(32))
 
         while(1):
             if i == 390:
-                yield(stepgen.speed_target.eq(int(2**28 / 128) + 2**31))
-            position = (yield stepgen.position[:32])
+                yield(stepgen.speed_target.eq(0x80000000 + int(2**28 / 128)))
+            position = (yield stepgen.position[:64])
             step = (yield stepgen.step)
             dir = (yield stepgen.dir)
             counter = (yield stepgen.dir_hold_counter.counter)
-            print("position = %d @step %d @dir %d @dir_counter %d@clk %d"%(position, step, dir, counter, i))
+            print("position = %d @step %d @dir %d @dir_counter %d @clk %d"%(position, step, dir, counter, i))
             yield
             i+=1
-            if i > 1024:
+            if i > 1000:
                 break
 
     stepgen = StepgenModule(pick_off=28)
