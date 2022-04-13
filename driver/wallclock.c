@@ -49,23 +49,26 @@ int litexcnc_wallclock_init(litexcnc_t *litexcnc, json_object *config) {
     // Declarations
     int r = 0;
 
+    // Allocate memory
+    litexcnc->wallclock = (litexcnc_wallclock_t *)hal_malloc(sizeof(litexcnc_wallclock_t));
+    
     // Create pins
     // - wallclock_ticks_msb
-    rtapi_snprintf(name, sizeof(name), "%s.wallclock.ticks_msb", litexcnc->fpga->name); 
-    r = hal_pin_bit_new(name, HAL_IO, &(litexcnc->wallclock->hal.pin.wallclock_ticks_msb), litexcnc->fpga->comp_id);
+    r = hal_pin_u32_newf(HAL_OUT, &(litexcnc->wallclock->hal.pin.wallclock_ticks_msb), litexcnc->fpga->comp_id, "%s.wallclock.ticks_msb", litexcnc->fpga->name);
     if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
+        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.wallclock.ticks_msb', aborting\n", litexcnc->fpga->name);
         r = -EINVAL;
         return r;
     }
     // - wallclock_ticks_lsb
-    rtapi_snprintf(name, sizeof(name), "%s.wallclock.ticks_lsb", litexcnc->fpga->name); 
-    r = hal_pin_bit_new(name, HAL_IO, &(litexcnc->wallclock->hal.pin.wallclock_ticks_lsb), litexcnc->fpga->comp_id);
+    r = hal_pin_u32_newf(HAL_IO, &(litexcnc->wallclock->hal.pin.wallclock_ticks_lsb), litexcnc->fpga->comp_id, "%s.wallclock.ticks_lsb", litexcnc->fpga->name); 
     if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
+        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.wallclock.ticks_lsb', aborting\n", litexcnc->fpga->name);
         r = -EINVAL;
         return r;
     }
+
+    return r;
 
 }
 
@@ -75,7 +78,7 @@ uint8_t litexcnc_wallclock_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 
 uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     // Store the value in the memo
-    litexcnc->wallclock->hal.memo.wallclock_ticks = htobe64(*(uint64_t*)data);
+    litexcnc->wallclock->memo.wallclock_ticks = htobe64(*(uint64_t*)data);
     // Write the values to the HAL pins
     *(litexcnc->wallclock->hal.pin.wallclock_ticks_msb) = htobe32(*(uint32_t*)data);
     (*data)+=4; 
