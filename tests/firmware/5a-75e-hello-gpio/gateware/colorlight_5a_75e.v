@@ -9,7 +9,7 @@
 // Filename   : colorlight_5a_75e.v
 // Device     : LFE5U-25F-6BG256C
 // LiteX sha1 : 7712c8a7
-// Date       : 2022-04-06 13:33:21
+// Date       : 2022-04-10 18:20:19
 //------------------------------------------------------------------------------
 
 
@@ -2346,6 +2346,10 @@ reg  [2:0] litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_cti = 3'd0;
 reg  [1:0] litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_bte = 2'd0;
 wire litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_err;
 reg  litexcnc_soc_etherbone_liteethetherbonewishbonemaster_data_update = 1'd0;
+reg  [31:0] watchdog_data_storage = 32'd0;
+reg  watchdog_data_re = 1'd0;
+reg  watchdog_data_we = 1'd0;
+reg  [31:0] watchdog_data_dat_w = 32'd0;
 reg  [31:0] gpio_out_storage = 32'd0;
 reg  gpio_out_re = 1'd0;
 reg  [31:0] csrstorage0_storage = 32'd0;
@@ -2354,13 +2358,21 @@ reg  [31:0] csrstorage1_storage = 32'd0;
 reg  csrstorage1_re = 1'd0;
 reg  [31:0] csrstorage2_storage = 32'd0;
 reg  csrstorage2_re = 1'd0;
+reg  watchdog_has_bitten_status = 1'd0;
+wire watchdog_has_bitten_we;
+reg  watchdog_has_bitten_re = 1'd0;
 reg  [31:0] gpio_in_status = 32'd0;
 wire gpio_in_we;
 reg  gpio_in_re = 1'd0;
-reg  enable = 1'd0;
-reg  [31:0] width = 32'd0;
-reg  [31:0] period = 32'd0;
-reg  [31:0] counter = 32'd0;
+reg  watchdog_enable = 1'd0;
+reg  watchdog_has_bitten = 1'd0;
+reg  pwm_enable = 1'd0;
+reg  [31:0] pwm_width = 32'd0;
+reg  [31:0] pwm_period = 32'd0;
+reg  [31:0] pwm_counter = 32'd0;
+reg  [15:0] pwm_error = 16'd0;
+reg  [15:0] pwm_error_0 = 16'd0;
+reg  [15:0] pwm_error_1 = 16'd0;
 wire ecp5pll;
 wire locked;
 reg  liteethmac_txdatapath_liteethmacpaddinginserter_state = 1'd0;
@@ -2621,6 +2633,10 @@ wire [13:0] csr_bankarray_interface0_bank_bus_adr;
 wire csr_bankarray_interface0_bank_bus_we;
 wire [31:0] csr_bankarray_interface0_bank_bus_dat_w;
 reg  [31:0] csr_bankarray_interface0_bank_bus_dat_r = 32'd0;
+reg  csr_bankarray_csrbank0_watchdog_data0_re = 1'd0;
+wire [31:0] csr_bankarray_csrbank0_watchdog_data0_r;
+reg  csr_bankarray_csrbank0_watchdog_data0_we = 1'd0;
+wire [31:0] csr_bankarray_csrbank0_watchdog_data0_w;
 reg  csr_bankarray_csrbank0_gpio_out0_re = 1'd0;
 wire [31:0] csr_bankarray_csrbank0_gpio_out0_r;
 reg  csr_bankarray_csrbank0_gpio_out0_we = 1'd0;
@@ -2637,6 +2653,10 @@ reg  csr_bankarray_csrbank0_pwm_0_width0_re = 1'd0;
 wire [31:0] csr_bankarray_csrbank0_pwm_0_width0_r;
 reg  csr_bankarray_csrbank0_pwm_0_width0_we = 1'd0;
 wire [31:0] csr_bankarray_csrbank0_pwm_0_width0_w;
+reg  csr_bankarray_csrbank0_watchdog_has_bitten_re = 1'd0;
+wire csr_bankarray_csrbank0_watchdog_has_bitten_r;
+reg  csr_bankarray_csrbank0_watchdog_has_bitten_we = 1'd0;
+wire csr_bankarray_csrbank0_watchdog_has_bitten_w;
 reg  csr_bankarray_csrbank0_gpio_in_re = 1'd0;
 wire [31:0] csr_bankarray_csrbank0_gpio_in_r;
 reg  csr_bankarray_csrbank0_gpio_in_we = 1'd0;
@@ -3001,16 +3021,16 @@ end
 assign litexcnc_soc_ethcore_mac_core_cdc_graycounter1_q_next = (litexcnc_soc_ethcore_mac_core_cdc_graycounter1_q_next_binary ^ litexcnc_soc_ethcore_mac_core_cdc_graycounter1_q_next_binary[5:1]);
 assign litexcnc_soc_ethcore_mac_core_tx_padding_counter_done = (litexcnc_soc_ethcore_mac_core_tx_padding_counter >= 6'd59);
 always @(*) begin
-	litexcnc_soc_ethcore_mac_core_tx_padding_counter_liteethmac_clockdomainsrenamer0_next_value <= 16'd0;
-	litexcnc_soc_ethcore_mac_core_tx_padding_counter_liteethmac_clockdomainsrenamer0_next_value_ce <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_padding_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_padding_source_first <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_padding_source_last <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_padding_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_mac_core_tx_padding_source_payload_last_be <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_tx_padding_source_payload_error <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_tx_padding_sink_ready <= 1'd0;
 	liteethmac_txdatapath_liteethmacpaddinginserter_next_state <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_tx_padding_source_payload_error <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_tx_padding_counter_liteethmac_clockdomainsrenamer0_next_value <= 16'd0;
+	litexcnc_soc_ethcore_mac_core_tx_padding_counter_liteethmac_clockdomainsrenamer0_next_value_ce <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_tx_padding_sink_ready <= 1'd0;
 	liteethmac_txdatapath_liteethmacpaddinginserter_next_state <= liteethmac_txdatapath_liteethmacpaddinginserter_state;
 	case (liteethmac_txdatapath_liteethmacpaddinginserter_state)
 		1'd1: begin
@@ -3078,8 +3098,8 @@ end
 assign litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_data1 = litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_data0[7:0];
 assign litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last = litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_reg;
 always @(*) begin
-	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_error <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_value <= 32'd0;
+	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_error <= 1'd0;
 	if (litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last_be1) begin
 		litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_value <= {t_slice_proxy31[0], t_slice_proxy30[1], t_slice_proxy29[2], t_slice_proxy28[3], t_slice_proxy27[4], t_slice_proxy26[5], t_slice_proxy25[6], t_slice_proxy24[7], t_slice_proxy23[8], t_slice_proxy22[9], t_slice_proxy21[10], t_slice_proxy20[11], t_slice_proxy19[12], t_slice_proxy18[13], t_slice_proxy17[14], t_slice_proxy16[15], t_slice_proxy15[16], t_slice_proxy14[17], t_slice_proxy13[18], t_slice_proxy12[19], t_slice_proxy11[20], t_slice_proxy10[21], t_slice_proxy9[22], t_slice_proxy8[23], t_slice_proxy7[24], t_slice_proxy6[25], t_slice_proxy5[26], t_slice_proxy4[27], t_slice_proxy3[28], t_slice_proxy2[29], t_slice_proxy1[30], t_slice_proxy0[31]};
 		litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_error <= (litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_next != 32'd3338984827);
@@ -3121,24 +3141,24 @@ always @(*) begin
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_next[31] <= ((litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last[23] ^ litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last[29]) ^ litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_data1[2]);
 end
 always @(*) begin
+	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_ce <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_crc_packet_liteethmac_clockdomainsrenamer1_next_value0 <= 32'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_reset <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_source_first <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_crc_packet_liteethmac_clockdomainsrenamer1_next_value_ce0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_source_last <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last_be2_liteethmac_clockdomainsrenamer1_next_value1 <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_source_payload_data <= 8'd0;
+	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last_be2_liteethmac_clockdomainsrenamer1_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_source_payload_last_be <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_source_payload_error <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_crc_packet_liteethmac_clockdomainsrenamer1_next_value0 <= 32'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_data0 <= 8'd0;
-	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_crc_packet_liteethmac_clockdomainsrenamer1_next_value_ce0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last_be0 <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last_be2_liteethmac_clockdomainsrenamer1_next_value1 <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_last_be2_liteethmac_clockdomainsrenamer1_next_value_ce1 <= 1'd0;
+	liteethmac_txdatapath_bufferizeendpoints_next_state <= 2'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_is_ongoing1 <= 1'd0;
-	liteethmac_txdatapath_bufferizeendpoints_next_state <= 2'd0;
 	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_source_valid <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_liteethmaccrc32inserter_ce <= 1'd0;
 	liteethmac_txdatapath_bufferizeendpoints_next_state <= liteethmac_txdatapath_bufferizeendpoints_state;
 	case (liteethmac_txdatapath_bufferizeendpoints_state)
 		1'd1: begin
@@ -3220,15 +3240,15 @@ end
 assign litexcnc_soc_ethcore_mac_core_bufferizeendpoints_sink_ready = ((~litexcnc_soc_ethcore_mac_core_bufferizeendpoints_source_valid) | litexcnc_soc_ethcore_mac_core_bufferizeendpoints_source_ready);
 assign litexcnc_soc_ethcore_mac_core_tx_preamble_source_payload_last_be = litexcnc_soc_ethcore_mac_core_tx_preamble_sink_payload_last_be;
 always @(*) begin
-	liteethmac_txdatapath_liteethmacpreambleinserter_next_state <= 2'd0;
-	litexcnc_soc_ethcore_mac_core_tx_preamble_count_liteethmac_clockdomainsrenamer2_next_value <= 3'd0;
-	litexcnc_soc_ethcore_mac_core_tx_preamble_count_liteethmac_clockdomainsrenamer2_next_value_ce <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_tx_preamble_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_preamble_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_preamble_source_first <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_preamble_source_last <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_preamble_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_mac_core_tx_preamble_source_payload_error <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_tx_preamble_sink_ready <= 1'd0;
+	liteethmac_txdatapath_liteethmacpreambleinserter_next_state <= 2'd0;
+	litexcnc_soc_ethcore_mac_core_tx_preamble_count_liteethmac_clockdomainsrenamer2_next_value <= 3'd0;
+	litexcnc_soc_ethcore_mac_core_tx_preamble_count_liteethmac_clockdomainsrenamer2_next_value_ce <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_preamble_source_payload_data <= litexcnc_soc_ethcore_mac_core_tx_preamble_sink_payload_data;
 	liteethmac_txdatapath_liteethmacpreambleinserter_next_state <= liteethmac_txdatapath_liteethmacpreambleinserter_state;
 	case (liteethmac_txdatapath_liteethmacpreambleinserter_state)
@@ -3291,16 +3311,16 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
-	liteethmac_txdatapath_liteethmacgap_next_state <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_gap_source_valid <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_tx_gap_counter_liteethmac_clockdomainsrenamer3_next_value <= 4'd0;
-	litexcnc_soc_ethcore_mac_core_tx_gap_counter_liteethmac_clockdomainsrenamer3_next_value_ce <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_gap_source_first <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_gap_source_last <= 1'd0;
+	liteethmac_txdatapath_liteethmacgap_next_state <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_gap_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_mac_core_tx_gap_source_payload_last_be <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_gap_source_payload_error <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_tx_gap_sink_ready <= 1'd0;
+	litexcnc_soc_ethcore_mac_core_tx_gap_counter_liteethmac_clockdomainsrenamer3_next_value <= 4'd0;
+	litexcnc_soc_ethcore_mac_core_tx_gap_counter_liteethmac_clockdomainsrenamer3_next_value_ce <= 1'd0;
 	liteethmac_txdatapath_liteethmacgap_next_state <= liteethmac_txdatapath_liteethmacgap_state;
 	case (liteethmac_txdatapath_liteethmacgap_state)
 		1'd1: begin
@@ -3373,13 +3393,13 @@ assign litexcnc_soc_ethcore_mac_core_pulsesynchronizer1_i = litexcnc_soc_ethcore
 assign litexcnc_soc_ethcore_mac_core_rx_preamble_source_payload_data = litexcnc_soc_ethcore_mac_core_rx_preamble_sink_payload_data;
 assign litexcnc_soc_ethcore_mac_core_rx_preamble_source_payload_last_be = litexcnc_soc_ethcore_mac_core_rx_preamble_sink_payload_last_be;
 always @(*) begin
+	litexcnc_soc_ethcore_mac_core_rx_preamble_source_first <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_preamble_source_payload_error <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_preamble_error <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_preamble_source_valid <= 1'd0;
-	liteethmac_rxdatapath_liteethmacpreamblechecker_next_state <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_rx_preamble_source_first <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_preamble_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_preamble_source_last <= 1'd0;
+	liteethmac_rxdatapath_liteethmacpreamblechecker_next_state <= 1'd0;
 	liteethmac_rxdatapath_liteethmacpreamblechecker_next_state <= liteethmac_rxdatapath_liteethmacpreamblechecker_state;
 	case (liteethmac_rxdatapath_liteethmacpreamblechecker_state)
 		1'd1: begin
@@ -3526,8 +3546,8 @@ always @(*) begin
 	litexcnc_soc_ethcore_mac_core_rx_crc_source_source_payload_last_be <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_crc_source_source_payload_error <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_crc_error <= 1'd0;
-	litexcnc_soc_ethcore_mac_core_rx_crc_syncfifo_source_ready <= 1'd0;
 	liteethmac_rxdatapath_bufferizeendpoints_next_state <= 2'd0;
+	litexcnc_soc_ethcore_mac_core_rx_crc_syncfifo_source_ready <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_crc_last_be_liteethmac_next_value0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_crc_last_be_liteethmac_next_value_ce0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_core_rx_crc_crc_error1_liteethmac_next_value1 <= 1'd0;
@@ -3771,6 +3791,7 @@ always @(*) begin
 	end
 end
 always @(*) begin
+	litexcnc_soc_ethcore_ip_mac_port_source_last <= 1'd0;
 	litexcnc_soc_ethcore_ip_mac_port_source_payload_ethernet_type <= 16'd0;
 	litexcnc_soc_ethcore_ip_mac_port_source_payload_sender_mac <= 48'd0;
 	litexcnc_soc_ethcore_ip_mac_port_source_payload_target_mac <= 48'd0;
@@ -3789,7 +3810,6 @@ always @(*) begin
 	litexcnc_soc_ethcore_mac_crossbar_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_ip_mac_port_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_ip_mac_port_source_first <= 1'd0;
-	litexcnc_soc_ethcore_ip_mac_port_source_last <= 1'd0;
 	case (liteethmac_sel1)
 		1'd1: begin
 			litexcnc_soc_ethcore_arp_mac_port_source_valid <= litexcnc_soc_ethcore_mac_crossbar_sink_valid;
@@ -3846,26 +3866,26 @@ always @(*) begin
 end
 assign litexcnc_soc_ethcore_mac_packetizer_source_payload_error = litexcnc_soc_ethcore_mac_packetizer_sink_payload_error;
 always @(*) begin
-	litexcnc_soc_ethcore_mac_packetizer_is_ongoing0 <= 1'd0;
-	litexcnc_soc_ethcore_mac_packetizer_is_ongoing1 <= 1'd0;
-	litexcnc_soc_ethcore_mac_packetizer_sink_ready <= 1'd0;
 	liteethmac_fsm1_next_state0 <= 1'd0;
+	litexcnc_soc_ethcore_mac_packetizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_delayed_last_be_liteethmac_fsm1_next_value0 <= 1'd0;
+	litexcnc_soc_ethcore_mac_packetizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_delayed_last_be_liteethmac_fsm1_next_value_ce0 <= 1'd0;
+	litexcnc_soc_ethcore_mac_packetizer_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_source_last_a <= 1'd0;
+	liteethmac_fsm0_next_state0 <= 2'd0;
 	litexcnc_soc_ethcore_mac_packetizer_source_last_b <= 1'd0;
+	litexcnc_soc_ethcore_mac_packetizer_count_liteethmac_fsm0_next_value0 <= 4'd0;
 	litexcnc_soc_ethcore_mac_packetizer_source_last_s <= 1'd0;
+	litexcnc_soc_ethcore_mac_packetizer_count_liteethmac_fsm0_next_value_ce0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_mac_packetizer_source_payload_last_be <= 1'd0;
-	liteethmac_fsm0_next_state0 <= 2'd0;
-	litexcnc_soc_ethcore_mac_packetizer_count_liteethmac_fsm0_next_value0 <= 4'd0;
-	litexcnc_soc_ethcore_mac_packetizer_count_liteethmac_fsm0_next_value_ce0 <= 1'd0;
-	litexcnc_soc_ethcore_mac_packetizer_sr_load <= 1'd0;
-	litexcnc_soc_ethcore_mac_packetizer_sr_shift <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_fsm_from_idle_liteethmac_fsm0_next_value1 <= 1'd0;
 	litexcnc_soc_ethcore_mac_packetizer_fsm_from_idle_liteethmac_fsm0_next_value_ce1 <= 1'd0;
+	litexcnc_soc_ethcore_mac_packetizer_sr_load <= 1'd0;
+	litexcnc_soc_ethcore_mac_packetizer_sr_shift <= 1'd0;
 	liteethmac_fsm0_next_state0 <= liteethmac_fsm0_state0;
 	case (liteethmac_fsm0_state0)
 		1'd1: begin
@@ -3978,25 +3998,25 @@ always @(*) begin
 	end
 end
 always @(*) begin
-	liteethmac_fsm1_next_state1 <= 1'd0;
-	litexcnc_soc_ethcore_mac_depacketizer_sr_shift <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_delayed_last_be_liteethmac_fsm1_next_value1 <= 1'd0;
+	litexcnc_soc_ethcore_mac_depacketizer_sr_shift <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_delayed_last_be_liteethmac_fsm1_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_is_ongoing1 <= 1'd0;
-	litexcnc_soc_ethcore_mac_depacketizer_sink_ready <= 1'd0;
 	liteethmac_fsm0_next_state1 <= 2'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_count_liteethmac_fsm0_next_value2 <= 4'd0;
-	litexcnc_soc_ethcore_mac_depacketizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_count_liteethmac_fsm0_next_value_ce2 <= 1'd0;
-	litexcnc_soc_ethcore_mac_depacketizer_is_ongoing3 <= 1'd0;
+	litexcnc_soc_ethcore_mac_depacketizer_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_fsm_from_idle_liteethmac_fsm0_next_value3 <= 1'd0;
-	litexcnc_soc_ethcore_mac_depacketizer_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_fsm_from_idle_liteethmac_fsm0_next_value_ce3 <= 1'd0;
+	litexcnc_soc_ethcore_mac_depacketizer_is_ongoing2 <= 1'd0;
+	litexcnc_soc_ethcore_mac_depacketizer_is_ongoing3 <= 1'd0;
+	litexcnc_soc_ethcore_mac_depacketizer_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_source_last_a <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_source_last_b <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_source_last_s <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_source_payload_data <= 8'd0;
+	liteethmac_fsm1_next_state1 <= 1'd0;
 	litexcnc_soc_ethcore_mac_depacketizer_source_payload_last_be <= 1'd0;
 	liteethmac_fsm0_next_state1 <= liteethmac_fsm0_state1;
 	case (liteethmac_fsm0_state1)
@@ -4190,26 +4210,26 @@ always @(*) begin
 end
 assign litexcnc_soc_ethcore_arp_tx_packetizer_source_payload_error = litexcnc_soc_ethcore_arp_tx_packetizer_sink_payload_error;
 always @(*) begin
-	liteetharptx_fsm1_next_state <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_source_payload_data <= 8'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_delayed_last_be_liteetharp_fsm1_next_value0 <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_source_payload_last_be <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_delayed_last_be_liteetharp_fsm1_next_value_ce0 <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_source_payload_data <= 8'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_source_payload_last_be <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_sr_load <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_sr_shift <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_sink_ready <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_is_ongoing2 <= 1'd0;
 	liteetharptx_fsm0_next_state <= 2'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_count_liteetharp_fsm0_next_value0 <= 5'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_count_liteetharp_fsm0_next_value_ce0 <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_sink_ready <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_is_ongoing2 <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_fsm_from_idle_liteetharp_fsm0_next_value1 <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_fsm_from_idle_liteetharp_fsm0_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_source_last_a <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_source_last_b <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_fsm_from_idle_liteetharp_fsm0_next_value1 <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_source_last_s <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_fsm_from_idle_liteetharp_fsm0_next_value_ce1 <= 1'd0;
+	liteetharptx_fsm1_next_state <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_packetizer_source_valid <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_delayed_last_be_liteetharp_fsm1_next_value0 <= 1'd0;
 	liteetharptx_fsm0_next_state <= liteetharptx_fsm0_state;
 	case (liteetharptx_fsm0_state)
 		1'd1: begin
@@ -4306,13 +4326,13 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
+	litexcnc_soc_ethcore_arp_tx_counter_liteetharp_next_value_ce <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_source_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_sink_sink_ready <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_counter_liteetharp_next_value_ce <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_sink_valid <= 1'd0;
+	litexcnc_soc_ethcore_arp_tx_packetizer_source_ready <= 1'd0;
 	liteetharptx_next_state <= 1'd0;
 	litexcnc_soc_ethcore_arp_tx_counter_liteetharp_next_value <= 6'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_source_ready <= 1'd0;
-	litexcnc_soc_ethcore_arp_tx_packetizer_sink_valid <= 1'd0;
 	liteetharptx_next_state <= liteetharptx_state;
 	case (liteetharptx_state)
 		1'd1: begin
@@ -4386,26 +4406,26 @@ always @(*) begin
 	end
 end
 always @(*) begin
-	litexcnc_soc_ethcore_arp_rx_depacketizer_is_ongoing1 <= 1'd0;
 	liteetharprx_fsm1_next_state <= 1'd0;
-	litexcnc_soc_ethcore_arp_rx_depacketizer_sr_shift <= 1'd0;
+	litexcnc_soc_ethcore_arp_rx_depacketizer_is_ongoing0 <= 1'd0;
+	litexcnc_soc_ethcore_arp_rx_depacketizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_delayed_last_be_liteetharp_fsm1_next_value1 <= 1'd0;
-	litexcnc_soc_ethcore_arp_rx_depacketizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_delayed_last_be_liteetharp_fsm1_next_value_ce1 <= 1'd0;
+	litexcnc_soc_ethcore_arp_rx_depacketizer_sr_shift <= 1'd0;
+	litexcnc_soc_ethcore_arp_rx_depacketizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_is_ongoing3 <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_source_last_a <= 1'd0;
-	litexcnc_soc_ethcore_arp_rx_depacketizer_source_last_b <= 1'd0;
-	litexcnc_soc_ethcore_arp_rx_depacketizer_source_last_s <= 1'd0;
 	liteetharprx_fsm0_next_state <= 2'd0;
+	litexcnc_soc_ethcore_arp_rx_depacketizer_source_last_b <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_count_liteetharp_fsm0_next_value2 <= 5'd0;
+	litexcnc_soc_ethcore_arp_rx_depacketizer_source_last_s <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_count_liteetharp_fsm0_next_value_ce2 <= 1'd0;
-	litexcnc_soc_ethcore_arp_rx_depacketizer_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_fsm_from_idle_liteetharp_fsm0_next_value3 <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_fsm_from_idle_liteetharp_fsm0_next_value_ce3 <= 1'd0;
+	litexcnc_soc_ethcore_arp_rx_depacketizer_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_arp_rx_depacketizer_source_payload_last_be <= 1'd0;
-	litexcnc_soc_ethcore_arp_rx_depacketizer_is_ongoing0 <= 1'd0;
 	liteetharprx_fsm0_next_state <= liteetharprx_fsm0_state;
 	case (liteetharprx_fsm0_state)
 		1'd1: begin
@@ -4491,11 +4511,11 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
+	litexcnc_soc_ethcore_arp_rx_depacketizer_source_ready <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_source_source_payload_reply <= 1'd0;
 	litexcnc_soc_ethcore_arp_rx_source_source_payload_request <= 1'd0;
-	liteetharprx_next_state <= 2'd0;
 	litexcnc_soc_ethcore_arp_rx_source_source_valid <= 1'd0;
-	litexcnc_soc_ethcore_arp_rx_depacketizer_source_ready <= 1'd0;
+	liteetharprx_next_state <= 2'd0;
 	liteetharprx_next_state <= liteetharprx_state;
 	case (liteetharprx_state)
 		1'd1: begin
@@ -4527,22 +4547,22 @@ assign litexcnc_soc_ethcore_arp_table_response_payload_mac_address = litexcnc_so
 assign litexcnc_soc_ethcore_arp_table_request_timer_done = (litexcnc_soc_ethcore_arp_table_request_timer_count == 1'd0);
 assign litexcnc_soc_ethcore_arp_table_cached_timer_done = (litexcnc_soc_ethcore_arp_table_cached_timer_count == 1'd0);
 always @(*) begin
+	litexcnc_soc_ethcore_arp_table_request_pending_clr <= 1'd0;
+	litexcnc_soc_ethcore_arp_table_request_ip_address_reset <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_request_ready <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_request_ip_address_update <= 1'd0;
+	liteetharptable_next_state <= 3'd0;
 	litexcnc_soc_ethcore_arp_table_request_pending_set <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_response_valid <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_request_counter_reset <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_response_payload_failed <= 1'd0;
-	liteetharptable_next_state <= 3'd0;
 	litexcnc_soc_ethcore_arp_table_request_counter_ce <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_source_payload_reply <= 1'd0;
-	litexcnc_soc_ethcore_arp_table_request_pending_clr <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_source_payload_request <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_update <= 1'd0;
 	litexcnc_soc_ethcore_arp_table_source_payload_ip_address <= 32'd0;
 	litexcnc_soc_ethcore_arp_table_source_payload_mac_address <= 48'd0;
-	litexcnc_soc_ethcore_arp_table_request_ip_address_reset <= 1'd0;
 	if ((litexcnc_soc_ethcore_arp_table_request_counter == 3'd7)) begin
 		litexcnc_soc_ethcore_arp_table_response_payload_failed <= 1'd1;
 		litexcnc_soc_ethcore_arp_table_request_counter_reset <= 1'd1;
@@ -4715,25 +4735,25 @@ always @(*) begin
 end
 assign litexcnc_soc_ethcore_ip_tx_packetizer_source_payload_error = litexcnc_soc_ethcore_ip_tx_packetizer_sink_payload_error;
 always @(*) begin
-	litexcnc_soc_ethcore_ip_tx_packetizer_source_valid <= 1'd0;
 	liteethip_liteethiptx_fsm0_next_state <= 2'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_count_liteethip_fsm0_next_value0 <= 5'd0;
-	litexcnc_soc_ethcore_ip_tx_packetizer_is_ongoing0 <= 1'd0;
+	litexcnc_soc_ethcore_ip_tx_packetizer_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_count_liteethip_fsm0_next_value_ce0 <= 1'd0;
+	litexcnc_soc_ethcore_ip_tx_packetizer_fsm_from_idle_liteethip_fsm0_next_value1 <= 1'd0;
+	litexcnc_soc_ethcore_ip_tx_packetizer_fsm_from_idle_liteethip_fsm0_next_value_ce1 <= 1'd0;
+	litexcnc_soc_ethcore_ip_tx_packetizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_source_payload_last_be <= 1'd0;
-	litexcnc_soc_ethcore_ip_tx_packetizer_fsm_from_idle_liteethip_fsm0_next_value1 <= 1'd0;
-	litexcnc_soc_ethcore_ip_tx_packetizer_fsm_from_idle_liteethip_fsm0_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_sr_load <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_sr_shift <= 1'd0;
+	liteethip_liteethiptx_fsm1_next_state <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_source_last_a <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_source_last_b <= 1'd0;
-	litexcnc_soc_ethcore_ip_tx_packetizer_source_last_s <= 1'd0;
-	liteethip_liteethiptx_fsm1_next_state <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_delayed_last_be_liteethip_fsm1_next_value0 <= 1'd0;
+	litexcnc_soc_ethcore_ip_tx_packetizer_source_last_s <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_delayed_last_be_liteethip_fsm1_next_value_ce0 <= 1'd0;
 	liteethip_liteethiptx_fsm0_next_state <= liteethip_liteethiptx_fsm0_state;
 	case (liteethip_liteethiptx_fsm0_state)
@@ -4831,15 +4851,15 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
+	liteethip_liteethiptx_next_state <= 3'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_valid <= 1'd0;
+	litexcnc_soc_ethcore_ip_tx_target_mac_liteethip_next_value <= 48'd0;
+	litexcnc_soc_ethcore_ip_tx_target_mac_liteethip_next_value_ce <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_first <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_last <= 1'd0;
-	liteethip_liteethiptx_next_state <= 3'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_payload_ethernet_type <= 16'd0;
 	litexcnc_soc_ethcore_ip_tx_packetizer_source_ready <= 1'd0;
-	litexcnc_soc_ethcore_ip_tx_target_mac_liteethip_next_value <= 48'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_payload_sender_mac <= 48'd0;
-	litexcnc_soc_ethcore_ip_tx_target_mac_liteethip_next_value_ce <= 1'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_payload_target_mac <= 48'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_ip_tx_source_source_payload_last_be <= 1'd0;
@@ -4954,26 +4974,26 @@ always @(*) begin
 	end
 end
 always @(*) begin
-	litexcnc_soc_ethcore_ip_rx_depacketizer_source_valid <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_source_payload_data <= 8'd0;
 	liteethip_liteethiprx_fsm1_next_state <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_source_valid <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_delayed_last_be_liteethip_fsm1_next_value1 <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_source_payload_data <= 8'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_delayed_last_be_liteethip_fsm1_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_source_payload_last_be <= 1'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_is_ongoing1 <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_delayed_last_be_liteethip_fsm1_next_value1 <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_delayed_last_be_liteethip_fsm1_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_is_ongoing2 <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_is_ongoing3 <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_sr_shift <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_source_last_a <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_source_last_b <= 1'd0;
 	liteethip_liteethiprx_fsm0_next_state <= 2'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_source_last_s <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_is_ongoing3 <= 1'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_count_liteethip_fsm0_next_value2 <= 5'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_count_liteethip_fsm0_next_value_ce2 <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_sink_ready <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_sr_shift <= 1'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_fsm_from_idle_liteethip_fsm0_next_value3 <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_source_last_a <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_source_last_b <= 1'd0;
 	litexcnc_soc_ethcore_ip_rx_depacketizer_fsm_from_idle_liteethip_fsm0_next_value_ce3 <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_source_last_s <= 1'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_sink_ready <= 1'd0;
 	liteethip_liteethiprx_fsm0_next_state <= liteethip_liteethiprx_fsm0_state;
 	case (liteethip_liteethiprx_fsm0_state)
 		1'd1: begin
@@ -5073,8 +5093,8 @@ assign litexcnc_soc_ethcore_ip_rx_liteethipv4checksum_counter_ce = (~litexcnc_so
 assign litexcnc_soc_ethcore_ip_rx_liteethipv4checksum_done = (litexcnc_soc_ethcore_ip_rx_liteethipv4checksum_counter == 4'd11);
 always @(*) begin
 	litexcnc_soc_ethcore_ip_rx_source_source_valid <= 1'd0;
-	litexcnc_soc_ethcore_ip_rx_depacketizer_source_ready <= 1'd0;
 	liteethip_liteethiprx_next_state <= 2'd0;
+	litexcnc_soc_ethcore_ip_rx_depacketizer_source_ready <= 1'd0;
 	liteethip_liteethiprx_next_state <= liteethip_liteethiprx_state;
 	case (liteethip_liteethiprx_state)
 		1'd1: begin
@@ -5117,6 +5137,7 @@ always @(*) begin
 	liteethip_request[1] <= liteethip_status1_ongoing0;
 end
 always @(*) begin
+	litexcnc_soc_ethcore_ip_crossbar_source_param_ip_address <= 32'd0;
 	litexcnc_soc_ethcore_icmp_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_ip_crossbar_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_ip_crossbar_source_first <= 1'd0;
@@ -5127,7 +5148,6 @@ always @(*) begin
 	litexcnc_soc_ethcore_ip_crossbar_source_payload_error <= 1'd0;
 	litexcnc_soc_ethcore_ip_crossbar_source_param_length <= 16'd0;
 	litexcnc_soc_ethcore_ip_crossbar_source_param_protocol <= 8'd0;
-	litexcnc_soc_ethcore_ip_crossbar_source_param_ip_address <= 32'd0;
 	case (liteethip_grant)
 		1'd0: begin
 			litexcnc_soc_ethcore_ip_crossbar_source_valid <= litexcnc_soc_ethcore_icmp_sink_valid;
@@ -5329,26 +5349,26 @@ always @(*) begin
 end
 assign litexcnc_soc_ethcore_icmp_tx_packetizer_source_payload_error = litexcnc_soc_ethcore_icmp_tx_packetizer_sink_payload_error;
 always @(*) begin
-	liteethicmptx_fsm1_next_state <= 1'd0;
+	litexcnc_soc_ethcore_icmp_tx_packetizer_delayed_last_be_fsm1_next_value_ce0 <= 1'd0;
+	litexcnc_soc_ethcore_icmp_tx_packetizer_source_last_b <= 1'd0;
+	litexcnc_soc_ethcore_icmp_tx_packetizer_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_source_last_s <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_source_payload_last_be <= 1'd0;
-	litexcnc_soc_ethcore_icmp_tx_packetizer_source_payload_data <= 8'd0;
-	litexcnc_soc_ethcore_icmp_tx_packetizer_delayed_last_be_fsm1_next_value0 <= 1'd0;
-	litexcnc_soc_ethcore_icmp_tx_packetizer_delayed_last_be_fsm1_next_value_ce0 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_sr_load <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_sr_shift <= 1'd0;
 	liteethicmptx_fsm0_next_state <= 2'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_count_fsm0_next_value0 <= 3'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_count_fsm0_next_value_ce0 <= 1'd0;
+	litexcnc_soc_ethcore_icmp_tx_packetizer_fsm_from_idle_fsm0_next_value1 <= 1'd0;
+	litexcnc_soc_ethcore_icmp_tx_packetizer_fsm_from_idle_fsm0_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_is_ongoing0 <= 1'd0;
-	litexcnc_soc_ethcore_icmp_tx_packetizer_fsm_from_idle_fsm0_next_value1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_is_ongoing1 <= 1'd0;
-	litexcnc_soc_ethcore_icmp_tx_packetizer_fsm_from_idle_fsm0_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_is_ongoing2 <= 1'd0;
+	liteethicmptx_fsm1_next_state <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_source_valid <= 1'd0;
+	litexcnc_soc_ethcore_icmp_tx_packetizer_delayed_last_be_fsm1_next_value0 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_source_last_a <= 1'd0;
-	litexcnc_soc_ethcore_icmp_tx_packetizer_source_last_b <= 1'd0;
 	liteethicmptx_fsm0_next_state <= liteethicmptx_fsm0_state;
 	case (liteethicmptx_fsm0_state)
 		1'd1: begin
@@ -5445,9 +5465,9 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
+	litexcnc_soc_ethcore_icmp_tx_source_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_icmp_tx_packetizer_source_ready <= 1'd0;
 	liteethicmptx_next_state <= 1'd0;
-	litexcnc_soc_ethcore_icmp_tx_source_source_valid <= 1'd0;
 	liteethicmptx_next_state <= liteethicmptx_state;
 	case (liteethicmptx_state)
 		1'd1: begin
@@ -5502,26 +5522,26 @@ always @(*) begin
 	end
 end
 always @(*) begin
+	litexcnc_soc_ethcore_icmp_rx_depacketizer_is_ongoing2 <= 1'd0;
+	litexcnc_soc_ethcore_icmp_rx_depacketizer_delayed_last_be_fsm1_next_value1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_valid <= 1'd0;
-	liteethicmprx_fsm1_next_state <= 1'd0;
+	litexcnc_soc_ethcore_icmp_rx_depacketizer_delayed_last_be_fsm1_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_is_ongoing3 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_last_a <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_payload_data <= 8'd0;
-	litexcnc_soc_ethcore_icmp_rx_depacketizer_delayed_last_be_fsm1_next_value1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_payload_last_be <= 1'd0;
-	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_last_s <= 1'd0;
-	litexcnc_soc_ethcore_icmp_rx_depacketizer_delayed_last_be_fsm1_next_value_ce1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_last_b <= 1'd0;
-	litexcnc_soc_ethcore_icmp_rx_depacketizer_sr_shift <= 1'd0;
+	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_last_s <= 1'd0;
 	liteethicmprx_fsm0_next_state <= 2'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_count_fsm0_next_value2 <= 3'd0;
+	litexcnc_soc_ethcore_icmp_rx_depacketizer_sr_shift <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_count_fsm0_next_value_ce2 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_fsm_from_idle_fsm0_next_value3 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_fsm_from_idle_fsm0_next_value_ce3 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_ethcore_icmp_rx_depacketizer_sink_ready <= 1'd0;
-	litexcnc_soc_ethcore_icmp_rx_depacketizer_is_ongoing2 <= 1'd0;
+	liteethicmprx_fsm1_next_state <= 1'd0;
 	liteethicmprx_fsm0_next_state <= liteethicmprx_fsm0_state;
 	case (liteethicmprx_fsm0_state)
 		1'd1: begin
@@ -5608,8 +5628,8 @@ always @(*) begin
 end
 always @(*) begin
 	litexcnc_soc_ethcore_icmp_rx_source_source_valid <= 1'd0;
-	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_ready <= 1'd0;
 	liteethicmprx_next_state <= 2'd0;
+	litexcnc_soc_ethcore_icmp_rx_depacketizer_source_ready <= 1'd0;
 	liteethicmprx_next_state <= liteethicmprx_state;
 	case (liteethicmprx_state)
 		1'd1: begin
@@ -5787,25 +5807,25 @@ end
 assign litexcnc_soc_ethcore_tx_packetizer_source_payload_error = litexcnc_soc_ethcore_tx_packetizer_sink_payload_error;
 always @(*) begin
 	litexcnc_soc_ethcore_tx_packetizer_sr_load <= 1'd0;
-	litexcnc_soc_ethcore_tx_packetizer_sr_shift <= 1'd0;
 	liteethudp_liteethudptx_fsm1_next_state <= 1'd0;
+	litexcnc_soc_ethcore_tx_packetizer_sr_shift <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_delayed_last_be_liteethudp_fsm1_next_value0 <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_delayed_last_be_liteethudp_fsm1_next_value_ce0 <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_sink_ready <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_is_ongoing1 <= 1'd0;
-	litexcnc_soc_ethcore_tx_packetizer_is_ongoing2 <= 1'd0;
-	litexcnc_soc_ethcore_tx_packetizer_source_valid <= 1'd0;
 	liteethudp_liteethudptx_fsm0_next_state <= 2'd0;
 	litexcnc_soc_ethcore_tx_packetizer_count_liteethudp_fsm0_next_value0 <= 3'd0;
-	litexcnc_soc_ethcore_tx_packetizer_source_last_a <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_count_liteethudp_fsm0_next_value_ce0 <= 1'd0;
+	litexcnc_soc_ethcore_tx_packetizer_is_ongoing2 <= 1'd0;
+	litexcnc_soc_ethcore_tx_packetizer_source_valid <= 1'd0;
+	litexcnc_soc_ethcore_tx_packetizer_fsm_from_idle_liteethudp_fsm0_next_value1 <= 1'd0;
+	litexcnc_soc_ethcore_tx_packetizer_fsm_from_idle_liteethudp_fsm0_next_value_ce1 <= 1'd0;
+	litexcnc_soc_ethcore_tx_packetizer_source_last_a <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_source_last_b <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_source_payload_data <= 8'd0;
 	litexcnc_soc_ethcore_tx_packetizer_source_last_s <= 1'd0;
 	litexcnc_soc_ethcore_tx_packetizer_source_payload_last_be <= 1'd0;
-	litexcnc_soc_ethcore_tx_packetizer_fsm_from_idle_liteethudp_fsm0_next_value1 <= 1'd0;
-	litexcnc_soc_ethcore_tx_packetizer_fsm_from_idle_liteethudp_fsm0_next_value_ce1 <= 1'd0;
 	liteethudp_liteethudptx_fsm0_next_state <= liteethudp_liteethudptx_fsm0_state;
 	case (liteethudp_liteethudptx_fsm0_state)
 		1'd1: begin
@@ -5902,8 +5922,8 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
-	litexcnc_soc_ethcore_tx_source_source_valid <= 1'd0;
 	liteethudp_liteethudptx_next_state <= 1'd0;
+	litexcnc_soc_ethcore_tx_source_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_tx_source_source_first <= 1'd0;
 	litexcnc_soc_ethcore_tx_source_source_last <= 1'd0;
 	litexcnc_soc_ethcore_tx_source_source_payload_data <= 8'd0;
@@ -5976,26 +5996,26 @@ always @(*) begin
 	end
 end
 always @(*) begin
-	litexcnc_soc_ethcore_rx_depacketizer_source_last_b <= 1'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_source_payload_last_be <= 1'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_source_last_s <= 1'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_sr_shift <= 1'd0;
-	liteethudp_liteethudprx_fsm1_next_state <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_source_last_a <= 1'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_source_payload_data <= 8'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_source_payload_last_be <= 1'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_source_last_b <= 1'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_source_last_s <= 1'd0;
+	liteethudp_liteethudprx_fsm1_next_state <= 1'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_sr_shift <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_delayed_last_be_liteethudp_fsm1_next_value1 <= 1'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_delayed_last_be_liteethudp_fsm1_next_value_ce1 <= 1'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_sink_ready <= 1'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_is_ongoing2 <= 1'd0;
 	liteethudp_liteethudprx_fsm0_next_state <= 2'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_source_valid <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_count_liteethudp_fsm0_next_value2 <= 3'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_is_ongoing3 <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_count_liteethudp_fsm0_next_value_ce2 <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_fsm_from_idle_liteethudp_fsm0_next_value3 <= 1'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_source_payload_data <= 8'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_ethcore_rx_depacketizer_fsm_from_idle_liteethudp_fsm0_next_value_ce3 <= 1'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_is_ongoing3 <= 1'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_source_valid <= 1'd0;
 	liteethudp_liteethudprx_fsm0_next_state <= liteethudp_liteethudprx_fsm0_state;
 	case (liteethudp_liteethudprx_fsm0_state)
 		1'd1: begin
@@ -6081,11 +6101,11 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
-	liteethudp_liteethudprx_next_state <= 2'd0;
 	litexcnc_soc_ethcore_rx_source_source_last <= 1'd0;
+	liteethudp_liteethudprx_next_state <= 2'd0;
+	litexcnc_soc_ethcore_rx_depacketizer_source_ready <= 1'd0;
 	litexcnc_soc_ethcore_rx_count_liteethudp_next_value <= 16'd0;
 	litexcnc_soc_ethcore_rx_count_liteethudp_next_value_ce <= 1'd0;
-	litexcnc_soc_ethcore_rx_depacketizer_source_ready <= 1'd0;
 	litexcnc_soc_ethcore_rx_source_source_valid <= 1'd0;
 	liteethudp_liteethudprx_next_state <= liteethudp_liteethudprx_state;
 	case (liteethudp_liteethudprx_state)
@@ -6537,26 +6557,26 @@ always @(*) begin
 end
 assign litexcnc_soc_etherbone_tx_packetizer_source_payload_error = litexcnc_soc_etherbone_tx_packetizer_sink_payload_error;
 always @(*) begin
-	litexcnc_soc_etherbone_tx_packetizer_delayed_last_be_fsm1_next_value_ce2 <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_source_payload_data <= 32'd0;
 	litexcnc_soc_etherbone_tx_packetizer_source_payload_last_be <= 4'd0;
 	litexcnc_soc_etherbone_tx_packetizer_is_ongoing2 <= 1'd0;
+	liteethetherbonepackettx_fsm0_next_state <= 2'd0;
+	litexcnc_soc_etherbone_tx_packetizer_count_fsm0_next_value4 <= 1'd0;
+	litexcnc_soc_etherbone_tx_packetizer_count_fsm0_next_value_ce4 <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_source_last_a <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_source_last_b <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_source_last_s <= 1'd0;
-	liteethetherbonepackettx_fsm0_next_state <= 2'd0;
-	litexcnc_soc_etherbone_tx_packetizer_sr_load <= 1'd0;
-	litexcnc_soc_etherbone_tx_packetizer_count_fsm0_next_value4 <= 1'd0;
-	litexcnc_soc_etherbone_tx_packetizer_sr_shift <= 1'd0;
-	litexcnc_soc_etherbone_tx_packetizer_count_fsm0_next_value_ce4 <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_fsm_from_idle_fsm0_next_value5 <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_fsm_from_idle_fsm0_next_value_ce5 <= 1'd0;
+	litexcnc_soc_etherbone_tx_packetizer_sr_load <= 1'd0;
+	litexcnc_soc_etherbone_tx_packetizer_sr_shift <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_sink_ready <= 1'd0;
 	liteethetherbonepackettx_fsm1_next_state <= 1'd0;
+	litexcnc_soc_etherbone_tx_packetizer_delayed_last_be_fsm1_next_value2 <= 4'd0;
+	litexcnc_soc_etherbone_tx_packetizer_delayed_last_be_fsm1_next_value_ce2 <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_etherbone_tx_packetizer_source_valid <= 1'd0;
-	litexcnc_soc_etherbone_tx_packetizer_delayed_last_be_fsm1_next_value2 <= 4'd0;
 	liteethetherbonepackettx_fsm0_next_state <= liteethetherbonepackettx_fsm0_state;
 	case (liteethetherbonepackettx_fsm0_state)
 		1'd1: begin
@@ -6653,9 +6673,10 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
+	litexcnc_soc_etherbone_tx_packetizer_source_ready <= 1'd0;
 	litexcnc_soc_etherbone_tx_source_source_param_length <= 16'd0;
-	litexcnc_soc_etherbone_tx_source_source_valid <= 1'd0;
 	liteethetherbonepackettx_next_state <= 1'd0;
+	litexcnc_soc_etherbone_tx_source_source_valid <= 1'd0;
 	litexcnc_soc_etherbone_tx_source_source_first <= 1'd0;
 	litexcnc_soc_etherbone_tx_source_source_last <= 1'd0;
 	litexcnc_soc_etherbone_tx_source_source_payload_data <= 32'd0;
@@ -6664,7 +6685,6 @@ always @(*) begin
 	litexcnc_soc_etherbone_tx_source_source_param_src_port <= 16'd0;
 	litexcnc_soc_etherbone_tx_source_source_param_dst_port <= 16'd0;
 	litexcnc_soc_etherbone_tx_source_source_param_ip_address <= 32'd0;
-	litexcnc_soc_etherbone_tx_packetizer_source_ready <= 1'd0;
 	liteethetherbonepackettx_next_state <= liteethetherbonepackettx_state;
 	case (liteethetherbonepackettx_state)
 		1'd1: begin
@@ -6735,26 +6755,26 @@ always @(*) begin
 	end
 end
 always @(*) begin
-	litexcnc_soc_etherbone_rx_depacketizer_delayed_last_be_fsm1_next_value3 <= 4'd0;
+	litexcnc_soc_etherbone_rx_depacketizer_source_last_s <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_sr_shift <= 1'd0;
-	litexcnc_soc_etherbone_rx_depacketizer_delayed_last_be_fsm1_next_value_ce3 <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_sink_ready <= 1'd0;
 	liteethetherbonepacketrx_fsm0_next_state <= 2'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_count_fsm0_next_value6 <= 1'd0;
-	litexcnc_soc_etherbone_rx_depacketizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_count_fsm0_next_value_ce6 <= 1'd0;
-	litexcnc_soc_etherbone_rx_depacketizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_fsm_from_idle_fsm0_next_value7 <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_fsm_from_idle_fsm0_next_value_ce7 <= 1'd0;
+	litexcnc_soc_etherbone_rx_depacketizer_is_ongoing0 <= 1'd0;
+	litexcnc_soc_etherbone_rx_depacketizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_source_valid <= 1'd0;
+	litexcnc_soc_etherbone_rx_depacketizer_source_last_a <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_source_payload_data <= 32'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_source_payload_last_be <= 4'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_is_ongoing2 <= 1'd0;
-	litexcnc_soc_etherbone_rx_depacketizer_is_ongoing3 <= 1'd0;
-	litexcnc_soc_etherbone_rx_depacketizer_source_last_a <= 1'd0;
 	liteethetherbonepacketrx_fsm1_next_state <= 1'd0;
 	litexcnc_soc_etherbone_rx_depacketizer_source_last_b <= 1'd0;
-	litexcnc_soc_etherbone_rx_depacketizer_source_last_s <= 1'd0;
+	litexcnc_soc_etherbone_rx_depacketizer_is_ongoing3 <= 1'd0;
+	litexcnc_soc_etherbone_rx_depacketizer_delayed_last_be_fsm1_next_value3 <= 4'd0;
+	litexcnc_soc_etherbone_rx_depacketizer_delayed_last_be_fsm1_next_value_ce3 <= 1'd0;
 	liteethetherbonepacketrx_fsm0_next_state <= liteethetherbonepacketrx_fsm0_state;
 	case (liteethetherbonepacketrx_fsm0_state)
 		1'd1: begin
@@ -6926,12 +6946,13 @@ assign litexcnc_soc_etherbone_probe_payload_fifo_source_ready = (litexcnc_soc_et
 assign litexcnc_soc_etherbone_probe_payload_fifo_sink_ready = ((~litexcnc_soc_etherbone_probe_payload_fifo_source_valid) | litexcnc_soc_etherbone_probe_payload_fifo_source_ready);
 assign litexcnc_soc_etherbone_probe_param_fifo_sink_ready = ((~litexcnc_soc_etherbone_probe_param_fifo_source_valid) | litexcnc_soc_etherbone_probe_param_fifo_source_ready);
 always @(*) begin
+	litexcnc_soc_etherbone_probe_source_param_ip_address <= 32'd0;
 	litexcnc_soc_etherbone_probe_source_param_length <= 16'd0;
+	liteethetherboneprobe_next_state <= 1'd0;
 	litexcnc_soc_etherbone_probe_source_valid <= 1'd0;
 	litexcnc_soc_etherbone_probe_source_source_ready <= 1'd0;
 	litexcnc_soc_etherbone_probe_source_first <= 1'd0;
 	litexcnc_soc_etherbone_probe_source_last <= 1'd0;
-	liteethetherboneprobe_next_state <= 1'd0;
 	litexcnc_soc_etherbone_probe_source_payload_data <= 32'd0;
 	litexcnc_soc_etherbone_probe_source_payload_last_be <= 4'd0;
 	litexcnc_soc_etherbone_probe_source_payload_error <= 4'd0;
@@ -6942,7 +6963,6 @@ always @(*) begin
 	litexcnc_soc_etherbone_probe_source_param_pr <= 1'd0;
 	litexcnc_soc_etherbone_probe_source_param_src_port <= 16'd0;
 	litexcnc_soc_etherbone_probe_source_param_dst_port <= 16'd0;
-	litexcnc_soc_etherbone_probe_source_param_ip_address <= 32'd0;
 	liteethetherboneprobe_next_state <= liteethetherboneprobe_state;
 	case (liteethetherboneprobe_state)
 		1'd1: begin
@@ -7080,22 +7100,22 @@ always @(*) begin
 end
 always @(*) begin
 	litexcnc_soc_etherbone_record_depacketizer_source_valid <= 1'd0;
+	fsm1_next_state0 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_source_payload_data <= 32'd0;
 	litexcnc_soc_etherbone_record_depacketizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_source_payload_last_be <= 4'd0;
 	litexcnc_soc_etherbone_record_depacketizer_is_ongoing1 <= 1'd0;
-	fsm1_next_state0 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_delayed_last_be_fsm1_next_value4 <= 4'd0;
 	litexcnc_soc_etherbone_record_depacketizer_delayed_last_be_fsm1_next_value_ce4 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_is_ongoing3 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_sink_ready <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_sr_shift <= 1'd0;
-	litexcnc_soc_etherbone_record_depacketizer_source_last_a <= 1'd0;
-	litexcnc_soc_etherbone_record_depacketizer_source_last_b <= 1'd0;
-	litexcnc_soc_etherbone_record_depacketizer_source_last_s <= 1'd0;
 	fsm0_next_state0 <= 2'd0;
 	litexcnc_soc_etherbone_record_depacketizer_count_fsm0_next_value8 <= 1'd0;
+	litexcnc_soc_etherbone_record_depacketizer_source_last_b <= 1'd0;
+	litexcnc_soc_etherbone_record_depacketizer_source_last_a <= 1'd0;
+	litexcnc_soc_etherbone_record_depacketizer_source_last_s <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_count_fsm0_next_value_ce8 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_fsm_from_idle_fsm0_next_value9 <= 1'd0;
 	litexcnc_soc_etherbone_record_depacketizer_fsm_from_idle_fsm0_next_value_ce9 <= 1'd0;
@@ -7272,20 +7292,20 @@ assign litexcnc_soc_etherbone_record_receiver_payload_fifo_syncfifo_writable = (
 assign litexcnc_soc_etherbone_record_receiver_payload_fifo_syncfifo_readable = (litexcnc_soc_etherbone_record_receiver_payload_fifo_level0 != 1'd0);
 assign litexcnc_soc_etherbone_record_receiver_param_fifo_sink_ready = ((~litexcnc_soc_etherbone_record_receiver_param_fifo_source_valid) | litexcnc_soc_etherbone_record_receiver_param_fifo_source_ready);
 always @(*) begin
+	litexcnc_soc_etherbone_record_receiver_source_param_we <= 1'd0;
 	litexcnc_soc_etherbone_record_receiver_source_param_count <= 8'd0;
 	litexcnc_soc_etherbone_record_receiver_source_param_base_addr <= 32'd0;
 	litexcnc_soc_etherbone_record_receiver_source_param_be <= 4'd0;
-	litexcnc_soc_etherbone_record_receiver_source_source_ready <= 1'd0;
-	litexcnc_soc_etherbone_record_receiver_source_valid <= 1'd0;
 	liteethetherbonerecordreceiver_next_state <= 2'd0;
+	litexcnc_soc_etherbone_record_receiver_source_source_ready <= 1'd0;
 	litexcnc_soc_etherbone_record_receiver_count_next_value <= 9'd0;
 	litexcnc_soc_etherbone_record_receiver_count_next_value_ce <= 1'd0;
+	litexcnc_soc_etherbone_record_receiver_source_valid <= 1'd0;
 	litexcnc_soc_etherbone_record_receiver_base_addr_update <= 1'd0;
 	litexcnc_soc_etherbone_record_receiver_source_last <= 1'd0;
 	litexcnc_soc_etherbone_record_receiver_source_payload_addr <= 32'd0;
 	litexcnc_soc_etherbone_record_receiver_source_payload_last_be <= 4'd0;
 	litexcnc_soc_etherbone_record_receiver_source_payload_data <= 32'd0;
-	litexcnc_soc_etherbone_record_receiver_source_param_we <= 1'd0;
 	liteethetherbonerecordreceiver_next_state <= liteethetherbonerecordreceiver_state;
 	case (liteethetherbonerecordreceiver_state)
 		1'd1: begin
@@ -7364,8 +7384,8 @@ assign litexcnc_soc_etherbone_record_sender_sink_sink_param_base_addr = litexcnc
 assign litexcnc_soc_etherbone_record_sender_sink_sink_param_be = litexcnc_soc_etherbone_record_sender_sink_param_be;
 assign litexcnc_soc_etherbone_record_sender_source_param_byte_enable = litexcnc_soc_etherbone_record_sender_source_source_param_be;
 always @(*) begin
-	litexcnc_soc_etherbone_record_sender_source_param_wcount <= 8'd0;
 	litexcnc_soc_etherbone_record_sender_source_param_rcount <= 8'd0;
+	litexcnc_soc_etherbone_record_sender_source_param_wcount <= 8'd0;
 	if (litexcnc_soc_etherbone_record_sender_source_source_param_we) begin
 		litexcnc_soc_etherbone_record_sender_source_param_wcount <= litexcnc_soc_etherbone_record_sender_source_source_param_count;
 	end else begin
@@ -7438,9 +7458,9 @@ always @(*) begin
 	litexcnc_soc_etherbone_record_sender_source_valid <= 1'd0;
 	litexcnc_soc_etherbone_record_sender_source_payload_data <= 32'd0;
 	litexcnc_soc_etherbone_record_sender_source_last <= 1'd0;
-	liteethetherbonerecordsender_next_state <= 2'd0;
 	litexcnc_soc_etherbone_record_sender_source_source_ready <= 1'd0;
 	litexcnc_soc_etherbone_record_sender_source_payload_last_be <= 4'd0;
+	liteethetherbonerecordsender_next_state <= 2'd0;
 	liteethetherbonerecordsender_next_state <= liteethetherbonerecordsender_state;
 	case (liteethetherbonerecordsender_state)
 		1'd1: begin
@@ -7494,26 +7514,26 @@ always @(*) begin
 end
 assign litexcnc_soc_etherbone_record_packetizer_source_payload_error = litexcnc_soc_etherbone_record_packetizer_sink_payload_error;
 always @(*) begin
-	litexcnc_soc_etherbone_record_packetizer_sr_shift <= 1'd0;
-	litexcnc_soc_etherbone_record_packetizer_source_last_b <= 1'd0;
-	litexcnc_soc_etherbone_record_packetizer_source_last_s <= 1'd0;
 	fsm1_next_state1 <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_sr_load <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_source_last_a <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_source_last_b <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_sr_shift <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_source_last_s <= 1'd0;
 	litexcnc_soc_etherbone_record_packetizer_delayed_last_be_fsm1_next_value5 <= 4'd0;
 	litexcnc_soc_etherbone_record_packetizer_delayed_last_be_fsm1_next_value_ce5 <= 1'd0;
 	litexcnc_soc_etherbone_record_packetizer_source_valid <= 1'd0;
-	litexcnc_soc_etherbone_record_packetizer_source_payload_data <= 32'd0;
-	litexcnc_soc_etherbone_record_packetizer_source_payload_last_be <= 4'd0;
 	fsm0_next_state1 <= 2'd0;
 	litexcnc_soc_etherbone_record_packetizer_count_fsm0_next_value10 <= 1'd0;
-	litexcnc_soc_etherbone_record_packetizer_is_ongoing0 <= 1'd0;
 	litexcnc_soc_etherbone_record_packetizer_count_fsm0_next_value_ce10 <= 1'd0;
-	litexcnc_soc_etherbone_record_packetizer_is_ongoing1 <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_source_payload_data <= 32'd0;
+	litexcnc_soc_etherbone_record_packetizer_source_payload_last_be <= 4'd0;
 	litexcnc_soc_etherbone_record_packetizer_fsm_from_idle_fsm0_next_value11 <= 1'd0;
 	litexcnc_soc_etherbone_record_packetizer_fsm_from_idle_fsm0_next_value_ce11 <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_is_ongoing0 <= 1'd0;
+	litexcnc_soc_etherbone_record_packetizer_is_ongoing1 <= 1'd0;
 	litexcnc_soc_etherbone_record_packetizer_is_ongoing2 <= 1'd0;
 	litexcnc_soc_etherbone_record_packetizer_sink_ready <= 1'd0;
-	litexcnc_soc_etherbone_record_packetizer_sr_load <= 1'd0;
-	litexcnc_soc_etherbone_record_packetizer_source_last_a <= 1'd0;
 	fsm0_next_state1 <= fsm0_state1;
 	case (fsm0_state1)
 		1'd1: begin
@@ -7618,6 +7638,7 @@ always @(*) begin
 	end
 end
 always @(*) begin
+	litexcnc_soc_etherbone_record_sink_sink_param_src_port <= 16'd0;
 	litexcnc_soc_etherbone_record_sink_sink_param_dst_port <= 16'd0;
 	litexcnc_soc_etherbone_probe_sink_valid <= 1'd0;
 	litexcnc_soc_etherbone_record_sink_sink_param_ip_address <= 32'd0;
@@ -7648,7 +7669,6 @@ always @(*) begin
 	litexcnc_soc_etherbone_record_sink_sink_param_pf <= 1'd0;
 	litexcnc_soc_etherbone_record_sink_sink_param_port_size <= 4'd0;
 	litexcnc_soc_etherbone_record_sink_sink_param_pr <= 1'd0;
-	litexcnc_soc_etherbone_record_sink_sink_param_src_port <= 16'd0;
 	case (litexcnc_soc_etherbone_dispatcher_sel1)
 		1'd0: begin
 			litexcnc_soc_etherbone_probe_sink_valid <= litexcnc_soc_etherbone_rx_source_source_valid;
@@ -7704,6 +7724,7 @@ always @(*) begin
 	litexcnc_soc_etherbone_request[1] <= litexcnc_soc_etherbone_status1_ongoing0;
 end
 always @(*) begin
+	litexcnc_soc_etherbone_tx_sink_sink_param_port_size <= 4'd0;
 	litexcnc_soc_etherbone_tx_sink_sink_param_pr <= 1'd0;
 	litexcnc_soc_etherbone_tx_sink_sink_param_src_port <= 16'd0;
 	litexcnc_soc_etherbone_tx_sink_sink_param_dst_port <= 16'd0;
@@ -7720,7 +7741,6 @@ always @(*) begin
 	litexcnc_soc_etherbone_tx_sink_sink_param_addr_size <= 4'd0;
 	litexcnc_soc_etherbone_tx_sink_sink_param_nr <= 1'd0;
 	litexcnc_soc_etherbone_tx_sink_sink_param_pf <= 1'd0;
-	litexcnc_soc_etherbone_tx_sink_sink_param_port_size <= 4'd0;
 	case (litexcnc_soc_etherbone_grant)
 		1'd0: begin
 			litexcnc_soc_etherbone_tx_sink_sink_valid <= litexcnc_soc_etherbone_probe_source_valid;
@@ -7780,13 +7800,13 @@ always @(*) begin
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_source_payload_last_be <= 4'd0;
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_sink_ready <= 1'd0;
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_data_update <= 1'd0;
-	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_source_valid <= 1'd0;
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_adr <= 30'd0;
+	liteethetherbonewishbonemaster_next_state <= 2'd0;
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_dat_w <= 32'd0;
+	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_source_valid <= 1'd0;
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_sel <= 4'd0;
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_cyc <= 1'd0;
 	litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_stb <= 1'd0;
-	liteethetherbonewishbonemaster_next_state <= 2'd0;
 	liteethetherbonewishbonemaster_next_state <= liteethetherbonewishbonemaster_state;
 	case (liteethetherbonewishbonemaster_state)
 		1'd1: begin
@@ -7840,12 +7860,12 @@ always @(*) begin
 	endcase
 end
 always @(*) begin
-	litexcnc_soc_adr <= 14'd0;
-	litexcnc_soc_we <= 1'd0;
-	litexcnc_soc_wishbone_ack <= 1'd0;
-	litexcnc_soc_dat_w <= 32'd0;
 	next_state <= 1'd0;
 	litexcnc_soc_wishbone_dat_r <= 32'd0;
+	litexcnc_soc_wishbone_ack <= 1'd0;
+	litexcnc_soc_adr <= 14'd0;
+	litexcnc_soc_we <= 1'd0;
+	litexcnc_soc_dat_w <= 32'd0;
 	next_state <= state;
 	case (state)
 		1'd1: begin
@@ -7875,55 +7895,76 @@ assign litexcnc_soc_wishbone_cti = litexcnc_soc_etherbone_liteethetherbonewishbo
 assign litexcnc_soc_wishbone_bte = litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_bte;
 assign litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_err = litexcnc_soc_wishbone_err;
 assign csr_bankarray_csrbank0_sel = (csr_bankarray_interface0_bank_bus_adr[13:9] == 1'd0);
+assign csr_bankarray_csrbank0_watchdog_data0_r = csr_bankarray_interface0_bank_bus_dat_w[31:0];
+always @(*) begin
+	csr_bankarray_csrbank0_watchdog_data0_we <= 1'd0;
+	csr_bankarray_csrbank0_watchdog_data0_re <= 1'd0;
+	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 1'd0))) begin
+		csr_bankarray_csrbank0_watchdog_data0_re <= csr_bankarray_interface0_bank_bus_we;
+		csr_bankarray_csrbank0_watchdog_data0_we <= (~csr_bankarray_interface0_bank_bus_we);
+	end
+end
 assign csr_bankarray_csrbank0_gpio_out0_r = csr_bankarray_interface0_bank_bus_dat_w[31:0];
 always @(*) begin
 	csr_bankarray_csrbank0_gpio_out0_we <= 1'd0;
 	csr_bankarray_csrbank0_gpio_out0_re <= 1'd0;
-	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 1'd0))) begin
+	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 1'd1))) begin
 		csr_bankarray_csrbank0_gpio_out0_re <= csr_bankarray_interface0_bank_bus_we;
 		csr_bankarray_csrbank0_gpio_out0_we <= (~csr_bankarray_interface0_bank_bus_we);
 	end
 end
 assign csr_bankarray_csrbank0_pwm_0_enable0_r = csr_bankarray_interface0_bank_bus_dat_w[31:0];
 always @(*) begin
-	csr_bankarray_csrbank0_pwm_0_enable0_we <= 1'd0;
 	csr_bankarray_csrbank0_pwm_0_enable0_re <= 1'd0;
-	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 1'd1))) begin
+	csr_bankarray_csrbank0_pwm_0_enable0_we <= 1'd0;
+	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 2'd2))) begin
 		csr_bankarray_csrbank0_pwm_0_enable0_re <= csr_bankarray_interface0_bank_bus_we;
 		csr_bankarray_csrbank0_pwm_0_enable0_we <= (~csr_bankarray_interface0_bank_bus_we);
 	end
 end
 assign csr_bankarray_csrbank0_pwm_0_period0_r = csr_bankarray_interface0_bank_bus_dat_w[31:0];
 always @(*) begin
-	csr_bankarray_csrbank0_pwm_0_period0_re <= 1'd0;
 	csr_bankarray_csrbank0_pwm_0_period0_we <= 1'd0;
-	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 2'd2))) begin
+	csr_bankarray_csrbank0_pwm_0_period0_re <= 1'd0;
+	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 2'd3))) begin
 		csr_bankarray_csrbank0_pwm_0_period0_re <= csr_bankarray_interface0_bank_bus_we;
 		csr_bankarray_csrbank0_pwm_0_period0_we <= (~csr_bankarray_interface0_bank_bus_we);
 	end
 end
 assign csr_bankarray_csrbank0_pwm_0_width0_r = csr_bankarray_interface0_bank_bus_dat_w[31:0];
 always @(*) begin
-	csr_bankarray_csrbank0_pwm_0_width0_we <= 1'd0;
 	csr_bankarray_csrbank0_pwm_0_width0_re <= 1'd0;
-	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 2'd3))) begin
+	csr_bankarray_csrbank0_pwm_0_width0_we <= 1'd0;
+	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 3'd4))) begin
 		csr_bankarray_csrbank0_pwm_0_width0_re <= csr_bankarray_interface0_bank_bus_we;
 		csr_bankarray_csrbank0_pwm_0_width0_we <= (~csr_bankarray_interface0_bank_bus_we);
 	end
 end
+assign csr_bankarray_csrbank0_watchdog_has_bitten_r = csr_bankarray_interface0_bank_bus_dat_w[0];
+always @(*) begin
+	csr_bankarray_csrbank0_watchdog_has_bitten_re <= 1'd0;
+	csr_bankarray_csrbank0_watchdog_has_bitten_we <= 1'd0;
+	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 3'd5))) begin
+		csr_bankarray_csrbank0_watchdog_has_bitten_re <= csr_bankarray_interface0_bank_bus_we;
+		csr_bankarray_csrbank0_watchdog_has_bitten_we <= (~csr_bankarray_interface0_bank_bus_we);
+	end
+end
 assign csr_bankarray_csrbank0_gpio_in_r = csr_bankarray_interface0_bank_bus_dat_w[31:0];
 always @(*) begin
-	csr_bankarray_csrbank0_gpio_in_re <= 1'd0;
 	csr_bankarray_csrbank0_gpio_in_we <= 1'd0;
-	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 3'd4))) begin
+	csr_bankarray_csrbank0_gpio_in_re <= 1'd0;
+	if ((csr_bankarray_csrbank0_sel & (csr_bankarray_interface0_bank_bus_adr[8:0] == 3'd6))) begin
 		csr_bankarray_csrbank0_gpio_in_re <= csr_bankarray_interface0_bank_bus_we;
 		csr_bankarray_csrbank0_gpio_in_we <= (~csr_bankarray_interface0_bank_bus_we);
 	end
 end
+assign csr_bankarray_csrbank0_watchdog_data0_w = watchdog_data_storage[31:0];
 assign csr_bankarray_csrbank0_gpio_out0_w = gpio_out_storage[31:0];
 assign csr_bankarray_csrbank0_pwm_0_enable0_w = csrstorage0_storage[31:0];
 assign csr_bankarray_csrbank0_pwm_0_period0_w = csrstorage1_storage[31:0];
 assign csr_bankarray_csrbank0_pwm_0_width0_w = csrstorage2_storage[31:0];
+assign csr_bankarray_csrbank0_watchdog_has_bitten_w = watchdog_has_bitten_status;
+assign watchdog_has_bitten_we = csr_bankarray_csrbank0_watchdog_has_bitten_we;
 assign csr_bankarray_csrbank0_gpio_in_w = gpio_in_status[31:0];
 assign gpio_in_we = csr_bankarray_csrbank0_gpio_in_we;
 assign csr_bankarray_csrbank1_sel = (csr_bankarray_interface1_bank_bus_adr[13:9] == 1'd1);
@@ -7938,8 +7979,8 @@ always @(*) begin
 end
 assign csr_bankarray_csrbank1_scratch0_r = csr_bankarray_interface1_bank_bus_dat_w[31:0];
 always @(*) begin
-	csr_bankarray_csrbank1_scratch0_we <= 1'd0;
 	csr_bankarray_csrbank1_scratch0_re <= 1'd0;
+	csr_bankarray_csrbank1_scratch0_we <= 1'd0;
 	if ((csr_bankarray_csrbank1_sel & (csr_bankarray_interface1_bank_bus_adr[8:0] == 1'd1))) begin
 		csr_bankarray_csrbank1_scratch0_re <= csr_bankarray_interface1_bank_bus_we;
 		csr_bankarray_csrbank1_scratch0_we <= (~csr_bankarray_interface1_bank_bus_we);
@@ -7947,8 +7988,8 @@ always @(*) begin
 end
 assign csr_bankarray_csrbank1_bus_errors_r = csr_bankarray_interface1_bank_bus_dat_w[31:0];
 always @(*) begin
-	csr_bankarray_csrbank1_bus_errors_re <= 1'd0;
 	csr_bankarray_csrbank1_bus_errors_we <= 1'd0;
+	csr_bankarray_csrbank1_bus_errors_re <= 1'd0;
 	if ((csr_bankarray_csrbank1_sel & (csr_bankarray_interface1_bank_bus_adr[8:0] == 2'd2))) begin
 		csr_bankarray_csrbank1_bus_errors_re <= csr_bankarray_interface1_bank_bus_we;
 		csr_bankarray_csrbank1_bus_errors_we <= (~csr_bankarray_interface1_bank_bus_we);
@@ -7977,8 +8018,8 @@ always @(*) begin
 end
 assign csr_bankarray_csrbank2_rx_inband_status_r = csr_bankarray_interface2_bank_bus_dat_w[2:0];
 always @(*) begin
-	csr_bankarray_csrbank2_rx_inband_status_re <= 1'd0;
 	csr_bankarray_csrbank2_rx_inband_status_we <= 1'd0;
+	csr_bankarray_csrbank2_rx_inband_status_re <= 1'd0;
 	if ((csr_bankarray_csrbank2_sel & (csr_bankarray_interface2_bank_bus_adr[8:0] == 1'd1))) begin
 		csr_bankarray_csrbank2_rx_inband_status_re <= csr_bankarray_interface2_bank_bus_we;
 		csr_bankarray_csrbank2_rx_inband_status_we <= (~csr_bankarray_interface2_bank_bus_we);
@@ -7986,8 +8027,8 @@ always @(*) begin
 end
 assign csr_bankarray_csrbank2_mdio_w0_r = csr_bankarray_interface2_bank_bus_dat_w[2:0];
 always @(*) begin
-	csr_bankarray_csrbank2_mdio_w0_we <= 1'd0;
 	csr_bankarray_csrbank2_mdio_w0_re <= 1'd0;
+	csr_bankarray_csrbank2_mdio_w0_we <= 1'd0;
 	if ((csr_bankarray_csrbank2_sel & (csr_bankarray_interface2_bank_bus_adr[8:0] == 2'd2))) begin
 		csr_bankarray_csrbank2_mdio_w0_re <= csr_bankarray_interface2_bank_bus_we;
 		csr_bankarray_csrbank2_mdio_w0_we <= (~csr_bankarray_interface2_bank_bus_we);
@@ -9009,13 +9050,16 @@ always @(posedge etherbone_clk) begin
 end
 
 always @(posedge sys_clk) begin
+	watchdog_enable <= watchdog_data_storage[31];
+	watchdog_has_bitten_status <= watchdog_has_bitten;
+	watchdog_has_bitten_we <= 1'd1;
 	gpio_in_status <= {gpio_in0};
 	gpio_in_we <= 1'd1;
-	gpio_out0 <= gpio_out_storage[0];
-	gpio_out1 <= gpio_out_storage[1];
-	enable <= csrstorage0_storage;
-	period <= csrstorage1_storage;
-	width <= csrstorage2_storage;
+	gpio_out0 <= (gpio_out_storage[0] & (~watchdog_has_bitten));
+	gpio_out1 <= (gpio_out_storage[1] & (~watchdog_has_bitten));
+	pwm_enable <= (csrstorage0_storage & (~watchdog_has_bitten));
+	pwm_period <= csrstorage1_storage;
+	pwm_width <= csrstorage2_storage;
 	if ((litexcnc_soc_bus_errors != 32'd4294967295)) begin
 		if (litexcnc_soc_bus_error) begin
 			litexcnc_soc_bus_errors <= (litexcnc_soc_bus_errors + 1'd1);
@@ -9259,18 +9303,40 @@ always @(posedge sys_clk) begin
 		litexcnc_soc_etherbone_liteethetherbonewishbonemaster_source_payload_data <= litexcnc_soc_etherbone_liteethetherbonewishbonemaster_bus_dat_r;
 	end
 	liteethetherbonewishbonemaster_state <= liteethetherbonewishbonemaster_next_state;
-	if (enable) begin
-		counter <= (counter + 1'd1);
-		if ((counter < width)) begin
-			pwm0 <= 1'd1;
+	if (watchdog_enable) begin
+		if ((watchdog_data_storage[30:0] > 1'd0)) begin
+			watchdog_data_storage[30:0] <= (watchdog_data_storage[30:0] - 1'd1);
+			watchdog_has_bitten <= 1'd0;
 		end else begin
-			pwm0 <= 1'd0;
-		end
-		if ((counter >= (period - 1'd1))) begin
-			counter <= 1'd0;
+			watchdog_has_bitten <= 1'd1;
 		end
 	end else begin
-		counter <= 1'd0;
+		watchdog_has_bitten <= 1'd0;
+	end
+	if (pwm_enable) begin
+		if ((pwm_period != 1'd0)) begin
+			pwm_counter <= (pwm_counter + 1'd1);
+			if ((pwm_counter < pwm_width)) begin
+				pwm0 <= 1'd1;
+			end else begin
+				pwm0 <= 1'd0;
+			end
+			if ((pwm_counter >= (pwm_period - 1'd1))) begin
+				pwm_counter <= 1'd0;
+			end
+		end else begin
+			pwm_error_0 <= (pwm_error - pwm_width[15:0]);
+			pwm_error_1 <= ((pwm_error - pwm_width[15:0]) + 16'd65535);
+			if ((pwm_width[15:0] >= pwm_error)) begin
+				pwm0 <= 1'd1;
+				pwm_error <= pwm_error_1;
+			end else begin
+				pwm0 <= 1'd0;
+				pwm_error <= pwm_error_0;
+			end
+		end
+	end else begin
+		pwm_counter <= 1'd0;
 		pwm0 <= 1'd0;
 	end
 	state <= next_state;
@@ -9278,22 +9344,35 @@ always @(posedge sys_clk) begin
 	if (csr_bankarray_csrbank0_sel) begin
 		case (csr_bankarray_interface0_bank_bus_adr[8:0])
 			1'd0: begin
-				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_gpio_out0_w;
+				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_watchdog_data0_w;
 			end
 			1'd1: begin
-				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_pwm_0_enable0_w;
+				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_gpio_out0_w;
 			end
 			2'd2: begin
-				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_pwm_0_period0_w;
+				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_pwm_0_enable0_w;
 			end
 			2'd3: begin
-				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_pwm_0_width0_w;
+				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_pwm_0_period0_w;
 			end
 			3'd4: begin
+				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_pwm_0_width0_w;
+			end
+			3'd5: begin
+				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_watchdog_has_bitten_w;
+			end
+			3'd6: begin
 				csr_bankarray_interface0_bank_bus_dat_r <= csr_bankarray_csrbank0_gpio_in_w;
 			end
 		endcase
 	end
+	if (watchdog_data_we) begin
+		watchdog_data_storage <= watchdog_data_dat_w;
+	end
+	if (csr_bankarray_csrbank0_watchdog_data0_re) begin
+		watchdog_data_storage[31:0] <= csr_bankarray_csrbank0_watchdog_data0_r;
+	end
+	watchdog_data_re <= csr_bankarray_csrbank0_watchdog_data0_re;
 	if (csr_bankarray_csrbank0_gpio_out0_re) begin
 		gpio_out_storage[31:0] <= csr_bankarray_csrbank0_gpio_out0_r;
 	end
@@ -9310,6 +9389,7 @@ always @(posedge sys_clk) begin
 		csrstorage2_storage[31:0] <= csr_bankarray_csrbank0_pwm_0_width0_r;
 	end
 	csrstorage2_re <= csr_bankarray_csrbank0_pwm_0_width0_re;
+	watchdog_has_bitten_re <= csr_bankarray_csrbank0_watchdog_has_bitten_re;
 	gpio_in_re <= csr_bankarray_csrbank0_gpio_in_re;
 	csr_bankarray_interface1_bank_bus_dat_r <= 1'd0;
 	if (csr_bankarray_csrbank1_sel) begin
@@ -9415,6 +9495,8 @@ always @(posedge sys_clk) begin
 		litexcnc_soc_etherbone_status1_ongoing1 <= 1'd0;
 		litexcnc_soc_etherbone_liteethetherbonewishbonemaster_source_payload_addr <= 32'd0;
 		litexcnc_soc_etherbone_liteethetherbonewishbonemaster_source_payload_data <= 32'd0;
+		watchdog_data_storage <= 32'd0;
+		watchdog_data_re <= 1'd0;
 		gpio_out_storage <= 32'd0;
 		gpio_out_re <= 1'd0;
 		csrstorage0_storage <= 32'd0;
@@ -9423,15 +9505,22 @@ always @(posedge sys_clk) begin
 		csrstorage1_re <= 1'd0;
 		csrstorage2_storage <= 32'd0;
 		csrstorage2_re <= 1'd0;
+		watchdog_has_bitten_status <= 1'd0;
+		watchdog_has_bitten_we <= 1'd0;
+		watchdog_has_bitten_re <= 1'd0;
 		gpio_in_status <= 32'd0;
 		gpio_in_we <= 1'd0;
 		gpio_in_re <= 1'd0;
+		watchdog_enable <= 1'd0;
+		watchdog_has_bitten <= 1'd0;
 		gpio_out0 <= 1'd0;
 		gpio_out1 <= 1'd0;
 		pwm0 <= 1'd0;
-		enable <= 1'd0;
-		width <= 32'd0;
-		period <= 32'd0;
+		pwm_enable <= 1'd0;
+		pwm_width <= 32'd0;
+		pwm_period <= 32'd0;
+		pwm_error_0 <= 16'd0;
+		pwm_error_1 <= 16'd0;
 		liteethetherbonepackettx_fsm0_state <= 2'd0;
 		liteethetherbonepackettx_fsm1_state <= 1'd0;
 		liteethetherbonepackettx_state <= 1'd0;
@@ -9900,5 +9989,5 @@ TRELLIS_IO #(
 endmodule
 
 // -----------------------------------------------------------------------------
-//  Auto-Generated by LiteX on 2022-04-06 13:33:21.
+//  Auto-Generated by LiteX on 2022-04-10 18:20:19.
 //------------------------------------------------------------------------------

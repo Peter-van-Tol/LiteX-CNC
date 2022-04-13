@@ -1,0 +1,30 @@
+{
+    "board_name": "test_PWM_GPIO",
+    "baseclass": "litex_boards.targets.colorlight_5a_75x.BaseSoC",
+    "board": "5a-75e",
+    "revision": "6.0",
+    "clock_frequency": 50000000,
+    "ethphy": {
+        "tx_delay": 0
+    },
+    "etherbone": {
+        "ip_address": "192.168.178.40",
+        "mac_address": "0x10e2d5000000"
+    },
+    "gpio_in": [
+        {"pin":"j12:0", "name": "optional_name_unique"}
+    ],
+    "gpio_out": [
+        {"pin": "j1:1"},
+        {"pin": "j1:5"}
+    ],
+    "pwm": [
+        {"pin": "j1:2"}
+    ],
+    "stepgen": [
+        {
+            "step_pin": "j2:1",
+            "dir_pin": "j2:5"
+        }
+    ]
+}
