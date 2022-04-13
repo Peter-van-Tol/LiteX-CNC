@@ -25,6 +25,7 @@ typedef struct litexcnc_struct litexcnc_t;
 
 #include "gpio.h"
 #include "pwm.h"
+#include "stepgen.h"
 #include "wallclock.h"
 #include "watchdog.h"
 
@@ -86,12 +87,15 @@ struct litexcnc_struct {
         size_t num_gpio_inputs;
         size_t num_gpio_outputs;
         size_t num_pwm_instances;
+        size_t num_stepgen_instances;
     } config;
 
     // the litexcnc "Components"
     litexcnc_watchdog_t *watchdog;
+    litexcnc_wallclock_t *wallclock;
     litexcnc_gpio_t gpio;
     litexcnc_pwm_t pwm;
+    litexcnc_stepgen_t stepgen;
 
 
     struct rtapi_list_head list;

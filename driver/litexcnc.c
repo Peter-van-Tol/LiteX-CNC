@@ -75,7 +75,7 @@ static void litexcnc_write(void *void_litexcnc, long period) {
 
     // Process all functions
     uint8_t* pointer = litexcnc->fpga->write_buffer;
-    litexcnc_watchdog_prepare_write(litexcnc, &pointer, long period);
+    litexcnc_watchdog_prepare_write(litexcnc, &pointer, period);
     litexcnc_wallclock_prepare_write(litexcnc, &pointer);
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
@@ -181,10 +181,16 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     if (litexcnc_watchdog_init(litexcnc, config) < 0) {
         goto fail0;
     }
+    if (litexcnc_wallclock_init(litexcnc, config) < 0) {
+        goto fail0;
+    }
     if (litexcnc_gpio_init(litexcnc, config) < 0) {
         goto fail0;
     }
     if (litexcnc_pwm_init(litexcnc, config) < 0) {
+        goto fail0;
+    }
+    if (litexcnc_stepgen_init(litexcnc, config) < 0) {
         goto fail0;
     }
 
@@ -277,3 +283,4 @@ void rtapi_app_exit(void) {
 #include "wallclock.c"
 #include "gpio.c"
 #include "pwm.c"
+#include "stepgen.c"
