@@ -17,11 +17,14 @@ from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 from typing import List, Type
 from pydantic import BaseModel, Field, validator
 
+from firmware.stepgen import StepGen
+
 # Local imports
+from .etherbone import Etherbone, EthPhy
 from .gpio import GPIO
 from .mmio import MMIO
 from .pwm import PWM, PwmPdmModule
-from .etherbone import Etherbone, EthPhy
+from .stepgen import StepGen, StepgenModule
 from .watchdog import WatchDogModule
 
 
@@ -63,6 +66,12 @@ class LitexCNC_Firmware(BaseModel):
         max_items=32,
         unique_items=True
     )
+    stepgen: List[StepGen] = Field(
+        [],
+        item_type=PWM,
+        max_items=32,
+        unique_items=True
+    )
 
     @validator('baseclass', pre=True)
     def import_baseclass(cls, value):
@@ -85,9 +94,7 @@ class LitexCNC_Firmware(BaseModel):
                     revision: str,
                     ethphy: EthPhy,
                     etherbone: Etherbone,
-                    gpio_in: List[GPIO],
-                    gpio_out: List[GPIO],
-                    pwm: List[PWM],
+                    soc: 'LitexCNC_Firmware',
                     sys_clk_freq=int(50e6)
                     ):
 
@@ -119,11 +126,7 @@ class LitexCNC_Firmware(BaseModel):
                     ip_address=str(etherbone.ip_address))
                 
                 # Create memory mapping for IO
-                self.submodules.MMIO_inst = MMIO(
-                    gpio_in=gpio_in,
-                    gpio_out=gpio_out,
-                    pwm=pwm
-                )
+                self.submodules.MMIO_inst = MMIO(soc=soc)
 
                 # Create watchdog
                 watchdog = WatchDogModule(timeout=self.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
@@ -146,7 +149,7 @@ class LitexCNC_Firmware(BaseModel):
                 self.platform.add_extension([
                     ("gpio_in", index, Pins(gpio.pin), IOStandard(gpio.io_standard))
                     for index, gpio 
-                    in enumerate(gpio_in)
+                    in enumerate(soc.gpio_in)
                 ])
                 self.gpio_inputs = [pad for pad in self.platform.request_all("gpio_in").l]
                 self.sync += [
@@ -158,7 +161,7 @@ class LitexCNC_Firmware(BaseModel):
                 self.platform.add_extension([
                     ("gpio_out", index, Pins(gpio.pin), IOStandard(gpio.io_standard))
                     for index, gpio 
-                    in enumerate(gpio_out)
+                    in enumerate(soc.gpio_out)
                 ])
                 self.gpio_outputs = [pad for pad in self.platform.request_all("gpio_out").l]
                 self.sync += [
@@ -172,11 +175,11 @@ class LitexCNC_Firmware(BaseModel):
                 self.platform.add_extension([
                     ("pwm", index, Pins(pwm_instance.pin), IOStandard(pwm_instance.io_standard))
                     for index, pwm_instance 
-                    in enumerate(pwm)
+                    in enumerate(soc.pwm)
                 ])
                 self.pwm_outputs = [pad for pad in self.platform.request_all("pwm").l]
                 # - create the generators
-                for index, _ in enumerate(pwm):
+                for index, _ in enumerate(soc.pwm):
                     # Add the PWM-module to the platform
                     _pwm = PwmPdmModule(self.pwm_outputs[index], with_csr=False)
                     self.submodules += _pwm
@@ -188,11 +191,58 @@ class LitexCNC_Firmware(BaseModel):
                         _pwm.width.eq(getattr(self.MMIO_inst, f'pwm_{index}_width').storage)
                     ]
 
+                # Create StepGen
+                # - create the physical output pins
+                # -> step
+                self.platform.add_extension([
+                    ("stepgen_step", index, Pins(stepgen_instance.step_pin), IOStandard(stepgen_instance.io_standard)) 
+                    for index, stepgen_instance 
+                    in enumerate(soc.stepgen)
+                ])
+                self.stepgen_step_outputs = [pad for pad in self.platform.request_all("stepgen_step").l]
+                # -> dir
+                self.platform.add_extension([
+                    ("stepgen_dir", index, Pins(stepgen_instance.dir_pin), IOStandard(stepgen_instance.io_standard)) 
+                    for index, stepgen_instance 
+                    in enumerate(soc.stepgen)
+                ])
+                self.stepgen_dir_outputs = [pad for pad in self.platform.request_all("stepgen_dir").l]
+                sync_statements = []
+                for index, _ in enumerate(soc.stepgen):
+                    _stepgen = StepgenModule(28)
+                    self.submodules += _stepgen
+                    # Combine input
+                    self.comb += [
+                        _stepgen.enable.eq(~watchdog.has_bitten),
+                        _stepgen.steplen.eq(self.MMIO_inst.stepgen_steplen.storage),
+                        _stepgen.dir_hold_time.eq(self.MMIO_inst.stepgen_dir_hold_time.storage),
+                        _stepgen.dir_setup_time.eq(self.MMIO_inst.stepgen_dir_setup_time.storage),
+                    ]
+                    # Combine output
+                    self.comb += [
+                        self.stepgen_step_outputs[index].eq(_stepgen.step),
+                        self.stepgen_dir_outputs[index].eq(_stepgen.dir)
+                    ]
+                    sync_statements.extend([
+                        _stepgen.speed_target.eq(getattr(self.MMIO_inst, f'stepgen_{index}_speed').storage),
+                        _stepgen.max_acceleration.eq(getattr(self.MMIO_inst, f'stepgen_{index}_max_acceleration').storage)
+                    ])
+                # Apply the sync-statements when the time is ready
+                self.sync += If(
+                    self.MMIO_inst.wall_clock.status >= self.MMIO_inst.stepgen_apply_time.storage,
+                    # Reset the stepgen_apply_time
+                    self.MMIO_inst.stepgen_apply_time.dat_w.eq(0),
+                    self.MMIO_inst.stepgen_apply_time.we.eq(True),
+                    # Pass the target speed to the stepgens
+                    *sync_statements
+                ).Else(
+                    self.MMIO_inst.stepgen_apply_time.we.eq(False),
+                )
+
+
         return _LitexCNC_SoC(
             board=self.board,
             revision=self.revision,
             ethphy= self.ethphy,
             etherbone=self.etherbone,
-            gpio_in=self.gpio_in,
-            gpio_out=self.gpio_out,
-            pwm=self.pwm)
+            soc=self)

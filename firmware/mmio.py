@@ -7,13 +7,14 @@ from migen.fhdl.module import Module
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 
 # Local imports
-from .gpio import GPIO
-from .pwm import PWM
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .soc import LitexCNC_Firmware
 
 
 class MMIO(Module, AutoCSR):
 
-    def __init__(self, gpio_in: List[GPIO], gpio_out: List[GPIO], pwm: List[PWM]):
+    def __init__(self, soc: 'LitexCNC_Firmware'):
         """
         Initializes the memory registers.
 
@@ -25,10 +26,12 @@ class MMIO(Module, AutoCSR):
           - Watchdog;
           - GPIO;
           - PWM;
+          - StepGen;
         - READ:
           - Watchdog;
           - Wall clock;
           - GPIO;
+          - StepGen;
 
         When the order of the MMIO is mis-aligned with respect to the driver this might
         lead to errors (writing to the wrong registers) or the FPGA being hung up (when
@@ -45,12 +48,20 @@ class MMIO(Module, AutoCSR):
         )
         
         # - GPIO
-        self.gpio_out = CSRStorage(size=int(math.ceil(float(len(gpio_out))/32))*32, description="gpio_out", name='gpio_out', write_from_dev=False)
+        self.gpio_out = CSRStorage(size=int(math.ceil(float(len(soc.gpio_out))/32))*32, description="gpio_out", name='gpio_out', write_from_dev=False)
         # - PWM
-        for index, _ in enumerate(pwm):
+        for index, _ in enumerate(soc.pwm):
             setattr(self, f'pwm_{index}_enable', CSRStorage(size=32, description=f'pwm_{index}_enable', name=f'pwm_{index}_enable', write_from_dev=False))
             setattr(self, f'pwm_{index}_period', CSRStorage(size=32, description=f'pwm_{index}_period', name=f'pwm_{index}_period', write_from_dev=False))
             setattr(self, f'pwm_{index}_width', CSRStorage(size=32, description=f'pwm_{index}_width', name=f'pwm_{index}_width', write_from_dev=False))
+        # - Stepgen
+        self.stepgen_steplen = CSRStorage(size=32, description=f'stepgen_steplen', name=f'stepgen_steplen', write_from_dev=False)
+        self.stepgen_dir_hold_time = CSRStorage(size=32, description=f'stepgen_dir_hold_time', name=f'stepgen_dir_hold_time', write_from_dev=False)
+        self.stepgen_dir_setup_time = CSRStorage(size=32, description=f'stepgen_dir_setup_time', name=f'stepgen_dir_setup_time', write_from_dev=False)
+        self.stepgen_apply_time = CSRStorage(size=64, description=f'stepgen_apply_time', name=f'stepgen_apply_time', write_from_dev=True)
+        for index, _ in enumerate(soc.stepgen):
+            setattr(self, f'stepgen_{index}_speed', CSRStorage(size=32, description=f'stepgen_{index}_speed', name=f'stepgen_{index}_speed', write_from_dev=False))
+            setattr(self, f'stepgen_{index}_max_acceleration', CSRStorage(size=32, description=f'stepgen_{index}_max_acceleration', name=f'stepgen_{index}_max_acceleration', write_from_dev=False))
 
         # INPUT (as seen from the PC!)
         # - Watchdog
@@ -69,4 +80,7 @@ class MMIO(Module, AutoCSR):
             name='wall_clock'
         )
         # - GPIO
-        self.gpio_in = CSRStatus(size=int(math.ceil(float(len(gpio_in))/32))*32, description="gpio_in", name='gpio_in')
+        self.gpio_in = CSRStatus(size=int(math.ceil(float(len(soc.gpio_in))/32))*32, description="gpio_in", name='gpio_in')
+        # - stepgen
+        for index, _ in enumerate(soc.stepgen):
+            setattr(self, f'stepgen_{index}_position', CSRStatus(size=64, description=f'stepgen_{index}_position', name=f'stepgen_{index}_position'))
