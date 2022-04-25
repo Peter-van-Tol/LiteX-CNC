@@ -111,8 +111,8 @@ int eb_create_packet(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, si
         // Indicate a read action
         eth_pkt[10] = 0;         // Write count 
         eth_pkt[11] = size >> 2; // Read count (in WORD-count, bitshift to divide by 4)
-        // Store the address
-        address = htobe32(address);
+        // Copy the data
+        memcpy(&eth_pkt[16], data, size);
     } else {
         // Indicate a write action
         eth_pkt[10] = size >> 2; // Write count (in WORD-count, bitshift to divide by 4)
@@ -130,6 +130,13 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
     // copy the header + data to it
     uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
     memset((void*) eth_pkt, 0, sizeof(eth_pkt));
+
+    // Convert the addresses to a list and set it to the device
+    for (size_t i=0; i<size; i+=4) {
+        uint32_t temp;
+        temp = htobe32(address + i);
+        memcpy(&data[i], &temp, 4);
+    }
     eb_create_packet(eth_pkt, address, data, size, 1);
 
     // Send the data to the device
