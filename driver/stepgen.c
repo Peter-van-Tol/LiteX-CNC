@@ -181,7 +181,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
     litexcnc->stepgen.data.max_frequency = (double) litexcnc->clock_frequency / (data_general.steplen + stepspace_cycles);
 
     // Determine the apply time
-    // TODO: should be based on the wall-clock + this period converted to cycles
+    data_general.apply_time = litexcnc->wallclock->memo.wallclock_ticks + (double) period * litexcnc->clock_frequency * litexcnc->stepgen.data.recip_dt;
 
     // Convert the general data to the correct byte order
     data_general.steplen = htobe32(data_general.steplen);
@@ -253,9 +253,11 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                 // get into following errors.
                 speed_new = speed_avg;
             }
+            // LITEXCNC_PRINT_NO_DEVICE("Speed for position command: %d units / s \n", speed_new);
         } else {
             // Speed mode
             speed_new = *(instance->hal.pin.velocity_cmd);
+            // LITEXCNC_PRINT_NO_DEVICE("Speed commanded: %0.2f units / s \n", speed_new);
         }
         // Limit the speed to the maximum speed
         if (speed_new > instance->hal.param.maxvel) {
@@ -264,10 +266,11 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             speed_new = -1 * instance->hal.param.maxvel;
         }
         // Now the new speed has been calculated, convert it from units/s to steps per clock-cycle
-        data_instance.speed_target = htobe32((speed_new * instance->hal.param.position_scale * litexcnc->clock_frequency_recip) + 0x80000000);
-        data_instance.speed_target = htobe32(0x80000000);
+        data_instance.speed_target = htobe32((speed_new * instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1 << PICKOFF) + 0x80000000);
         data_instance.max_acceleration = htobe32(instance->hal.param.maxaccel * instance->hal.param.position_scale * litexcnc->clock_frequency_recip);
         // Put the data on the data-stream and advance the pointer
+        // LITEXCNC_PRINT_NO_DEVICE("Speed commanded: %d @ %d \n", instance->data.speed, data_general.apply_time);
+
         memcpy(*data, &data_instance, LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE);
         *data += LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE;
     }
@@ -298,12 +301,12 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         int64_t pos;
         memcpy(&pos, *data, sizeof pos);
         instance->data.position = be64toh(pos);
-        LITEXCNC_PRINT_NO_DEVICE("Pos feedback %d \n", pos);
+        // LITEXCNC_PRINT_NO_DEVICE("Pos feedback %d \n", pos);
         *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
         uint32_t speed;
         memcpy(&speed, *data, sizeof speed);
         instance->data.speed = (int64_t) be32toh(speed) -  0x80000000;
-        LITEXCNC_PRINT_NO_DEVICE("Speed feedback %d \n", instance->data.speed);
+        // LITEXCNC_PRINT_NO_DEVICE("Speed feedback %d \n", instance->data.speed);
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
         // Convert the received position to HAL pins for counts and floating-point position
         *(instance->hal.pin.counts) = instance->data.position >> PICKOFF;
@@ -311,6 +314,15 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // when the power is cycled -> will lead to a moving reference frame  
         *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1<<(PICKOFF-1))) * instance->data.scale_recip;
         *(instance->hal.pin.speed_fb) = (double) litexcnc->clock_frequency * instance->data.speed * instance->data.scale_recip;
+        // double tmp_pos = *(instance->hal.pin.position_fb);
+        // double tmp_vel = *(instance->hal.pin.speed_fb);
+        // LITEXCNC_PRINT_NO_DEVICE(", %llu, %llu, %.2f, %d, %.2f \n", 
+        //     litexcnc->wallclock->memo.wallclock_ticks, 
+        //     instance->data.position, 
+        //     tmp_pos, 
+        //     instance->data.speed,
+        //     tmp_vel
+        // );
 
         /* -------------------
          * Predict the position and speed at the theoretical end of the start of the 
