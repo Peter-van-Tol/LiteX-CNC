@@ -5,6 +5,7 @@ import math
 # Import from litex
 from migen.fhdl.module import Module
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
+from migen import *
 
 # Local imports
 from typing import TYPE_CHECKING
@@ -60,7 +61,7 @@ class MMIO(Module, AutoCSR):
         self.stepgen_dir_setup_time = CSRStorage(size=32, description=f'stepgen_dir_setup_time', name=f'stepgen_dir_setup_time', write_from_dev=False)
         self.stepgen_apply_time = CSRStorage(size=64, description=f'stepgen_apply_time', name=f'stepgen_apply_time', write_from_dev=True)
         for index, _ in enumerate(soc.stepgen):
-            setattr(self, f'stepgen_{index}_speed', CSRStorage(size=32, description=f'stepgen_{index}_speed', name=f'stepgen_{index}_speed', write_from_dev=False))
+            setattr(self, f'stepgen_{index}_speed_target', CSRStorage(size=32, reset=0x80000000, description=f'stepgen_{index}_speed_target', name=f'stepgen_{index}_speed_target', write_from_dev=False))
             setattr(self, f'stepgen_{index}_max_acceleration', CSRStorage(size=32, description=f'stepgen_{index}_max_acceleration', name=f'stepgen_{index}_max_acceleration', write_from_dev=False))
 
         # INPUT (as seen from the PC!)
@@ -84,3 +85,4 @@ class MMIO(Module, AutoCSR):
         # - stepgen
         for index, _ in enumerate(soc.stepgen):
             setattr(self, f'stepgen_{index}_position', CSRStatus(size=64, description=f'stepgen_{index}_position', name=f'stepgen_{index}_position'))
+            setattr(self, f'stepgen_{index}_speed', CSRStatus(size=32, description=f'stepgen_{index}_speed', name=f'stepgen_{index}_speed'))
