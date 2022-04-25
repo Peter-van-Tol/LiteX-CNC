@@ -77,6 +77,11 @@ uint8_t litexcnc_wallclock_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 }
 
 uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data) {
+
+    // Get the full value (fool-proof way ;) )
+    uint64_t ticks;
+    memcpy(&ticks , *data, sizeof ticks);
+    litexcnc->wallclock->memo.wallclock_ticks = be64toh(ticks);
     // Write the MSB value to the HAL pins
     uint32_t msb;
     memcpy(&msb, *data, sizeof msb);
@@ -87,8 +92,6 @@ uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     memcpy(&lsb, *data, sizeof lsb);
     *(litexcnc->wallclock->hal.pin.wallclock_ticks_lsb) = be32toh(lsb);
     (*data)+=4;
-    // Combine to 64-bit counter
-    litexcnc->wallclock->memo.wallclock_ticks = (uint64_t) *(litexcnc->wallclock->hal.pin.wallclock_ticks_msb) << 32 + *(litexcnc->wallclock->hal.pin.wallclock_ticks_lsb);
 }
 
 
