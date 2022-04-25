@@ -59,12 +59,23 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     // Read the state from the FPGA
     litexcnc->fpga->read(litexcnc->fpga);
 
+    // LITEXCNC_PRINT_NO_DEVICE("Data received %02X, starting from %02X \n", LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc), litexcnc->fpga->write_buffer_size);
+    // for (size_t i=0; i<litexcnc->fpga->read_buffer_size; i+=4) {
+    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+    //         (unsigned char)litexcnc->fpga->read_buffer[i+0],
+    //         (unsigned char)litexcnc->fpga->read_buffer[i+1],
+    //         (unsigned char)litexcnc->fpga->read_buffer[i+2],
+    //         (unsigned char)litexcnc->fpga->read_buffer[i+3]);
+    // }
+
     // Process the read data
     uint8_t* pointer = litexcnc->fpga->read_buffer;
     litexcnc_watchdog_process_read(litexcnc, &pointer);
     litexcnc_wallclock_process_read(litexcnc, &pointer);
     litexcnc_gpio_process_read(litexcnc, &pointer);
     litexcnc_pwm_process_read(litexcnc, &pointer);
+    litexcnc_stepgen_process_read(litexcnc, &pointer, period);
+
 }
 
 static void litexcnc_write(void *void_litexcnc, long period) {
@@ -79,6 +90,7 @@ static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc_wallclock_prepare_write(litexcnc, &pointer);
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
+    litexcnc_stepgen_prepare_write(litexcnc, &pointer, period);
 
     // Write the data to the FPGA
     litexcnc->fpga->write(litexcnc->fpga);
@@ -175,6 +187,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         goto fail1;
     }
     litexcnc->clock_frequency = json_object_get_int(clock_frequency);
+    litexcnc->clock_frequency_recip = 1.0f / litexcnc->clock_frequency;
     json_object_put(clock_frequency);
 
     // Initialize modules

@@ -54,8 +54,8 @@ typedef struct litexcnc_struct litexcnc_t;
 // ------------------------------------
 // Basically these are the summations of all the data sizes from the
 // sub-modules
-#define LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_WRITE_SIZE + LITEXCNC_WALLCLOCK_DATA_WRITE_SIZE + LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc)
-#define LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_READ_SIZE + LITEXCNC_WALLCLOCK_READ_READ_SIZE + LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc)
+#define LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_WRITE_SIZE + LITEXCNC_WALLCLOCK_DATA_WRITE_SIZE + LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc)
+#define LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_READ_SIZE + LITEXCNC_WALLCLOCK_DATA_READ_SIZE + LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc)  + LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc)
 
 typedef struct litexcnc_fpga_struct litexcnc_fpga_t;
 struct litexcnc_fpga_struct {
@@ -82,6 +82,7 @@ struct litexcnc_fpga_struct {
 struct litexcnc_struct {
     litexcnc_fpga_t *fpga;
     uint32_t clock_frequency;
+    float clock_frequency_recip;
 
     struct {
         size_t num_gpio_inputs;
