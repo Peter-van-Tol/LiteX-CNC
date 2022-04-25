@@ -86,7 +86,7 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
 
     // Read the data (etherbone.h), the address is based now on a fixed number in order
     // to read the GPIO out, as the board is not suitable for input yet.
-    eb_read8(board->connection, this->write_buffer_size + 0x04, this->read_buffer, this->read_buffer_size);
+    eb_read8(board->connection, this->write_buffer_size, this->read_buffer, this->read_buffer_size);
 }
 
 
