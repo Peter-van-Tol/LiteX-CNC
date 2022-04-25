@@ -143,6 +143,7 @@ class LitexCNC_Firmware(BaseModel):
                 self.sync+=[
                     # Increment the wall_clock
                     self.MMIO_inst.wall_clock.status.eq(self.MMIO_inst.wall_clock.status + 1),
+                    self.MMIO_inst.wall_clock.we.eq(True)
                 ]
 
                 # Create GPIO in
@@ -221,11 +222,16 @@ class LitexCNC_Firmware(BaseModel):
                     # Combine output
                     self.comb += [
                         self.stepgen_step_outputs[index].eq(_stepgen.step),
-                        self.stepgen_dir_outputs[index].eq(_stepgen.dir)
+                        self.stepgen_dir_outputs[index].eq(_stepgen.dir),
                     ]
                     sync_statements.extend([
-                        _stepgen.speed_target.eq(getattr(self.MMIO_inst, f'stepgen_{index}_speed').storage),
-                        _stepgen.max_acceleration.eq(getattr(self.MMIO_inst, f'stepgen_{index}_max_acceleration').storage)
+                        _stepgen.speed_target.eq(getattr(self.MMIO_inst, f'stepgen_{index}_speed_target').storage),
+                        _stepgen.max_acceleration.eq(getattr(self.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
+                        # TODO: statements below can also go to a comb-statement
+                        getattr(self.MMIO_inst, f'stepgen_{index}_position').status.eq(_stepgen.position),
+                        getattr(self.MMIO_inst, f'stepgen_{index}_position').we.eq(True),
+                        getattr(self.MMIO_inst, f'stepgen_{index}_speed').status.eq(_stepgen.speed),
+                        getattr(self.MMIO_inst, f'stepgen_{index}_speed').we.eq(True),
                     ])
                 # Apply the sync-statements when the time is ready
                 self.sync += If(
