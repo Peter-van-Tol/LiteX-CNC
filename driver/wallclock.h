@@ -66,9 +66,9 @@ typedef struct {
 // - read
 typedef struct {
     // Input pins
-    uint64_t count; // A 64-bit count, but all data will be send with a 4-byte width
+    uint64_t count;
 } litexcnc_wallclock_data_read_t;
-#define LITEXCNC_WALLCLOCK_READ_READ_SIZE sizeof(litexcnc_wallclock_data_read_t)
+#define LITEXCNC_WALLCLOCK_DATA_READ_SIZE sizeof(litexcnc_wallclock_data_read_t)
 
 // Functions for creating, reading and writing wall-clock pins
 int litexcnc_wallclock_init(litexcnc_t *litexcnc, json_object *config);
