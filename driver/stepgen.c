@@ -74,6 +74,10 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             // - Timing - dirhold
             r = hal_param_u32_newf(HAL_RW, &(instance->hal.param.dir_hold_time), litexcnc->fpga->comp_id, "%s.dir-hold-time", base_name);
             if (r != 0) { goto fail_params; }
+            // - Position mode (including setting the default mode, )
+            r = hal_param_bit_newf(HAL_RW, &(instance->hal.param.position_mode), litexcnc->fpga->comp_id, "%s.position-mode", base_name);
+            if (r != 0) { goto fail_params; }
+            instance->hal.param.position_mode = 1;
 
             // Create the pins
             // - counts
@@ -144,7 +148,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
     // NOTE: all timings are in nano-seconds (1E-9), so the timing is multiplied with
     // the clock-frequency and divided by 1E9. However, this might lead to issues
     // with roll-over of the 32-bit integer. 
-    litexcnc_stepgen_general_write_data_t data_general;
+    litexcnc_stepgen_general_write_data_t data_general = {0,0,0,0};
     uint32_t stepspace_cycles; // Separate variable, as it is not part of the data-package
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
         // Get pointer to the stepgen instance
@@ -231,15 +235,40 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             // Estimate the required (average) speed for getting to the commanded position, required time to
             // accelerate to that speed.
             speed_avg = (*(instance->hal.pin.position_cmd) - *(instance->hal.pin.position_prediction)) * litexcnc->stepgen.data.recip_dt;
-            match_time = fabs(speed_avg - *(instance->hal.pin.speed_prediction)) / instance->hal.param.maxaccel;
-            if (match_time < period) {
+            // LITEXCNC_PRINT_NO_DEVICE("Speed calculation: %.2f, %.2f, %.2f, %.2f \n",
+            //     *(instance->hal.pin.position_cmd),
+            //     *(instance->hal.pin.position_prediction),
+            //     litexcnc->stepgen.data.recip_dt,
+            //     speed_avg
+            // );
+            match_time = fabs(speed_avg - *(instance->hal.pin.speed_prediction)) / instance->hal.param.maxaccel * 1.0e9;
+            // LITEXCNC_PRINT_NO_DEVICE("Match-time: %.2f, %.2f, %.2f, %.2f \n",
+            //     speed_avg,
+            //     *(instance->hal.pin.speed_prediction),
+            //     instance->hal.param.maxaccel,
+            //     match_time
+            // );
+            if (match_time < litexcnc->clock_frequency_recip) {
+                // Constant speed
+                speed_new = speed_avg;
+                // LITEXCNC_PRINT_NO_DEVICE("Calculated speed1: %.2f \n",
+                //     speed_new
+                // );
+            }
+            else if (match_time < period) {
                 // The average speed can be obtained during one period. Now determine at which 
                 // position we would end up if this average speed was used. There will be a difference 
                 // between the commanded position and the 'average' position we have to compensate for.
                 pos_avg = *(instance->hal.pin.position_prediction) \
-                        + 0.5 * ( *(instance->hal.pin.speed_prediction) + speed_avg) * match_time \
-                        + (period - match_time) * speed_avg;
+                        + (
+                            0.5 * ( *(instance->hal.pin.speed_prediction) + speed_avg) * match_time \
+                            + (period - match_time) * speed_avg) \
+                        * 1e-9;
                 pos_error = *(instance->hal.pin.position_cmd) - pos_avg;
+                // LITEXCNC_PRINT_NO_DEVICE("Position and error: %.2f, %.2f \n",
+                //     pos_avg,
+                //     pos_error
+                // );
                 // Determine which the 'extra' speed required to solve for this position error. 
                 // The error can only be fully compensated when the match_time is less then half
                 // of the period, otherwise the acceleration constraint cannot be met.
@@ -247,11 +276,17 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                     match_time = 0.5 * period;
                 }
                 speed_new = speed_avg + pos_error * 2 / match_time; 
+                // LITEXCNC_PRINT_NO_DEVICE("Calculated speed2: %.2f \n",
+                //     speed_new
+                // );
             } else {
                 // The whole period we must accelerate to even get to the average speed. Apply 
                 // maximum acceleration. If this happens multiple periods in a row, this might
                 // get into following errors.
                 speed_new = speed_avg;
+                // LITEXCNC_PRINT_NO_DEVICE("Calculated speed3: %.2f \n",
+                //     speed_new
+                // );
             }
             // LITEXCNC_PRINT_NO_DEVICE("Speed for position command: %d units / s \n", speed_new);
         } else {
@@ -265,6 +300,9 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
         } else if (speed_new < -1 * instance->hal.param.maxvel) {
             speed_new = -1 * instance->hal.param.maxvel;
         }
+        // LITEXCNC_PRINT_NO_DEVICE("Limited speed3: %.2f \n",
+        //     speed_new
+        // );
         // Now the new speed has been calculated, convert it from units/s to steps per clock-cycle
         data_instance.speed_target = htobe32((speed_new * instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1 << PICKOFF) + 0x80000000);
         data_instance.max_acceleration = htobe32(instance->hal.param.maxaccel * instance->hal.param.position_scale * litexcnc->clock_frequency_recip);
@@ -316,7 +354,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         *(instance->hal.pin.speed_fb) = (double) litexcnc->clock_frequency * instance->data.speed * instance->data.scale_recip;
         // double tmp_pos = *(instance->hal.pin.position_fb);
         // double tmp_vel = *(instance->hal.pin.speed_fb);
-        // LITEXCNC_PRINT_NO_DEVICE(", %llu, %llu, %.2f, %d, %.2f \n", 
+        // LITEXCNC_PRINT_NO_DEVICE(", %llu, %lld, %.6f, %d, %.6f \n", 
         //     litexcnc->wallclock->memo.wallclock_ticks, 
         //     instance->data.position, 
         //     tmp_pos, 
@@ -344,7 +382,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // TODO: expected to be non-relevant though
         // - check whether the difference in target speed and current speed can be bridged 
         //   within 1 period.
-	    double match_time = fabs(*(instance->hal.pin.speed_fb) - *(instance->hal.pin.velocity_cmd)) / instance->hal.param.maxaccel;
+	    double match_time = fabs(*(instance->hal.pin.speed_fb) - *(instance->hal.pin.velocity_cmd)) / instance->hal.param.maxaccel * 1e9;
         if (match_time <= period) {
             // The predicted speed at the end of the period is equal to the commanded velocity
             *(instance->hal.pin.speed_prediction) = *(instance->hal.pin.velocity_cmd);

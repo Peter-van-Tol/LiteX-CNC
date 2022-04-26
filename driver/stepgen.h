@@ -65,7 +65,7 @@ typedef struct {
             hal_u32_t stepspace;        /* The minimum space between step pulses, in nanoseconds. Measured from falling edge to rising edge. The actual time depends on the step rate and can be much longer. Is used to calculate the maximum stepping frequency */ 
             hal_u32_t dir_setup_time;   /* The minimum setup time from direction to step, in nanoseconds periods. Measured from change of direction to rising edge of step. */
             hal_u32_t dir_hold_time;    /* The minimum hold time of direction after step, in nanoseconds. Measured from falling edge of step to change of direction */
-            hal_bit_t position_mode;    /* Flag indicating this stepgen should work in position mode */
+            hal_bit_t position_mode;    /* Flag indicating this stepgen should work in position mode, default is True */
         } param;
 
     } hal;
