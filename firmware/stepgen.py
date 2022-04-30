@@ -20,6 +20,12 @@ class StepGen(BaseModel):
         None,
         description="The name of the stepgen as used in LinuxCNC HAL-file (optional). "
     )
+    soft_stop: bool = Field(
+        False,
+        description="When False, the stepgen will directly stop when the stepgen is "
+        "disabled. When True, the stepgen will stop the machine with respect to the "
+        "acceleration limits and then be disabled. Default value: False."
+    )
     io_standard: str = Field(
         "LVCMOS33",
         description="The IO Standard (voltage) to use for the pins."
@@ -46,7 +52,7 @@ class StepgenCounter(Module, AutoDoc):
 
 class StepgenModule(Module, AutoDoc):
 
-    def __init__(self, pick_off) -> None:
+    def __init__(self, pick_off, soft_stop) -> None:
 
         self.intro = ModuleDoc("""
     
@@ -122,6 +128,13 @@ class StepgenModule(Module, AutoDoc):
         # still waiting for the dir_setup to time out.
         sync += If(
             ~self.wait,
+            # When the machine is not enabled, the speed is clamped to 0. This results in a
+            # deceleration when the machine is disabled while the machine is running, 
+            # preventing possible damage. 
+            If(
+                ~self.enable,
+                self.speed_target.eq(0x80000000)
+            ),
             If(
                 ~self.max_acceleration,
                 # Case: no maximum acceleration defined, directly apply the requested speed
@@ -147,11 +160,21 @@ class StepgenModule(Module, AutoDoc):
         )
 
         # Update the position
-        sync += If(
-            # Check whether the system is enabled and we are not waiting for the dir_setup
-            self.enable & ~self.wait,
-            self.position.eq(self.position + self.speed - 0x80000000)
-        )
+        if soft_stop:
+            sync += If(
+                # Only check we are not waiting for the dir_setup. When the system is disabled, the
+                # speed is set to 0 (with respect to acceleration limits) and the machine will be
+                # stopped when disabled.
+                ~self.wait,
+                self.position.eq(self.position + self.speed - 0x80000000)
+            )
+        else:
+            sync += If(
+                # Check whether the system is enabled and we are not waiting for the dir_setup
+                self.enable & ~self.wait,
+                self.position.eq(self.position + self.speed - 0x80000000)
+            )
+            
 
         # Translate the position to steps by looking at the n'th bit (pick-off)
         sync += If(

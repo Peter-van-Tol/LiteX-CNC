@@ -209,8 +209,8 @@ class LitexCNC_Firmware(BaseModel):
                 ])
                 self.stepgen_dir_outputs = [pad for pad in self.platform.request_all("stepgen_dir").l]
                 sync_statements = []
-                for index, _ in enumerate(soc.stepgen):
-                    _stepgen = StepgenModule(28)
+                for index, stepgen_config in enumerate(soc.stepgen):
+                    _stepgen = StepgenModule(28, stepgen_config.soft_stop)
                     self.submodules += _stepgen
                     # Combine input
                     self.comb += [
@@ -244,7 +244,6 @@ class LitexCNC_Firmware(BaseModel):
                 ).Else(
                     self.MMIO_inst.stepgen_apply_time.we.eq(False),
                 )
-
 
         return _LitexCNC_SoC(
             board=self.board,

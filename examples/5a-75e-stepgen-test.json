@@ -8,7 +8,7 @@
         "tx_delay": 0
     },
     "etherbone": {
-        "ip_address": "192.168.178.40",
+        "ip_address": "10.0.0.10",
         "mac_address": "0x10e2d5000000"
     },
     "gpio_in": [
@@ -24,7 +24,8 @@
     "stepgen": [
         {
             "step_pin": "j2:1",
-            "dir_pin": "j2:5"
+            "dir_pin": "j2:5",
+            "soft_stop": true
         }
     ]
 }
