@@ -1,10 +1,12 @@
+import binascii
+
 from random import setstate
 from typing import List
 import math
 
 # Import from litex
 from migen.fhdl.module import Module
-from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
+from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage, CSRConstant
 from migen import *
 
 # Local imports
@@ -15,7 +17,7 @@ if TYPE_CHECKING:
 
 class MMIO(Module, AutoCSR):
 
-    def __init__(self, soc: 'LitexCNC_Firmware'):
+    def __init__(self, soc: 'LitexCNC_Firmware', fingerprint):
         """
         Initializes the memory registers.
 
@@ -38,6 +40,27 @@ class MMIO(Module, AutoCSR):
         lead to errors (writing to the wrong registers) or the FPGA being hung up (when
         writing to a read-only register).
         """
+        # INITIALISATION
+        self.magic = CSRStatus(
+            size=32,
+            reset=0x18052022,
+            description="Magic code, requested by the driver to make sure it is a FPGA with an "
+            "instance of LitexCNC-firmware. On a personal note: the magic code is clearly a date. "
+            "This date is for me very important to me, in rememberance of my greatest support."
+        )
+        self.fingerprint = CSRStatus(
+            size=32,
+            reset=fingerprint
+        )
+        self.reset = CSRStorage(
+            size=1, 
+            description="Reset.\nWhile True (set to 1) the card is being forced in reset-mode. In "
+            "reset-mode the position and speed of the steppers is reset to the starting position. "
+            "When starting the driver, the first step is to reset it, to prevent erronous behaviour "
+            "of the steppers.", 
+            name='reset'
+        )
+
         # OUTPUT (as seen from the PC!)
         # - Watchdog
         self.watchdog_data = CSRStorage(

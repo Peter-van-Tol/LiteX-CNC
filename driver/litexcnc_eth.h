@@ -21,6 +21,7 @@
 #define LITEXCNC_ETH_NAME    "litexcnc_eth"
 #define LITEXCNC_ETH_VERSION "0.02"
 #define MAX_ETH_BOARDS 4
+#define MAX_RESET_RETRIES 5
 
 #include "etherbone.h"
 

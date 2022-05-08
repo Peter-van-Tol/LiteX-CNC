@@ -82,7 +82,7 @@ class LitexCNC_Firmware(BaseModel):
         return mod
 
 
-    def generate(self):
+    def generate(self, fingerprint):
         """
         Function which generates the firmware
         """
@@ -126,7 +126,7 @@ class LitexCNC_Firmware(BaseModel):
                     ip_address=str(etherbone.ip_address))
                 
                 # Create memory mapping for IO
-                self.submodules.MMIO_inst = MMIO(soc=soc)
+                self.submodules.MMIO_inst = MMIO(soc=soc, fingerprint=fingerprint)
 
                 # Create watchdog
                 watchdog = WatchDogModule(timeout=self.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
@@ -209,12 +209,13 @@ class LitexCNC_Firmware(BaseModel):
                 ])
                 self.stepgen_dir_outputs = [pad for pad in self.platform.request_all("stepgen_dir").l]
                 sync_statements = []
+                reset_statements = []
                 for index, stepgen_config in enumerate(soc.stepgen):
                     _stepgen = StepgenModule(28, stepgen_config.soft_stop)
                     self.submodules += _stepgen
                     # Combine input
                     self.comb += [
-                        _stepgen.enable.eq(~watchdog.has_bitten),
+                        _stepgen.enable.eq(~watchdog.has_bitten & ~self.MMIO_inst.reset.storage),
                         _stepgen.steplen.eq(self.MMIO_inst.stepgen_steplen.storage),
                         _stepgen.dir_hold_time.eq(self.MMIO_inst.stepgen_dir_hold_time.storage),
                         _stepgen.dir_setup_time.eq(self.MMIO_inst.stepgen_dir_setup_time.storage),
@@ -223,27 +224,36 @@ class LitexCNC_Firmware(BaseModel):
                     self.comb += [
                         self.stepgen_step_outputs[index].eq(_stepgen.step),
                         self.stepgen_dir_outputs[index].eq(_stepgen.dir),
-                    ]
-                    sync_statements.extend([
-                        _stepgen.speed_target.eq(getattr(self.MMIO_inst, f'stepgen_{index}_speed_target').storage),
-                        _stepgen.max_acceleration.eq(getattr(self.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
-                        # TODO: statements below can also go to a comb-statement
+                        # Store data for position and speed feedbavk
                         getattr(self.MMIO_inst, f'stepgen_{index}_position').status.eq(_stepgen.position),
                         getattr(self.MMIO_inst, f'stepgen_{index}_position').we.eq(True),
                         getattr(self.MMIO_inst, f'stepgen_{index}_speed').status.eq(_stepgen.speed),
                         getattr(self.MMIO_inst, f'stepgen_{index}_speed').we.eq(True),
+                    ]
+                    sync_statements.extend([
+                        _stepgen.speed_target.eq(getattr(self.MMIO_inst, f'stepgen_{index}_speed_target').storage),
+                        _stepgen.max_acceleration.eq(getattr(self.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
+                    ])
+                    reset_statements.extend([
+                        _stepgen.speed_target.eq(0x80000000),
+                        _stepgen.position.eq(0),
                     ])
                 # Apply the sync-statements when the time is ready
                 self.sync += If(
-                    self.MMIO_inst.wall_clock.status >= self.MMIO_inst.stepgen_apply_time.storage,
-                    # Reset the stepgen_apply_time
-                    self.MMIO_inst.stepgen_apply_time.dat_w.eq(0),
-                    self.MMIO_inst.stepgen_apply_time.we.eq(True),
-                    # Pass the target speed to the stepgens
-                    *sync_statements
-                ).Else(
-                    self.MMIO_inst.stepgen_apply_time.we.eq(False),
-                )
+                        self.MMIO_inst.reset.storage,
+                        *reset_statements
+                    ).Else(
+                        If(
+                            self.MMIO_inst.wall_clock.status >= self.MMIO_inst.stepgen_apply_time.storage,
+                            # Reset the stepgen_apply_time
+                            self.MMIO_inst.stepgen_apply_time.dat_w.eq(0),
+                            self.MMIO_inst.stepgen_apply_time.we.eq(True),
+                            # Pass the target speed to the stepgens
+                            *sync_statements
+                        ).Else(
+                            self.MMIO_inst.stepgen_apply_time.we.eq(False),
+                        )
+                    )
 
         return _LitexCNC_SoC(
             board=self.board,

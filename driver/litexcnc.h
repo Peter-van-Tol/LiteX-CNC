@@ -61,6 +61,13 @@ typedef struct litexcnc_fpga_struct litexcnc_fpga_t;
 struct litexcnc_fpga_struct {
     char name[HAL_NAME_LEN+1];
     int comp_id;
+    uint32_t card_fingerprint;
+
+    // Functions to verify the board and reset the board
+    // - on success these two return TRUE (not zero)
+    // - on failure they return FALSE (0) and set *self->io_error (below) to TRUE
+    int (*verify_config)(litexcnc_fpga_t *self);
+    int (*reset)(litexcnc_fpga_t *self);
 
     // Functions to read and write data from the board
     // - on success these two return TRUE (not zero)
@@ -90,6 +97,9 @@ struct litexcnc_struct {
         size_t num_pwm_instances;
         size_t num_stepgen_instances;
     } config;
+
+    // The fingerprint of the
+    uint32_t config_fingerprint;
 
     // the litexcnc "Components"
     litexcnc_watchdog_t *watchdog;

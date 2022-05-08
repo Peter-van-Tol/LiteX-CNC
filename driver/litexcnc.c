@@ -31,6 +31,7 @@
 
 #include "litexcnc.h"
 #include "gpio.h"
+#include "crc.h"
 
 
 #ifdef MODULE_INFO
@@ -100,13 +101,9 @@ static void litexcnc_communicate(void *void_litexcnc, long period) {
 
     // // if there are comm problems, wait for the user to fix it
     // if ((*litexcnc->fpga->io_error) != 0) return;
-
-    // Check whether buffer is empty (prevent two packages to be sent at the same time)
     
     // Read data to the device
-    // litexcnc_read(void_litexcnc, period);
-
-    // Possible sleep?
+    litexcnc_read(void_litexcnc, period);
 
     // Write data from the device
     litexcnc_write(void_litexcnc, period);
@@ -140,6 +137,35 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     // Add it to the list
     rtapi_list_add_tail(&litexcnc->list, &litexcnc_list);
 
+    // Calculate the CRC-fingerprint of the board
+    // - init properties
+    FILE *fileptr;
+    unsigned char *buffer;
+    long filelen;
+    // - open file get the length of the file
+    fileptr = fopen(config_file, "rb");  // Open the file in binary mode
+    fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
+    filelen = ftell(fileptr);             // Get the current byte offset in the file
+    rewind(fileptr);                      // Jump back to the beginning of the file
+    // - create buffer, read contents and close file
+    buffer = (unsigned char *)malloc(filelen * sizeof(unsigned char)); // Enough memory for the file
+    fread(buffer, filelen, 1, fileptr);   // Read in the entire file
+    fclose(fileptr);                      // Close the file
+    // - calculate the CRC-value and store it on the config
+    litexcnc->config_fingerprint = crc32(buffer, filelen, 0);
+    // - debug purposes: print the calculated CRC-checksum
+    LITEXCNC_PRINT_NO_DEVICE("Configuration file fingerprint: '%u'\n", litexcnc->config_fingerprint);
+
+    // Verify the fingerprint of the FPGA
+    r = litexcnc->fpga->verify_config(litexcnc->fpga);
+    if (r != 0) {
+        LITEXCNC_PRINT_NO_DEVICE("Validation of config failed (is there a card connected?) \n");
+        goto fail0;
+    }
+    if (r != 0) {
+        LITEXCNC_PRINT_NO_DEVICE("Fingerprint incorrect (driver: %08d, FPGA: %08d)\n", litexcnc->config_fingerprint, litexcnc->fpga->card_fingerprint);
+    }
+
     // Initialize the functions
     struct json_object *config = json_object_from_file(config_file);
     if (!config) {
@@ -150,7 +176,6 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     // Store the name of the board
     struct json_object *board_name;
     if (!json_object_object_get_ex(config, "board_name", &board_name)) {
-        LITEXCNC_WARN_NO_DEVICE("Missing optional JSON key: '%s'\n", "board_name");
         LITEXCNC_WARN_NO_DEVICE("Missing optional JSON key: '%s'\n", "board_name");
         json_object_put(board_name);
         rtapi_snprintf(fpga->name, sizeof(fpga->name), "litexcnc.0"); //TODO: add counter
@@ -257,6 +282,13 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         goto fail1;
     }
 
+    // Reset the FPGA
+    r = litexcnc->fpga->reset(litexcnc->fpga);
+    if (r != 0) {
+        LITEXCNC_PRINT_NO_DEVICE("Reset of FPGA failed \n");
+        goto fail1;
+    }
+
     return 0;
 
 fail1:
@@ -292,6 +324,7 @@ void rtapi_app_exit(void) {
 // Include all other files. This makes separation in different files possible,
 // while still compiling a single file. NOTE: the #include directive just copies
 // the whole contents of that file into this source-file.
+#include "crc.c"
 #include "watchdog.c"
 #include "wallclock.c"
 #include "gpio.c"

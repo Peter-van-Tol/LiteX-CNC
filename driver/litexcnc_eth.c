@@ -75,6 +75,116 @@ static void dict_free(struct rtapi_list_head *head) {
     }
 }
 
+static int litexcnc_eth_verify_config(litexcnc_fpga_t *this) {
+    /*
+     * This function reads the magic code (should be equal to 0x18052022) and if the
+     * received magic code is valied, it stores the fingerprint on the FPGA in the
+     * datastruct on the computer. The comparison between the used config for the driver
+     * stored fingerprint is done by the LitexCNC driver
+     */
+    litexcnc_eth_t *board = this->private;
+
+    // Create a buffer to contain both the magic number and the config fingerprint. Both
+    // parameters are stored in as 32-bit unsigned integers
+    size_t read_buffer_size = 2 * sizeof(uint32_t);
+    uint8_t *read_buffer = rtapi_kmalloc(read_buffer_size, RTAPI_GFP_KERNEL);
+    uint8_t* pointer = read_buffer;
+
+    // Read the magic and fingerprint. These are the first registers on the card
+    int r = eb_read8(board->connection, 0x0, read_buffer, read_buffer_size);
+    if (r < 0){
+        return r;
+    }
+
+    // Request was succesfull, check magic
+    uint32_t magic;
+    memcpy(&magic, pointer, sizeof magic);
+    if (be32toh(magic) != 0x18052022) {
+        LITEXCNC_ERR_NO_DEVICE("Invalid magic received '%08X'\n", be32toh(magic));
+        return -1;
+    }
+    pointer+=4;
+
+    // Store the fingerprint of the card
+    uint32_t fingerprint;
+    memcpy(&fingerprint, pointer, sizeof fingerprint);
+    this->card_fingerprint = be32toh(fingerprint);
+    LITEXCNC_ERR_NO_DEVICE("Received fingerprint '%u'\n", this->card_fingerprint);
+
+    // Succesfull finish
+    return 0;
+}
+
+static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
+    /*
+     * This function resets the card to its initial state. Because this resetting is
+     * very important to prevent uncommanded moves, this function will write the reset
+     * code to the card, read back the value to assure it is set and then set the card
+     * to working mode. Whenever a disruption of this sequence occurs, this function
+     * will return an error and the component will fail to load.
+     *
+     * This function will retry to reset the card a maximum of MAX_RESET_RETRIES when
+     * the reset fails. Failure of the reset can happen when for example a disruption
+     * in communication occurs.
+     */
+    litexcnc_eth_t *board = this->private;
+
+    // Create a buffer to contain both the magic number and the config fingerprint. Both
+    // parameters are stored in as 32-bit unsigned integers
+    size_t buffer_size = 1 * sizeof(uint32_t);
+    uint8_t *buffer = rtapi_kmalloc(buffer_size, RTAPI_GFP_KERNEL);
+
+    // Initialize a variables for resetting the card and the current status
+    size_t i;
+    uint32_t reset_flag;
+    uint32_t reset_status;
+
+    // Write reset bit to the card.
+    i = 1;
+    reset_flag = htobe32(0x01);
+    while (reset_flag != reset_status) {
+        // Check whether we didn't try too many times
+        if (i > MAX_RESET_RETRIES) {
+            LITEXCNC_ERR_NO_DEVICE("Reset of the card failed after %d times\n", MAX_RESET_RETRIES);
+            return -1;
+        }
+        // Write the data to the card
+        memcpy(buffer, &reset_flag, buffer_size);
+        eb_write8(board->connection, 0x08, buffer, buffer_size);
+        // Wait for a bit before requesting the data
+        usecSleep(10);
+        // Read the data back
+        eb_read8(board->connection, 0x08, buffer, buffer_size);
+        memcpy(&reset_status, buffer, buffer_size);
+        // Proceed counter
+        i++;
+    }
+
+    // Finish reset procedure
+    i = 1;
+    reset_flag = htobe32(0);
+    while (reset_flag != reset_status) {
+        // Check whether we didn't try too many times
+        if (i > MAX_RESET_RETRIES) {
+            LITEXCNC_ERR_NO_DEVICE("FPGA did not respond after reset for %d times\n", MAX_RESET_RETRIES);
+            return -1;
+        }
+        // Write the data to the card
+        memcpy(buffer, &reset_flag, buffer_size);
+        eb_write8(board->connection, 0x08, buffer, buffer_size);
+        // Wait for a bit before requesting the data
+        usecSleep(10);
+        // Read the data back
+        eb_read8(board->connection, 0x08, buffer, buffer_size);
+        memcpy(&reset_status, buffer, buffer_size);
+        // Proceed counter
+        i++;
+    }
+
+    // Card has been reset
+    return 0;
+
+}
 
 static int litexcnc_eth_read(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
@@ -86,7 +196,7 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
 
     // Read the data (etherbone.h), the address is based now on a fixed number in order
     // to read the GPIO out, as the board is not suitable for input yet.
-    eb_read8(board->connection, this->write_buffer_size, this->read_buffer, this->read_buffer_size);
+    eb_read8(board->connection, this->write_buffer_size + 0x0C, this->read_buffer, this->read_buffer_size);
 }
 
 
@@ -99,7 +209,7 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
 	eb_wait_for_tx_buffer_empty(board->connection);
 
     // Write the data (etberbone.h)
-    eb_write8(board->connection, 0x00, this->write_buffer, this->write_buffer_size);
+    eb_write8(board->connection, 0x0C, this->write_buffer, this->write_buffer_size);
 
     // If we missed a paket earlier with timeout AND this packet arrives later, there 
     // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
@@ -149,10 +259,12 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     json_object_put(config);
 
     // Connect the functions for reading and writing the data to the device
-    board->fpga.comp_id = comp_id;
-    board->fpga.read    = litexcnc_eth_read;
-    board->fpga.write   = litexcnc_eth_write;
-    board->fpga.private = board;
+    board->fpga.comp_id       = comp_id;
+    board->fpga.verify_config = litexcnc_eth_verify_config;
+    board->fpga.reset         = litexcnc_eth_reset;
+    board->fpga.read          = litexcnc_eth_read;
+    board->fpga.write         = litexcnc_eth_write;
+    board->fpga.private       = board;
 
     // Register the board with the main function
     size_t ret = litexcnc_register(&board->fpga, config_file);
