@@ -149,7 +149,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
     // the clock-frequency and divided by 1E9. However, this might lead to issues
     // with roll-over of the 32-bit integer. 
     litexcnc_stepgen_general_write_data_t data_general = {0,0,0,0};
-    uint32_t stepspace_cycles; // Separate variable, as it is not part of the data-package
+    uint32_t stepspace_cycles = 0; // Separate variable, as it is not part of the data-package
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
         // Get pointer to the stepgen instance
         litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
