@@ -153,17 +153,37 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     fclose(fileptr);                      // Close the file
     // - calculate the CRC-value and store it on the config
     litexcnc->config_fingerprint = crc32(buffer, filelen, 0);
-    // - debug purposes: print the calculated CRC-checksum
-    LITEXCNC_PRINT_NO_DEVICE("Configuration file fingerprint: '%u'\n", litexcnc->config_fingerprint);
 
     // Verify the fingerprint of the FPGA
     r = litexcnc->fpga->verify_config(litexcnc->fpga);
-    if (r != 0) {
-        LITEXCNC_PRINT_NO_DEVICE("Validation of config failed (is there a card connected?) \n");
-        goto fail0;
+    if (r == 0) {
+        // Check version of firmware of driver and firmware
+        if (((litexcnc->fpga->version >> 16) & 0xff) != LITEXCNC_VERSION_MAJOR || ((litexcnc->fpga->version >> 8) & 0xff) != LITEXCNC_VERSION_MINOR )  {
+            // Incompatible version
+            LITEXCNC_ERR_NO_DEVICE(
+                "Version of firmware (%u.%u.%u) is incompatible with the version of the driver (%u.%u.%u) \n",
+                (litexcnc->fpga->version >> 16) & 0xff, (litexcnc->fpga->version >> 8) & 0xff, (litexcnc->fpga->version) & 0xff, 
+                LITEXCNC_VERSION_MAJOR, LITEXCNC_VERSION_MINOR, LITEXCNC_VERSION_PATCH);
+            r = -1;
+        } else if ((litexcnc->fpga->version & 0xff) != LITEXCNC_VERSION_PATCH) {
+            // Warn that patch version is different
+            LITEXCNC_PRINT_NO_DEVICE(
+                "INFO: Version of firmware (%u.%u.%u) is different with the version of the driver (%u.%u.%u). Communication is still possible, although one of these could use an update for the best experience. \n",
+                (litexcnc->fpga->version >> 16) & 0xff, (litexcnc->fpga->version >> 8) & 0xff, (litexcnc->fpga->version) & 0xff, 
+                LITEXCNC_VERSION_MAJOR, LITEXCNC_VERSION_MINOR, LITEXCNC_VERSION_PATCH);
+        }
+        // Check fingerprint
+        if (litexcnc->config_fingerprint != litexcnc->fpga->fingerprint) {
+            LITEXCNC_ERR_NO_DEVICE(
+                "Fingerprint incorrect (driver: %08d, FPGA: %08d)\n", 
+                litexcnc->config_fingerprint, 
+                litexcnc->fpga->fingerprint);
+            r = -1;
+        }
     }
     if (r != 0) {
-        LITEXCNC_PRINT_NO_DEVICE("Fingerprint incorrect (driver: %08d, FPGA: %08d)\n", litexcnc->config_fingerprint, litexcnc->fpga->card_fingerprint);
+        LITEXCNC_ERR_NO_DEVICE("Validation of config failed.\n");
+        goto fail0;
     }
 
     // Initialize the functions
@@ -302,7 +322,7 @@ fail0:
 
 
 int rtapi_app_main(void) {
-    LITEXCNC_PRINT_NO_DEVICE("Loading Litex CNC driver version %s\n", LITEXCNC_VERSION);
+    LITEXCNC_PRINT_NO_DEVICE("Loading Litex CNC driver version %u.%u.%u\n", LITEXCNC_VERSION_MAJOR, LITEXCNC_VERSION_MINOR, LITEXCNC_VERSION_PATCH);
 
     comp_id = hal_init(LITEXCNC_NAME);
     if(comp_id < 0) return comp_id;

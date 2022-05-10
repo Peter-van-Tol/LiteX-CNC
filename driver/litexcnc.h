@@ -30,7 +30,9 @@ typedef struct litexcnc_struct litexcnc_t;
 #include "watchdog.h"
 
 #define LITEXCNC_NAME    "litexcnc"
-#define LITEXCNC_VERSION "0.15"
+#define LITEXCNC_VERSION_MAJOR 1
+#define LITEXCNC_VERSION_MINOR 0
+#define LITEXCNC_VERSION_PATCH 0
 
 
 // ------------------------------------
@@ -61,7 +63,8 @@ typedef struct litexcnc_fpga_struct litexcnc_fpga_t;
 struct litexcnc_fpga_struct {
     char name[HAL_NAME_LEN+1];
     int comp_id;
-    uint32_t card_fingerprint;
+    uint32_t version;
+    uint32_t fingerprint;
 
     // Functions to verify the board and reset the board
     // - on success these two return TRUE (not zero)
@@ -100,6 +103,7 @@ struct litexcnc_struct {
 
     // The fingerprint of the
     uint32_t config_fingerprint;
+    uint32_t driver_version;
 
     // the litexcnc "Components"
     litexcnc_watchdog_t *watchdog;
@@ -111,6 +115,24 @@ struct litexcnc_struct {
 
     struct rtapi_list_head list;
 };
+
+
+// Defines the data-packages for retrieving the header information and
+// sending and retrieving the reset signal
+// - read
+typedef struct {
+    // Input pins
+    uint32_t magic;
+    uint32_t version;
+    uint32_t fingerprint;
+} litexcnc_header_data_read_t;
+#define LITEXCNC_HEADER_DATA_READ_SIZE sizeof(litexcnc_header_data_read_t)
+// - write (reset)
+typedef struct {
+    // Input pins
+    uint32_t magic;
+} litexcnc_reset_header_t;
+#define LITEXCNC_RESET_HEADER_SIZE sizeof(litexcnc_reset_header_t)
 
 
 int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file);

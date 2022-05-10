@@ -86,30 +86,27 @@ static int litexcnc_eth_verify_config(litexcnc_fpga_t *this) {
 
     // Create a buffer to contain both the magic number and the config fingerprint. Both
     // parameters are stored in as 32-bit unsigned integers
-    size_t read_buffer_size = 2 * sizeof(uint32_t);
-    uint8_t *read_buffer = rtapi_kmalloc(read_buffer_size, RTAPI_GFP_KERNEL);
-    uint8_t* pointer = read_buffer;
+    uint8_t *read_buffer = rtapi_kmalloc(LITEXCNC_HEADER_DATA_READ_SIZE, RTAPI_GFP_KERNEL);
 
     // Read the magic and fingerprint. These are the first registers on the card
-    int r = eb_read8(board->connection, 0x0, read_buffer, read_buffer_size);
+    int r = eb_read8(board->connection, 0x0, read_buffer, LITEXCNC_HEADER_DATA_READ_SIZE);
     if (r < 0){
         return r;
     }
 
-    // Request was succesfull, check magic
-    uint32_t magic;
-    memcpy(&magic, pointer, sizeof magic);
-    if (be32toh(magic) != 0x18052022) {
-        LITEXCNC_ERR_NO_DEVICE("Invalid magic received '%08X'\n", be32toh(magic));
+    // Convert received data to header
+    litexcnc_header_data_read_t header;
+    memcpy(&header, read_buffer, sizeof header);
+
+    // Check magic
+    if (be32toh(header.magic) != 0x18052022) {
+        LITEXCNC_ERR_NO_DEVICE("Invalid magic received '%08X'\n", be32toh(header.magic));
         return -1;
     }
-    pointer+=4;
 
-    // Store the fingerprint of the card
-    uint32_t fingerprint;
-    memcpy(&fingerprint, pointer, sizeof fingerprint);
-    this->card_fingerprint = be32toh(fingerprint);
-    LITEXCNC_ERR_NO_DEVICE("Received fingerprint '%u'\n", this->card_fingerprint);
+    // Store version and fingerprint
+    this->version = be32toh(header.version);
+    this->fingerprint = be32toh(header.fingerprint);
 
     // Succesfull finish
     return 0;
@@ -131,8 +128,7 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
 
     // Create a buffer to contain both the magic number and the config fingerprint. Both
     // parameters are stored in as 32-bit unsigned integers
-    size_t buffer_size = 1 * sizeof(uint32_t);
-    uint8_t *buffer = rtapi_kmalloc(buffer_size, RTAPI_GFP_KERNEL);
+    uint8_t *buffer = rtapi_kmalloc(LITEXCNC_RESET_HEADER_SIZE, RTAPI_GFP_KERNEL);
 
     // Initialize a variables for resetting the card and the current status
     size_t i;
@@ -149,13 +145,21 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
             return -1;
         }
         // Write the data to the card
-        memcpy(buffer, &reset_flag, buffer_size);
-        eb_write8(board->connection, 0x08, buffer, buffer_size);
+        memcpy(buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
+        eb_write8(
+            board->connection, 
+            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            buffer, 
+            LITEXCNC_RESET_HEADER_SIZE);
         // Wait for a bit before requesting the data
         usecSleep(10);
         // Read the data back
-        eb_read8(board->connection, 0x08, buffer, buffer_size);
-        memcpy(&reset_status, buffer, buffer_size);
+        eb_read8(
+            board->connection, 
+            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            buffer, 
+            LITEXCNC_RESET_HEADER_SIZE);
+        memcpy(&reset_status, buffer, LITEXCNC_RESET_HEADER_SIZE);
         // Proceed counter
         i++;
     }
@@ -170,13 +174,21 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
             return -1;
         }
         // Write the data to the card
-        memcpy(buffer, &reset_flag, buffer_size);
-        eb_write8(board->connection, 0x08, buffer, buffer_size);
+        memcpy(buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
+        eb_write8(
+            board->connection, 
+            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            buffer, 
+            LITEXCNC_RESET_HEADER_SIZE);
         // Wait for a bit before requesting the data
         usecSleep(10);
         // Read the data back
-        eb_read8(board->connection, 0x08, buffer, buffer_size);
-        memcpy(&reset_status, buffer, buffer_size);
+        eb_read8(
+            board->connection, 
+            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            buffer, 
+            LITEXCNC_RESET_HEADER_SIZE);
+        memcpy(&reset_status, buffer, LITEXCNC_RESET_HEADER_SIZE);
         // Proceed counter
         i++;
     }
@@ -196,7 +208,11 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
 
     // Read the data (etherbone.h), the address is based now on a fixed number in order
     // to read the GPIO out, as the board is not suitable for input yet.
-    eb_read8(board->connection, this->write_buffer_size + 0x0C, this->read_buffer, this->read_buffer_size);
+    eb_read8(
+        board->connection, 
+        this->write_buffer_size + LITEXCNC_HEADER_DATA_READ_SIZE + LITEXCNC_RESET_HEADER_SIZE, 
+        this->read_buffer, 
+        this->read_buffer_size);
 }
 
 
@@ -209,7 +225,11 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
 	eb_wait_for_tx_buffer_empty(board->connection);
 
     // Write the data (etberbone.h)
-    eb_write8(board->connection, 0x0C, this->write_buffer, this->write_buffer_size);
+    eb_write8(
+        board->connection, 
+        LITEXCNC_HEADER_DATA_READ_SIZE + LITEXCNC_RESET_HEADER_SIZE, 
+        this->write_buffer, 
+        this->write_buffer_size);
 
     // If we missed a paket earlier with timeout AND this packet arrives later, there 
     // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
