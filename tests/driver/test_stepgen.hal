@@ -28,8 +28,7 @@ setp test_PWM_GPIO.stepgen.00.dir-hold-time  10000
 setp test_PWM_GPIO.stepgen.00.dir-setup-time 10000
 
 # Enable the stepgen and
-setp test_PWM_GPIO.stepgen.00.enable  
-       1
+setp test_PWM_GPIO.stepgen.00.enable         1
 # Create a siggen and connect the sinus-soidal signal to the position of the stepgen
 loadrt siggen
 addf siggen.0.update test-thread
