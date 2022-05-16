@@ -2,7 +2,6 @@
 from pydantic import BaseModel, Field
 
 # Imports for creating a LiteX/Migen module
-from turtle import position, speed
 from litex.soc.interconnect.csr import *
 from migen import *
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
