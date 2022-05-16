@@ -16,13 +16,14 @@
 # of the driver. 
 __version__ = "1.0.0"
 
-
+from . import boards
 from .soc import LitexCNC_Firmware
 from .gpio import GPIO
 from .pwm import PWM
 
 
 __all__ = [
+    'boards',
     'LitexCNC_Firmware',
     'GPIO',
     'PWM'

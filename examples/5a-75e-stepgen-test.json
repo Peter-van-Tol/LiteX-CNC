@@ -1,8 +1,6 @@
 {
     "board_name": "test_PWM_GPIO",
-    "baseclass": "litex_boards.targets.colorlight_5a_75x.BaseSoC",
-    "board": "5a-75e",
-    "revision": "6.0",
+    "baseclass": "firmware.boards.ColorLight_5A_75E_V6_0",
     "clock_frequency": 50000000,
     "ethphy": {
         "tx_delay": 0
