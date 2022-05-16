@@ -40,12 +40,6 @@ class Etherbone(BaseModel):
         "192.168.0.50",
         help_text="The ip-address to communicate with the FPGA-card."
     )
-    buffer_depth: int = Field(
-        1060,
-        help_text="The size of the buffer for the Etherbone protocol. Should be "
-        "large enough to fit all data for communication with LinuxCNC. TODO: check "
-        "whether this size can be automatically determined."
-    )
 
     @validator('mac_address', pre=True)
     def convert_mac_address(cls, value):
