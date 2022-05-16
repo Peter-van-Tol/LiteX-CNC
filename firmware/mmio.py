@@ -13,6 +13,7 @@ from migen import *
 
 # Local imports
 from . import __version__
+from .encoder import EncoderModule
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .soc import LitexCNC_Firmware
@@ -87,7 +88,6 @@ class MMIO(Module, AutoCSR):
             name='watchdog_data',
             write_from_dev=True
         )
-        
         # - GPIO
         self.gpio_out = CSRStorage(size=int(math.ceil(float(len(soc.gpio_out))/32))*32, description="gpio_out", name='gpio_out', write_from_dev=False)
         # - PWM
@@ -103,6 +103,8 @@ class MMIO(Module, AutoCSR):
         for index, _ in enumerate(soc.stepgen):
             setattr(self, f'stepgen_{index}_speed_target', CSRStorage(size=32, reset=0x80000000, description=f'stepgen_{index}_speed_target', name=f'stepgen_{index}_speed_target', write_from_dev=False))
             setattr(self, f'stepgen_{index}_max_acceleration', CSRStorage(size=32, description=f'stepgen_{index}_max_acceleration', name=f'stepgen_{index}_max_acceleration', write_from_dev=False))
+        # - Encoder (new style!)
+        EncoderModule.add_mmio_write_registers(self, soc.encoders)
 
         # INPUT (as seen from the PC!)
         # - Watchdog
@@ -126,3 +128,5 @@ class MMIO(Module, AutoCSR):
         for index, _ in enumerate(soc.stepgen):
             setattr(self, f'stepgen_{index}_position', CSRStatus(size=64, description=f'stepgen_{index}_position', name=f'stepgen_{index}_position'))
             setattr(self, f'stepgen_{index}_speed', CSRStatus(size=32, description=f'stepgen_{index}_speed', name=f'stepgen_{index}_speed'))
+        # - Encoder (new style!)
+        EncoderModule.add_mmio_read_registers(self, soc.encoders)
