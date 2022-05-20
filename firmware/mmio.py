@@ -89,20 +89,23 @@ class MMIO(Module, AutoCSR):
             write_from_dev=True
         )
         # - GPIO
-        self.gpio_out = CSRStorage(size=int(math.ceil(float(len(soc.gpio_out))/32))*32, description="gpio_out", name='gpio_out', write_from_dev=False)
+        if soc.gpio_out:
+            self.gpio_out = CSRStorage(size=int(math.ceil(float(len(soc.gpio_out))/32))*32, description="gpio_out", name='gpio_out', write_from_dev=False)
         # - PWM
-        for index, _ in enumerate(soc.pwm):
-            setattr(self, f'pwm_{index}_enable', CSRStorage(size=32, description=f'pwm_{index}_enable', name=f'pwm_{index}_enable', write_from_dev=False))
-            setattr(self, f'pwm_{index}_period', CSRStorage(size=32, description=f'pwm_{index}_period', name=f'pwm_{index}_period', write_from_dev=False))
-            setattr(self, f'pwm_{index}_width', CSRStorage(size=32, description=f'pwm_{index}_width', name=f'pwm_{index}_width', write_from_dev=False))
+        if soc.pwm:
+            for index, _ in enumerate(soc.pwm):
+                setattr(self, f'pwm_{index}_enable', CSRStorage(size=32, description=f'pwm_{index}_enable', name=f'pwm_{index}_enable', write_from_dev=False))
+                setattr(self, f'pwm_{index}_period', CSRStorage(size=32, description=f'pwm_{index}_period', name=f'pwm_{index}_period', write_from_dev=False))
+                setattr(self, f'pwm_{index}_width', CSRStorage(size=32, description=f'pwm_{index}_width', name=f'pwm_{index}_width', write_from_dev=False))
         # - Stepgen
-        self.stepgen_steplen = CSRStorage(size=32, description=f'stepgen_steplen', name=f'stepgen_steplen', write_from_dev=False)
-        self.stepgen_dir_hold_time = CSRStorage(size=32, description=f'stepgen_dir_hold_time', name=f'stepgen_dir_hold_time', write_from_dev=False)
-        self.stepgen_dir_setup_time = CSRStorage(size=32, description=f'stepgen_dir_setup_time', name=f'stepgen_dir_setup_time', write_from_dev=False)
-        self.stepgen_apply_time = CSRStorage(size=64, description=f'stepgen_apply_time', name=f'stepgen_apply_time', write_from_dev=True)
-        for index, _ in enumerate(soc.stepgen):
-            setattr(self, f'stepgen_{index}_speed_target', CSRStorage(size=32, reset=0x80000000, description=f'stepgen_{index}_speed_target', name=f'stepgen_{index}_speed_target', write_from_dev=False))
-            setattr(self, f'stepgen_{index}_max_acceleration', CSRStorage(size=32, description=f'stepgen_{index}_max_acceleration', name=f'stepgen_{index}_max_acceleration', write_from_dev=False))
+        if soc.stepgen:
+            self.stepgen_steplen = CSRStorage(size=32, description=f'stepgen_steplen', name=f'stepgen_steplen', write_from_dev=False)
+            self.stepgen_dir_hold_time = CSRStorage(size=32, description=f'stepgen_dir_hold_time', name=f'stepgen_dir_hold_time', write_from_dev=False)
+            self.stepgen_dir_setup_time = CSRStorage(size=32, description=f'stepgen_dir_setup_time', name=f'stepgen_dir_setup_time', write_from_dev=False)
+            self.stepgen_apply_time = CSRStorage(size=64, description=f'stepgen_apply_time', name=f'stepgen_apply_time', write_from_dev=True)
+            for index, _ in enumerate(soc.stepgen):
+                setattr(self, f'stepgen_{index}_speed_target', CSRStorage(size=32, reset=0x80000000, description=f'stepgen_{index}_speed_target', name=f'stepgen_{index}_speed_target', write_from_dev=False))
+                setattr(self, f'stepgen_{index}_max_acceleration', CSRStorage(size=32, description=f'stepgen_{index}_max_acceleration', name=f'stepgen_{index}_max_acceleration', write_from_dev=False))
         # - Encoder (new style!)
         EncoderModule.add_mmio_write_registers(self, soc.encoders)
 
@@ -123,10 +126,12 @@ class MMIO(Module, AutoCSR):
             name='wall_clock'
         )
         # - GPIO
-        self.gpio_in = CSRStatus(size=int(math.ceil(float(len(soc.gpio_in))/32))*32, description="gpio_in", name='gpio_in')
+        if soc.gpio_in:
+            self.gpio_in = CSRStatus(size=int(math.ceil(float(len(soc.gpio_in))/32))*32, description="gpio_in", name='gpio_in')
         # - stepgen
-        for index, _ in enumerate(soc.stepgen):
-            setattr(self, f'stepgen_{index}_position', CSRStatus(size=64, description=f'stepgen_{index}_position', name=f'stepgen_{index}_position'))
-            setattr(self, f'stepgen_{index}_speed', CSRStatus(size=32, description=f'stepgen_{index}_speed', name=f'stepgen_{index}_speed'))
+        if soc.stepgen:
+            for index, _ in enumerate(soc.stepgen):
+                setattr(self, f'stepgen_{index}_position', CSRStatus(size=64, description=f'stepgen_{index}_position', name=f'stepgen_{index}_position'))
+                setattr(self, f'stepgen_{index}_speed', CSRStatus(size=32, description=f'stepgen_{index}_speed', name=f'stepgen_{index}_speed'))
         # - Encoder (new style!)
         EncoderModule.add_mmio_read_registers(self, soc.encoders)
