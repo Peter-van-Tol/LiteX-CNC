@@ -84,7 +84,6 @@ int eb_send(struct eb_connection *conn, const void *bytes, size_t len) {
     if (conn->is_direct)
         return sendto(conn->fd, bytes, len, 0, conn->addr->ai_addr, conn->addr->ai_addrlen);
     return write(conn->fd, bytes, len);
-
 }
 
 int eb_recv(struct eb_connection *conn, void *bytes, size_t max_len) {
@@ -139,6 +138,16 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
     }
     eb_create_packet(eth_pkt, address, data, size, 1);
 
+
+    // LITEXCNC_PRINT_NO_DEVICE("Read addresses:\n");
+    // for (size_t i=0; i<(16+size); i+=4) {
+    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+    //         (unsigned char)eth_pkt[i+0],
+    //         (unsigned char)eth_pkt[i+1],
+    //         (unsigned char)eth_pkt[i+2],
+    //         (unsigned char)eth_pkt[i+3]);
+    // }
+
     // Send the data to the device
     eb_send(conn, eth_pkt, 16+size);
 
@@ -146,7 +155,7 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
     uint8_t response[16+size];
     int count = eb_recv(conn, response, sizeof(response));
     if (count != sizeof(response)) {
-        fprintf(stderr, "Unexpected read length: %d\n", count);
+        fprintf(stderr, "Unexpected read length: %d, expected %d\n", count, sizeof(response));
         return -1;
     }
 
