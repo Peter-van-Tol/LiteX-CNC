@@ -175,12 +175,11 @@ int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config) {
             *(instance->hal.pin.min_dc) = 0.0;
             *(instance->hal.pin.max_dc) = 1.0;
         }
+        // Free up the memory
+        json_object_put(pwm_instance_pin_name);
+        json_object_put(pwm_instance);
+        json_object_put(pwm);
     }
-
-    // Free up the memory
-    json_object_put(pwm_instance_pin_name);
-    json_object_put(pwm_instance);
-    json_object_put(pwm);
 
     return 0;
 }

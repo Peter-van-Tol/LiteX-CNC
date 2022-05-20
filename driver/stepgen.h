@@ -131,13 +131,13 @@ typedef struct {
     uint32_t max_acceleration;
 } litexcnc_stepgen_instance_write_data_t;
 #define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_instance_write_data_t)
-#define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) sizeof(litexcnc_stepgen_general_write_data_t) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances
+#define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?sizeof(litexcnc_stepgen_general_write_data_t):0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
 // - read
 typedef struct {
     int64_t position;
     uint32_t speed;
 } litexcnc_stepgen_instance_read_data_t;
-#define LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) sizeof(litexcnc_stepgen_instance_read_data_t)*litexcnc->stepgen.num_instances // PWM does not send data back
+#define LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) sizeof(litexcnc_stepgen_instance_read_data_t)*litexcnc->stepgen.num_instances
 
 
 // Functions for creating, reading and writing stepgen pins

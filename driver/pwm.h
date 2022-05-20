@@ -92,7 +92,7 @@ typedef struct {
     uint32_t width;
 } litexcnc_pwm_data_t;
 #define LITEXCNC_PWM_DATA_SIZE sizeof(litexcnc_pwm_data_t)
-#define LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc) LITEXCNC_PWM_DATA_SIZE*litexcnc->pwm.num_instances
+#define LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc) (LITEXCNC_PWM_DATA_SIZE * litexcnc->pwm.num_instances)
 #define LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc) 0 // PWM does not send data back
 
 // Functions for creating, reading and writing PWM pins

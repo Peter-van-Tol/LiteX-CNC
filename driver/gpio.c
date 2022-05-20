@@ -53,12 +53,11 @@ static int litexcnc_gpio_out_init(litexcnc_t *litexcnc, json_object *config) {
                 return r;
             }
         }
+        // Free up the memory
+        json_object_put(gpio_pin_name);
+        json_object_put(gpio_pin);
+        json_object_put(gpio);
     }
-
-    // Free up the memory
-    json_object_put(gpio_pin_name);
-    json_object_put(gpio_pin);
-    json_object_put(gpio);
 
     return 0;
 }
@@ -103,13 +102,12 @@ static int litexcnc_gpio_in_init(litexcnc_t *litexcnc, json_object *config) {
                 LITEXCNC_ERR_NO_DEVICE("error adding pin '%s', aborting\n", name);
                 return r;
             }
-        }	
+        }
+        // Free up the memory
+        json_object_put(gpio_pin_name);
+        json_object_put(gpio_pin);
+        json_object_put(gpio);
     }
-
-    // Free up the memory
-    json_object_put(gpio_pin_name);
-    json_object_put(gpio_pin);
-    json_object_put(gpio);
 
     return 0;
     
