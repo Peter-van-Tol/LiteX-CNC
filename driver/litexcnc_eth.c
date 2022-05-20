@@ -91,6 +91,7 @@ static int litexcnc_eth_verify_config(litexcnc_fpga_t *this) {
     // Read the magic and fingerprint. These are the first registers on the card
     int r = eb_read8(board->connection, 0x0, read_buffer, LITEXCNC_HEADER_DATA_READ_SIZE);
     if (r < 0){
+        LITEXCNC_ERR_NO_DEVICE("Cannot read from FPGA\n");
         return r;
     }
 
