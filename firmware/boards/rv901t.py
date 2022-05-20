@@ -347,9 +347,11 @@ class RV901T(SoCMini):
         self.add_etherbone(
             phy=self.ethphy,
             mac_address=config.etherbone.mac_address,
-            ip_address=str(config.etherbone.ip_address)
-        )        
-        
+            ip_address=str(config.etherbone.ip_address),
+            buffer_depth=255
+        )
+
         # Timing constraints
         platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
         platform.add_false_path_constraints(crg.cd_sys.clk, self.ethphy.crg.cd_eth_rx.clk)  
+

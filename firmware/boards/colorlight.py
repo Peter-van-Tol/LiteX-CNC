@@ -41,7 +41,8 @@ class ColorLightBase(SoCMini):
         self.add_etherbone(
             phy=self.ethphy,
             mac_address=config.etherbone.mac_address,
-            ip_address=str(config.etherbone.ip_address)
+            ip_address=str(config.etherbone.ip_address),
+            buffer_depth=255
         )
 
 
