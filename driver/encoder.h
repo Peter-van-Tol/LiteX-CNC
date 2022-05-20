@@ -40,6 +40,7 @@
 
 #include "litexcnc.h"
 
+#define LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE 8
 
 // Defines the structure of the PWM instance
 typedef struct {
@@ -53,23 +54,12 @@ typedef struct {
              * the rising edge has occurred. 
              */             
             hal_bit_t *index_enable;
-            /* Determine the minimum speed at which velocity will be estimated as nonzero 
-             * and postition-interpolated will be interpolated. The units of min-speed-estimate 
-             * are the same as the units of velocity. Setting this parameter too low will cause 
-             * it to take a long time for velocity to go to 0 after encoder pulses have stopped 
-             * arriving. Default value: 1.0 
-             */       
-            hal_float_t *min_speed_est;
+            /* When true, a rising edge has been detected on the FPGA. This flag will be active
+             * until the next read action from the FPGA, when it is automatically reset.
+             */
+            hal_bit_t *index_pulse;
             /* Position in scaled units (see position-scale) */ 
             hal_float_t *position;
-            /* Scale factor, in counts per length unit. For example, if position-scale is 500, 
-             *then 1000 counts of the encoder will be reported as a position of 2.0 units.
-             */ 
-            hal_float_t *position_scale;
-            /* The raw count, as read from the FPGA. It is also unaffected by reset or the index 
-             * pulse.
-             */
-            hal_s32_t *raw_counts; 
             /* When true, counts and position are reset to zero immediately. NOTE: the value on the
              * FPGA and thus raw_counts is not affected by this reset.
              */
@@ -84,16 +74,19 @@ typedef struct {
              * of 60 for convenience.
              */
             hal_float_t *velocity_rpm;
-            /* Enables times-4 mode. When true (the default), the counter counts each edge of the
-             * quadrature waveform (four counts per full cycle). When false, it only counts once 
-             * per full cycle. NOTE: this function is implemented by dividing applying an integer
-             * division of 4 between raw_counts and counts.
-             */
-            hal_bit_t *x4_mode;
         } pin;
 
         struct {
-            // No parameters
+            /* Scale factor, in counts per (length) unit. For example, if position-scale is 500, 
+             * then 1000 counts of the encoder will be reported as a position of 2.0 units.
+             */ 
+            hal_float_t position_scale;
+            /* Enables times-4 mode. When true (the default), the counter counts each edge of the
+             * quadrature waveform (four counts per full cycle). When false, it only counts once 
+             * per full cycle. NOTE: this function is implemented by dividing applying an integer
+             * division of 4 between received data and counts.
+             */
+            hal_bit_t x4_mode;
         } param;
 
     } hal;
@@ -101,6 +94,8 @@ typedef struct {
     // This struct holds all old values (memoization) 
     struct {
         hal_float_t position_scale;
+        hal_float_t velocity[LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE];
+        size_t velocity_pointer;
     } memo;
 
     // This struct contains data, both calculated and direct received from the FPGA
@@ -108,14 +103,14 @@ typedef struct {
         hal_float_t position_scale_recip;
     } data;
     
-} litexcnc_encoder_pin_t;
+} litexcnc_encoder_instance_t;
 
 
 // Defines the PWM, contains a collection of PWM instances
 typedef struct {
     // Input pins
     int num_instances;
-    litexcnc_encoder_pin_t *instances;
+    litexcnc_encoder_instance_t *instances;
 
     struct {
         long period;
@@ -132,12 +127,15 @@ typedef struct {
 // Defines the data-package for sending the settings for a single step generator. The
 // order of this package MUST coincide with the order in the MMIO definition.
 // - write
-#define LITEXCNC_BOARD_ENCODER_DATA_WRITE_SIZE(litexcnc) 0 // No data is written to the card for the encoder
+#define LITEXCNC_BOARD_ENCODER_SHARED_INDEX_ENABLE_WRITE_SIZE(litexcnc) (((litexcnc->encoder.num_instances)>>5) + ((litexcnc->encoder.num_instances & 0x1F)?1:0)) *4
+#define LITEXCNC_BOARD_ENCODER_SHARED_RESET_INDEX_PULSE_WRITE_SIZE(litexcnc) (((litexcnc->encoder.num_instances)>>5) + ((litexcnc->encoder.num_instances & 0x1F)?1:0)) *4
+#define LITEXCNC_BOARD_ENCODER_DATA_WRITE_SIZE(litexcnc) LITEXCNC_BOARD_ENCODER_SHARED_INDEX_ENABLE_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_ENCODER_SHARED_RESET_INDEX_PULSE_WRITE_SIZE(litexcnc)
 // - read
 typedef struct {
-    int64_t counts;
+    int32_t counts;
 } litexcnc_encoder_instance_read_data_t;
-#define LITEXCNC_BOARD_ENCODER_DATA_READ_SIZE(litexcnc) sizeof(litexcnc_encoder_instance_read_data_t)*litexcnc->encoder.num_instances 
+#define LITEXCNC_BOARD_ENCODER_SHARED_INDEX_PULSE_READ_SIZE(litexcnc) (((litexcnc->encoder.num_instances)>>5) + ((litexcnc->encoder.num_instances & 0x1F)?1:0)) *4
+#define LITEXCNC_BOARD_ENCODER_DATA_READ_SIZE(litexcnc) LITEXCNC_BOARD_ENCODER_SHARED_INDEX_PULSE_READ_SIZE(litexcnc) + sizeof(litexcnc_encoder_instance_read_data_t)*litexcnc->encoder.num_instances 
 
 
 // Functions for creating, reading and writing stepgen pins

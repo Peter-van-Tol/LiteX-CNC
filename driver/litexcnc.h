@@ -28,6 +28,7 @@ typedef struct litexcnc_struct litexcnc_t;
 #include "stepgen.h"
 #include "wallclock.h"
 #include "watchdog.h"
+#include "encoder.h"
 
 #define LITEXCNC_NAME    "litexcnc"
 #define LITEXCNC_VERSION_MAJOR 1
@@ -56,8 +57,8 @@ typedef struct litexcnc_struct litexcnc_t;
 // ------------------------------------
 // Basically these are the summations of all the data sizes from the
 // sub-modules
-#define LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_WRITE_SIZE + LITEXCNC_WALLCLOCK_DATA_WRITE_SIZE + LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc)
-#define LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_READ_SIZE + LITEXCNC_WALLCLOCK_DATA_READ_SIZE + LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc)  + LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc)
+#define LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_WRITE_SIZE + LITEXCNC_WALLCLOCK_DATA_WRITE_SIZE + LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) + LITEXCNC_BOARD_ENCODER_DATA_WRITE_SIZE(litexcnc)
+#define LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc) LITEXCNC_WATCHDOG_DATA_READ_SIZE + LITEXCNC_WALLCLOCK_DATA_READ_SIZE + LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) + LITEXCNC_BOARD_ENCODER_DATA_READ_SIZE(litexcnc)
 
 typedef struct litexcnc_fpga_struct litexcnc_fpga_t;
 struct litexcnc_fpga_struct {
@@ -99,6 +100,7 @@ struct litexcnc_struct {
         size_t num_gpio_outputs;
         size_t num_pwm_instances;
         size_t num_stepgen_instances;
+        size_t num_encoder_instances;
     } config;
 
     // The fingerprint of the
@@ -111,6 +113,7 @@ struct litexcnc_struct {
     litexcnc_gpio_t gpio;
     litexcnc_pwm_t pwm;
     litexcnc_stepgen_t stepgen;
+    litexcnc_encoder_t encoder;
 
 
     struct rtapi_list_head list;

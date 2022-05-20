@@ -76,6 +76,7 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_gpio_process_read(litexcnc, &pointer);
     litexcnc_pwm_process_read(litexcnc, &pointer);
     litexcnc_stepgen_process_read(litexcnc, &pointer, period);
+    litexcnc_encoder_process_read(litexcnc, &pointer, period);
 
 }
 
@@ -92,6 +93,7 @@ static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
     litexcnc_stepgen_prepare_write(litexcnc, &pointer, period);
+    litexcnc_encoder_prepare_write(litexcnc, &pointer, period);
 
     // Write the data to the FPGA
     litexcnc->fpga->write(litexcnc->fpga);
@@ -234,27 +236,45 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     litexcnc->clock_frequency = json_object_get_int(clock_frequency);
     litexcnc->clock_frequency_recip = 1.0f / litexcnc->clock_frequency;
     json_object_put(clock_frequency);
-
     // Initialize modules
+    LITEXCNC_PRINT_NO_DEVICE("Setting up modules...\n");
+    LITEXCNC_PRINT_NO_DEVICE(" - Watchdog\n");
     if (litexcnc_watchdog_init(litexcnc, config) < 0) {
+        LITEXCNC_ERR_NO_DEVICE("Watchdog init failed\n");
         goto fail0;
     }
+    LITEXCNC_PRINT_NO_DEVICE(" - Wallclock\n");
     if (litexcnc_wallclock_init(litexcnc, config) < 0) {
+        LITEXCNC_ERR_NO_DEVICE("Wallclock init failed\n");
         goto fail0;
     }
+    LITEXCNC_PRINT_NO_DEVICE(" - GPIO\n");
     if (litexcnc_gpio_init(litexcnc, config) < 0) {
+        LITEXCNC_ERR_NO_DEVICE("GPIO init failed\n");
         goto fail0;
     }
+    LITEXCNC_PRINT_NO_DEVICE(" - PWM\n");
     if (litexcnc_pwm_init(litexcnc, config) < 0) {
+        LITEXCNC_ERR_NO_DEVICE("PWM init failed\n");
         goto fail0;
     }
+    LITEXCNC_PRINT_NO_DEVICE(" - Stepgen\n");
     if (litexcnc_stepgen_init(litexcnc, config) < 0) {
+        LITEXCNC_ERR_NO_DEVICE("Stepgen init failed\n");
         goto fail0;
     }
+    LITEXCNC_PRINT_NO_DEVICE(" - Encoder\n");
+    if (litexcnc_encoder_init(litexcnc, config) < 0) {
+        LITEXCNC_ERR_NO_DEVICE("Encoder init failed\n");
+        goto fail0;
+    }
+
 
     // Create the buffers for reading and writing data
+    LITEXCNC_PRINT_NO_DEVICE("Creating read and write buffers...\n");
     // - write buffer
     litexcnc->fpga->write_buffer_size = LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc);
+    LITEXCNC_PRINT_NO_DEVICE(" - Write buffer: %d bytes)\n", LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc));
     uint8_t *write_buffer = rtapi_kmalloc(litexcnc->fpga->write_buffer_size, RTAPI_GFP_KERNEL);
     if (litexcnc == NULL) {
         LITEXCNC_PRINT_NO_DEVICE("out of memory!\n");
@@ -264,6 +284,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     memset(write_buffer, 0, litexcnc->fpga->write_buffer_size);
     litexcnc->fpga->write_buffer = write_buffer;
     // - read buffer
+    LITEXCNC_PRINT_NO_DEVICE(" - Read buffer: %d bytes)\n", LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc));
     litexcnc->fpga->read_buffer_size = LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc);
     uint8_t *read_buffer = rtapi_kmalloc(litexcnc->fpga->read_buffer_size, RTAPI_GFP_KERNEL);
     if (litexcnc == NULL) {
@@ -275,6 +296,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     litexcnc->fpga->read_buffer = read_buffer;
 
     // Export functions
+    LITEXCNC_PRINT_NO_DEVICE("Exporting functions...\n");
     // // - communicate function
     // char name[HAL_NAME_LEN + 1];
     // rtapi_snprintf(name, sizeof(name), "%s.communicate", litexcnc->fpga->name);
@@ -350,3 +372,4 @@ void rtapi_app_exit(void) {
 #include "gpio.c"
 #include "pwm.c"
 #include "stepgen.c"
+#include "encoder.c"

@@ -109,9 +109,9 @@ class EncoderModule(Module, AutoDoc):
             pin_A_delayed.eq(Cat(pin_A, pin_A_delayed[:2])),
             pin_B_delayed.eq(Cat(pin_B, pin_B_delayed[:2])),
             pin_Z_delayed.eq(Cat(pin_Z, pin_Z_delayed[:2])),
-            # Storing the index pulse
+            # Storing the index pulse (detection of raising flank)
             If(
-                pin_Z_delayed[1],
+                pin_Z_delayed[1] & ~pin_Z_delayed[2],
                 self.index_pulse.eq(1)
             ),
             # Reset the index pulse as soon the CPU has indicated it is read
