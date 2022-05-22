@@ -46,26 +46,26 @@ class ColorLightBase(SoCMini):
         )
 
 
-class ColorLight_5A_75B_V6_1(SoCMini):
+class ColorLight_5A_75B_V6_1(ColorLightBase):
     def __init__(self, config: 'LitexCNC_Firmware', sys_clk_freq=int(50e6)):
         super().__init__("5a-75b", "6.1", config, sys_clk_freq)
 
 
-class ColorLight_5A_75B_V7_0(SoCMini):
+class ColorLight_5A_75B_V7_0(ColorLightBase):
     def __init__(self, config: 'LitexCNC_Firmware', sys_clk_freq=int(50e6)):
         super().__init__("5a-75b", "7.0", config, sys_clk_freq)
 
 
-class ColorLight_5A_75B_V8_0(SoCMini):
+class ColorLight_5A_75B_V8_0(ColorLightBase):
     def __init__(self, config: 'LitexCNC_Firmware', sys_clk_freq=int(50e6)):
         super().__init__("5a-75b", "8.0", config, sys_clk_freq)
 
 
-class ColorLight_5A_75E_V6_0(SoCMini):
+class ColorLight_5A_75E_V6_0(ColorLightBase):
     def __init__(self, config: 'LitexCNC_Firmware', sys_clk_freq=int(50e6)):
-        super().__init__("5a-75b", "6.0", config, sys_clk_freq)
+        super().__init__("5a-75e", "6.0", config, sys_clk_freq)
 
 
-class ColorLight_5A_75E_V7_1(SoCMini):
+class ColorLight_5A_75E_V7_1(ColorLightBase):
     def __init__(self, config: 'LitexCNC_Firmware', sys_clk_freq=int(50e6)):
-        super().__init__("5a-75b", "7.1", config, sys_clk_freq)
+        super().__init__("5a-75e", "7.1", config, sys_clk_freq)
