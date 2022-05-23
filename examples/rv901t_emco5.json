@@ -1,5 +1,5 @@
 {
-    "board_name": "test_PWM_GPIO",
+    "board_name": "EMCO5",
     "baseclass": "firmware.boards.RV901T",
     "clock_frequency": 50000000,
     "ethphy": {
@@ -44,7 +44,7 @@
     "pwm": [
         {
             "name": "test_otherwise_no_compile",
-            "pin":"J601:36"
+            "pin":"J600:7"
         }
     ],
     "stepgen": [
