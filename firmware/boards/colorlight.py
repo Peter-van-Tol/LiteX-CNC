@@ -1,13 +1,13 @@
 # Imports for defining the board
 from liteeth.phy.s6rgmii import LiteEthPHYRGMII
 from litex.soc.integration.soc_core import *
-from litex_boards.targets.colorlight_5a_75x import _CRG
+from litex_boards.targets.colorlight_5a_75x import _CRG, BaseSoC
 from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
 
 from ..soc import LitexCNC_Firmware
 
 
-class ColorLightBase(SoCMini):
+class ColorLightBase(BaseSoC):
 
     def __init__(
             self,
