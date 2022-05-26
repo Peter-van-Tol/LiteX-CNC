@@ -130,13 +130,17 @@ int litexcnc_gpio_init(litexcnc_t *litexcnc, json_object *config) {
 
 uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 
+    if (litexcnc->gpio.num_output_pins == 0) {
+        return 1;
+    }
+
     // Process all the bytes
     uint8_t mask = 0x80;
     for (size_t i=LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible pins. We only
         // should add data from existing pins
-        if (i < litexcnc->gpio.num_output_pins) {
-            *(*data) |= *(litexcnc->gpio.output_pins[i-1].hal.pin.out) ^ litexcnc->gpio.output_pins[i-1].hal.param.invert_output?mask:0;
+        if (i <= litexcnc->gpio.num_output_pins) {
+            *(*data) |= (*(litexcnc->gpio.output_pins[i-1].hal.pin.out) ^ litexcnc->gpio.output_pins[i-1].hal.param.invert_output)?mask:0;
         }
         // Modify the mask for the next. When the mask is zero (happens in case of a 
         // roll-over), we should proceed to the next byte and reset the mask.
@@ -152,12 +156,16 @@ uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 
 uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
+    if (litexcnc->gpio.num_input_pins == 0) {
+        return 1;
+    }
+
     // Process all the bytes
     uint8_t mask = 0x80;
     for (size_t i=LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible pins. We only
         // should add data to existing pins
-        if (i < litexcnc->gpio.num_output_pins) {
+        if (i <= litexcnc->gpio.num_input_pins) {
             if (*(*data) & mask) {
                 // GPIO active
                 *(litexcnc->gpio.input_pins[i-1].hal.pin.in) = 1;
