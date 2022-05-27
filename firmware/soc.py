@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, validator
 # Local imports
 from .encoder import EncoderConfig
 from .etherbone import Etherbone, EthPhy
-from .gpio import GPIO
+from .gpio import GPIO, GPIO_Out, GPIO_In
 from .mmio import MMIO
 from .pwm import PWM, PwmPdmModule
 from .stepgen import StepGen, StepgenModule
@@ -23,6 +23,14 @@ class LitexCNC_Firmware(BaseModel):
     baseclass: Type = Field(
         ...,
         description=""
+    )
+    naming: str = Field(
+        "pin_names",
+
+        description="The method of naming the pins in the HAL-file. Valid choices "
+        "are `pin_names` and `index`. Note: this only affects the drivers, however "
+        "changing this setting requires a re-build of the firmware due to changed "
+        "fungerprint."
     )
     ethphy: EthPhy = Field(
         ...
@@ -86,7 +94,7 @@ class LitexCNC_Firmware(BaseModel):
                 super().__init__(config)
 
                 # Create memory mapping for IO
-                self.submodules.MMIO_inst = MMIO(soc=config, fingerprint=fingerprint)
+                self.submodules.MMIO_inst = MMIO(config=config, fingerprint=fingerprint)
 
                 # Create watchdog
                 watchdog = WatchDogModule(timeout=self.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
@@ -106,32 +114,9 @@ class LitexCNC_Firmware(BaseModel):
                     # self.MMIO_inst.wall_clock.we.eq(True)
                 ]
 
-                # Create GPIO in
-                if config.gpio_in:
-                    self.platform.add_extension([
-                        ("gpio_in", index, Pins(gpio.pin), IOStandard(gpio.io_standard))
-                        for index, gpio 
-                        in enumerate(config.gpio_in)
-                    ])
-                    self.gpio_inputs = [pad for pad in self.platform.request_all("gpio_in").l]
-                    self.sync += [
-                        self.MMIO_inst.gpio_in.status.eq(Cat([gpio for gpio in self.gpio_inputs])),
-                        # self.MMIO_inst.gpio_in.we.eq(True)
-                    ]
-
-                # Create GPIO out
-                if config.gpio_out:
-                    self.platform.add_extension([
-                        ("gpio_out", index, Pins(gpio.pin), IOStandard(gpio.io_standard))
-                        for index, gpio 
-                        in enumerate(config.gpio_out)
-                    ])
-                    self.gpio_outputs = [pad for pad in self.platform.request_all("gpio_out").l]
-                    self.sync += [
-                        gpio.eq(self.MMIO_inst.gpio_out.storage[i] & ~watchdog.has_bitten)
-                        for i, gpio
-                        in enumerate(self.gpio_outputs)
-                    ]
+                # Create GPIO 
+                GPIO_In.create_from_config(self, config.gpio_in)
+                GPIO_Out.create_from_config(self, config.gpio_out)
 
                 # Create PWM
                 # - create the physical output pins
