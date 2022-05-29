@@ -149,7 +149,7 @@ class GPIO_In(Module, AutoDoc):
             return
 
         mmio.gpio_in = CSRStatus(
-            size=int(math.ceil(float(len(soc.gpio_in))/32))*32,
+            size=int(math.ceil(float(len(config))/32))*32,
             name='gpio_in',
             description="Register containing the bits to be written to the GPIO in pins."
         )
