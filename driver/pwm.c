@@ -74,7 +74,7 @@ int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config) {
             litexcnc_pwm_pin_t *instance = &(litexcnc->pwm.instances[i]);
             
             // Create the basename
-            if (json_object_object_get_ex(pwm_instance, "pin", &pwm_instance_pin_name)) {
+            if (json_object_object_get_ex(pwm_instance, "name", &pwm_instance_pin_name)) {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%s", litexcnc->fpga->name, json_object_get_string(pwm_instance_pin_name));
             } else {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%02d", litexcnc->fpga->name, i);

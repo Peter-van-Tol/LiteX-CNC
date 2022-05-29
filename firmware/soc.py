@@ -24,14 +24,6 @@ class LitexCNC_Firmware(BaseModel):
         ...,
         description=""
     )
-    naming: str = Field(
-        "pin_names",
-
-        description="The method of naming the pins in the HAL-file. Valid choices "
-        "are `pin_names` and `index`. Note: this only affects the drivers, however "
-        "changing this setting requires a re-build of the firmware due to changed "
-        "fungerprint."
-    )
     ethphy: EthPhy = Field(
         ...
     )

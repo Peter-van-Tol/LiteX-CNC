@@ -31,7 +31,7 @@ static int litexcnc_gpio_out_init(litexcnc_t *litexcnc, json_object *config) {
         for (size_t i=0; i<litexcnc->gpio.num_output_pins; i++) {
             gpio_pin = json_object_array_get_idx(gpio, i);
             // Pin for the output
-            if (json_object_object_get_ex(gpio_pin, "pin", &gpio_pin_name)) {
+            if (json_object_object_get_ex(gpio_pin, "name", &gpio_pin_name)) {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%s.out", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
             } else {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%02d.out", litexcnc->fpga->name, i);
@@ -42,7 +42,7 @@ static int litexcnc_gpio_out_init(litexcnc_t *litexcnc, json_object *config) {
                 return r;
             }
             // Parameter for inverting the output
-            if (json_object_object_get_ex(gpio_pin, "pin", &gpio_pin_name)) {
+            if (json_object_object_get_ex(gpio_pin, "name", &gpio_pin_name)) {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%s.invert_output", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
             } else {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%02d.invert_output", litexcnc->fpga->name, i);
@@ -85,7 +85,7 @@ static int litexcnc_gpio_in_init(litexcnc_t *litexcnc, json_object *config) {
         for (size_t i=0; i<litexcnc->gpio.num_input_pins; i++) {
             gpio_pin = json_object_array_get_idx(gpio, i);
             // Normal pin
-            if (json_object_object_get_ex(gpio_pin, "pin", &gpio_pin_name)) {
+            if (json_object_object_get_ex(gpio_pin, "name", &gpio_pin_name)) {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%s.in", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
                 rtapi_snprintf(name_inverted, sizeof(name_inverted), "%s.gpio.%s.in-not", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
             } else {
