@@ -26,6 +26,13 @@
 #include "etherbone.h"
 
 typedef struct {
+
+    struct {
+        struct {
+            hal_bit_t debug;  // Indicates the communication is in debug mode
+        } param;
+    } hal;
+
     // Connection by etherbone, required for sending/receiving data.
     struct eb_connection* connection;
     // Definition of the FPGA (containing pins, steppers, PWM, ec.)

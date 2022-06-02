@@ -324,6 +324,12 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         goto fail1;
     }
 
+    r = litexcnc->fpga->post_register(litexcnc->fpga);
+    if (r != 0) {
+        LITEXCNC_PRINT_NO_DEVICE("Registration hooks failed \n");
+        goto fail1;
+    }
+
     // Reset the FPGA
     r = litexcnc->fpga->reset(litexcnc->fpga);
     if (r != 0) {

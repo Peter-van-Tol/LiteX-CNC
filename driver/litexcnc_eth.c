@@ -41,7 +41,7 @@ static int comp_id;
 static int boards_count = 0;
 static struct rtapi_list_head board_num;
 static struct rtapi_list_head ifnames;
-static litexcnc_eth_t boards[MAX_ETH_BOARDS];
+static litexcnc_eth_t* boards[MAX_ETH_BOARDS];
 
 
 // Create a dictionary structure to store card information and being able
@@ -89,7 +89,7 @@ static int litexcnc_eth_verify_config(litexcnc_fpga_t *this) {
     uint8_t *read_buffer = rtapi_kmalloc(LITEXCNC_HEADER_DATA_READ_SIZE, RTAPI_GFP_KERNEL);
 
     // Read the magic and fingerprint. These are the first registers on the card
-    int r = eb_read8(board->connection, 0x0, read_buffer, LITEXCNC_HEADER_DATA_READ_SIZE);
+    int r = eb_read8(board->connection, 0x0, read_buffer, LITEXCNC_HEADER_DATA_READ_SIZE, 0);
     if (r < 0){
         LITEXCNC_ERR_NO_DEVICE("Cannot read from FPGA\n");
         return r;
@@ -151,7 +151,9 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
             board->connection, 
             LITEXCNC_HEADER_DATA_READ_SIZE, 
             buffer, 
-            LITEXCNC_RESET_HEADER_SIZE);
+            LITEXCNC_RESET_HEADER_SIZE,
+            0
+        );
         // Wait for a bit before requesting the data
         usecSleep(10);
         // Read the data back
@@ -159,7 +161,9 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
             board->connection, 
             LITEXCNC_HEADER_DATA_READ_SIZE, 
             buffer, 
-            LITEXCNC_RESET_HEADER_SIZE);
+            LITEXCNC_RESET_HEADER_SIZE,
+            0
+        );
         memcpy(&reset_status, buffer, LITEXCNC_RESET_HEADER_SIZE);
         // Proceed counter
         i++;
@@ -180,7 +184,9 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
             board->connection, 
             LITEXCNC_HEADER_DATA_READ_SIZE, 
             buffer, 
-            LITEXCNC_RESET_HEADER_SIZE);
+            LITEXCNC_RESET_HEADER_SIZE,
+            0
+        );
         // Wait for a bit before requesting the data
         usecSleep(10);
         // Read the data back
@@ -188,7 +194,9 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
             board->connection, 
             LITEXCNC_HEADER_DATA_READ_SIZE, 
             buffer, 
-            LITEXCNC_RESET_HEADER_SIZE);
+            LITEXCNC_RESET_HEADER_SIZE,
+            0
+        );
         memcpy(&reset_status, buffer, LITEXCNC_RESET_HEADER_SIZE);
         // Proceed counter
         i++;
@@ -213,7 +221,9 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
         board->connection, 
         this->write_buffer_size + LITEXCNC_HEADER_DATA_READ_SIZE + LITEXCNC_RESET_HEADER_SIZE, 
         this->read_buffer, 
-        this->read_buffer_size);
+        this->read_buffer_size,
+        board->hal.param.debug
+    );
 }
 
 
@@ -230,12 +240,28 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
         board->connection, 
         LITEXCNC_HEADER_DATA_READ_SIZE + LITEXCNC_RESET_HEADER_SIZE, 
         this->write_buffer, 
-        this->write_buffer_size);
+        this->write_buffer_size,
+        board->hal.param.debug
+    );
 
     // If we missed a paket earlier with timeout AND this packet arrives later, there 
     // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
     // discard that packet to avoid such a queue.
 	//eb_discard_pending_packet(board->connection, this->write_buffer_size);
+}
+
+
+static int litexcnc_post_register(litexcnc_fpga_t *this) {
+    litexcnc_eth_t *board = this->private;
+
+    LITEXCNC_ERR_NO_DEVICE("Hello world\n");
+
+    // Create a pin to show debug messages
+    int r = hal_param_bit_newf(HAL_RW, &(board->hal.param.debug), this->comp_id, "%s.debug", this->name);
+    
+    
+    return 0;
+
 }
 
 
@@ -285,6 +311,7 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     board->fpga.reset         = litexcnc_eth_reset;
     board->fpga.read          = litexcnc_eth_read;
     board->fpga.write         = litexcnc_eth_write;
+    board->fpga.post_register = litexcnc_post_register;
     board->fpga.private       = board;
 
     // Register the board with the main function
@@ -328,7 +355,8 @@ int rtapi_app_main(void) {
 
     // STEP 2: Initialize the board(s)
     for(i = 0, ret = 0; ret == 0 && i<MAX_ETH_BOARDS && config_file[i] && *config_file[i]; i++) {
-        ret = init_board(&boards[i], config_file[i]);
+        boards[i] = (litexcnc_eth_t *)hal_malloc(sizeof(litexcnc_eth_t));
+        ret = init_board(boards[i], config_file[i]);
         if(ret < 0) return ret;
     }
 
@@ -339,7 +367,7 @@ int rtapi_app_main(void) {
 error:
     // Close all the boards
     for(i = 0; i<MAX_ETH_BOARDS && config_file[i] && config_file[i][0]; i++)
-        close_board(&boards[i]);
+        close_board(boards[i]);
     // Free up the used memory
     dict_free(&board_num);
     dict_free(&ifnames);
@@ -354,7 +382,7 @@ void rtapi_app_exit(void) {
     int i;
     // Close all the boards
     for(int i = 0; i<MAX_ETH_BOARDS && config_file[i] && config_file[i][0]; i++)
-        close_board(&boards[i]);
+        close_board(boards[i]);
     // Free up the used memory
     dict_free(&board_num);
     dict_free(&ifnames);

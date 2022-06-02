@@ -65,8 +65,8 @@ int eb_fill_write32(uint8_t wb_buffer[20], uint32_t data, uint32_t address);
 int eb_fill_read32(uint8_t wb_buffer[20], uint32_t address);
 
 int eb_create_packet(uint8_t* eth_buffer, uint32_t address, const uint8_t* data, size_t size, int is_read);
-void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data, size_t size);
-int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size);
+void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data, size_t size, bool debug);
+int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size, bool debug);
 void usecSleep(long usec);
 
 void eb_wait_for_tx_buffer_empty(struct eb_connection *conn);

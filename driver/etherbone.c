@@ -124,7 +124,7 @@ int eb_create_packet(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, si
     }
 }
 
-int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size) {
+int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size, bool debug) {
     // Create a buffer for the header (16 bytes) + payload (<size> bytes) and
     // copy the header + data to it
     uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
@@ -138,15 +138,16 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
     }
     eb_create_packet(eth_pkt, address, data, size, 1);
 
-
-    // LITEXCNC_PRINT_NO_DEVICE("Read addresses:\n");
-    // for (size_t i=0; i<(16+size); i+=4) {
-    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-    //         (unsigned char)eth_pkt[i+0],
-    //         (unsigned char)eth_pkt[i+1],
-    //         (unsigned char)eth_pkt[i+2],
-    //         (unsigned char)eth_pkt[i+3]);
-    // }
+    if (debug) {
+        LITEXCNC_PRINT_NO_DEVICE("Read addresses:\n");
+        for (size_t i=0; i<(16+size); i+=4) {
+            LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+                (unsigned char)eth_pkt[i+0],
+                (unsigned char)eth_pkt[i+1],
+                (unsigned char)eth_pkt[i+2],
+                (unsigned char)eth_pkt[i+3]);
+        }
+    }
 
     // Send the data to the device
     eb_send(conn, eth_pkt, 16+size);
@@ -162,32 +163,36 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
     // Unpack results
     memcpy(data, &response[16], size);
 
-    // LITEXCNC_PRINT_NO_DEVICE("Read:\n");
-    // for (size_t i=0; i<(size); i+=4) {
-    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-    //         (unsigned char)data[i+0],
-    //         (unsigned char)data[i+1],
-    //         (unsigned char)data[i+2],
-    //         (unsigned char)data[i+3]);
-    // }
+    if (debug) {
+        LITEXCNC_PRINT_NO_DEVICE("Read:\n");
+        for (size_t i=0; i<(size); i+=4) {
+            LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+                (unsigned char)data[i+0],
+                (unsigned char)data[i+1],
+                (unsigned char)data[i+2],
+                (unsigned char)data[i+3]);
+        }
+    }
 }
 
 
-void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data, size_t size) {
+void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data, size_t size, bool debug) {
     // Create a buffer for the header (16 bytes) + payload (<size> bytes) and
     // copy the header + data to it
     uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
     memset((void*) eth_pkt, 0, sizeof(eth_pkt));
     eb_create_packet(eth_pkt, address, data, size, 0);
 
-    // LITEXCNC_PRINT_NO_DEVICE("Write:\n");
-    // for (size_t i=0; i<(16+size); i+=4) {
-    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-    //         (unsigned char)eth_pkt[i+0],
-    //         (unsigned char)eth_pkt[i+1],
-    //         (unsigned char)eth_pkt[i+2],
-    //         (unsigned char)eth_pkt[i+3]);
-    // }
+    if (debug) {
+        LITEXCNC_PRINT_NO_DEVICE("Write:\n");
+        for (size_t i=0; i<(16+size); i+=4) {
+            LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+                (unsigned char)eth_pkt[i+0],
+                (unsigned char)eth_pkt[i+1],
+                (unsigned char)eth_pkt[i+2],
+                (unsigned char)eth_pkt[i+3]);
+        }
+    }
 
     // Send the data to the device
     eb_send(conn, eth_pkt, 16+size);

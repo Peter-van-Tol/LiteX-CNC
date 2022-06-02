@@ -80,6 +80,9 @@ struct litexcnc_fpga_struct {
     int (*write)(litexcnc_fpga_t *self);
     hal_bit_t *io_error;
 
+    // Functions which will be called during various stages
+    int (*post_register)(litexcnc_fpga_t *self);
+
     // Buffers for reading and writing data
     uint8_t *write_buffer;
     size_t write_buffer_size;
