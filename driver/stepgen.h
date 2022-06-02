@@ -66,6 +66,7 @@ typedef struct {
             hal_u32_t dir_setup_time;   /* The minimum setup time from direction to step, in nanoseconds periods. Measured from change of direction to rising edge of step. */
             hal_u32_t dir_hold_time;    /* The minimum hold time of direction after step, in nanoseconds. Measured from falling edge of step to change of direction */
             hal_bit_t position_mode;    /* Flag indicating this stepgen should work in position mode, default is True */
+            hal_bit_t debug;            /* Falg indicating whether all positional data will be printed to the command line */
         } param;
 
     } hal;
@@ -86,6 +87,7 @@ typedef struct {
     struct {
         int64_t position;
         int32_t speed;
+        float speed_float;
         float scale_recip;
         hal_u32_t steplen_cycles;
         hal_u32_t stepspace_cycles;
