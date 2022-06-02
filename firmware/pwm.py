@@ -65,7 +65,7 @@ class PwmPdmModule(Module, AutoCSR):
                     error_0.eq(error - self.width[:16]),
                     error_1.eq(error - self.width[:16] + (2**16 - 1)),
                     If(
-                        self.width[:16] >= error,
+                        self.width[:16] > error,
                         pwm.eq(1),
                         error.eq(error_1)
                     ).Else(
