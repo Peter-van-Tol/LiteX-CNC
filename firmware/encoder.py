@@ -247,7 +247,7 @@ class EncoderModule(Module, AutoDoc):
                     )
                 ])
             # Create the encoder
-            encoder = cls(pads=soc.platform.request(encoder, index))
+            encoder = cls(pads=soc.platform.request("encoder", index))
             # Add the encoder to the soc
             soc.submodules += encoder
             # Hookup the ynchronous logic for transferring the data from the CPU to FPGA
