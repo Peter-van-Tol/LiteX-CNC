@@ -15,6 +15,7 @@ from migen import *
 from . import __version__
 from .encoder import EncoderModule
 from .gpio import GPIO_Out, GPIO_In
+from .stepgen import StepgenModule
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .soc import LitexCNC_Firmware
@@ -98,14 +99,7 @@ class MMIO(Module, AutoCSR):
                 setattr(self, f'pwm_{index}_period', CSRStorage(size=32, description=f'pwm_{index}_period', name=f'pwm_{index}_period', write_from_dev=False))
                 setattr(self, f'pwm_{index}_width', CSRStorage(size=32, description=f'pwm_{index}_width', name=f'pwm_{index}_width', write_from_dev=False))
         # - Stepgen
-        if config.stepgen:
-            self.stepgen_steplen = CSRStorage(size=32, description=f'stepgen_steplen', name=f'stepgen_steplen', write_from_dev=False)
-            self.stepgen_dir_hold_time = CSRStorage(size=32, description=f'stepgen_dir_hold_time', name=f'stepgen_dir_hold_time', write_from_dev=False)
-            self.stepgen_dir_setup_time = CSRStorage(size=32, description=f'stepgen_dir_setup_time', name=f'stepgen_dir_setup_time', write_from_dev=False)
-            self.stepgen_apply_time = CSRStorage(size=64, description=f'stepgen_apply_time', name=f'stepgen_apply_time', write_from_dev=True)
-            for index, _ in enumerate(config.stepgen):
-                setattr(self, f'stepgen_{index}_speed_target', CSRStorage(size=32, reset=0x80000000, description=f'stepgen_{index}_speed_target', name=f'stepgen_{index}_speed_target', write_from_dev=False))
-                setattr(self, f'stepgen_{index}_max_acceleration', CSRStorage(size=32, description=f'stepgen_{index}_max_acceleration', name=f'stepgen_{index}_max_acceleration', write_from_dev=False))
+        StepgenModule.add_mmio_write_registers(self, config.stepgen)
         # - Encoder (new style!)
         EncoderModule.add_mmio_write_registers(self, config.encoders)
 
@@ -125,12 +119,7 @@ class MMIO(Module, AutoCSR):
             "machine (order of magnitude centuries at 1 GHz).",  
             name='wall_clock'
         )
-        # - GPIO
+        # Modules
         GPIO_In.add_mmio_read_registers(self, config.gpio_in)
-        # - stepgen
-        if config.stepgen:
-            for index, _ in enumerate(config.stepgen):
-                setattr(self, f'stepgen_{index}_position', CSRStatus(size=64, description=f'stepgen_{index}_position', name=f'stepgen_{index}_position'))
-                setattr(self, f'stepgen_{index}_speed', CSRStatus(size=32, description=f'stepgen_{index}_speed', name=f'stepgen_{index}_speed'))
-        # - Encoder (new style!)
+        StepgenModule.add_mmio_read_registers(self, config.stepgen)
         EncoderModule.add_mmio_read_registers(self, config.encoders)
