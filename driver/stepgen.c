@@ -303,16 +303,19 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                     }
                 }
                 sign = (squared<0)?-1*sign:sign;
-                speed_new = sign * sqrt(fabs(squared));
+                speed_new = sign * sqrt(fabs(squared)) + difference;
                 // TODO: check whether this overshoots the error in the next step (because the fixed addition
                 // 0f the acceleration of one period). If that is the case, modify the speed to minimize the
                 // error and end the catching up state.
-                speed_new = speed_new + (speed_new<commanded_speed?1:-1) * period * 0.000000001 * instance->hal.param.maxaccel + difference;
-                // Check whether we are in the 'safe-zone', which means that the acceleration is decreased
-                // to less then 50 of the maximum acceleration, whic can be handled with the matching speed
-                // algorithm.
-                if ((fabs(speed_new - *(instance->hal.pin.speed_prediction)) * litexcnc->stepgen.data.recip_dt) < (0.5 * instance->hal.param.maxaccel)) {
-                    instance->hal.pin.catching_up = 0;
+                if (fabs(commanded_speed - speed_new) < (period * 0.000000001 * instance->hal.param.maxaccel)) {
+                    float position_new = *(instance->hal.pin.position_prediction) + 0.5 * (*(instance->hal.pin.speed_prediction) + commanded_speed) * period * 0.000000001;
+                    float error_new = *(instance->hal.pin.position_cmd) - position_new;
+                    if (fabs(error_new) <= fabs(error)) {
+                        speed_new = commanded_speed;
+                        instance->hal.pin.catching_up = 0;
+                    }
+                } else {
+                     speed_new += (speed_new<commanded_speed?1:-1) * period * 0.000000001 * instance->hal.param.maxaccel;
                 }
                 if (instance->hal.param.debug) {
                     rtapi_print(" , full accelaration to %.2f", speed_new);
