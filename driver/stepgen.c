@@ -262,7 +262,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                     rtapi_print(" , constant speed %.2f", speed_new);
                 }
             }
-            else if (match_time <= (0.5 * period)) {
+            else if (!instance->hal.pin.catching_up && (match_time <= (0.5 * period))) {
                 // The average speed can be obtained during one period. Now determine at which 
                 // position we would end up if this average speed was used. There will be a difference 
                 // between the commanded position and the 'average' position we have to compensate for.
@@ -272,44 +272,48 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                             + (period - match_time) * speed_avg) \
                         * 1e-9;
                 pos_error = *(instance->hal.pin.position_cmd) - pos_avg;
-                // LITEXCNC_PRINT_NO_DEVICE("Position and error: %.2f, %.2f \n",
-                //     pos_avg,
-                //     pos_error
-                // );
                 // Determine which the 'extra' speed required to solve for this position error. 
                 // The error can only be fully compensated when the match_time is less then half
                 // of the period, otherwise the acceleration constraint cannot be met.
-                if (match_time > 0.5 * period) {
-                    match_time = 0.5 * period;
-                }
                 speed_new = speed_avg + pos_error * 2 / match_time;
                 if (instance->hal.param.debug) {
                     rtapi_print(" , matching speed to %.2f", speed_new);
                 }
             } else {
+                // Set the flag that we are catching up with the error
+                // TODO: why can this not be a pointer?
+                instance->hal.pin.catching_up = 1;
                 // The whole period we must accelerate to even get to the average speed. Apply 
                 // maximum acceleration. If this happens multiple periods in a row, this might
                 // get into following errors.
                 float commanded_speed = (*(instance->hal.pin.position_cmd) - instance->memo.position_cmd) * litexcnc->stepgen.data.recip_dt;
                 float error = *(instance->hal.pin.position_cmd) - *(instance->hal.pin.position_prediction);
-                float squared;
-                int32_t sign;
-                if (commanded_speed > 0){
-                    sign = 1;
-                    squared = commanded_speed * commanded_speed + 2 * instance->hal.param.maxaccel * error;
-                    if (squared < 0) {
-                        sign = -1;
-                        // squared = commanded_speed * commanded_speed - 2 * instance->hal.param.maxaccel * error;
-                    }
-                } else {
-                    sign = -1;
-                    squared = commanded_speed * commanded_speed - 2 * instance->hal.param.maxaccel * error;
-                    if (squared < 0) {
-                        sign = 1;
-                        // squared = commanded_speed * commanded_speed + 2 * instance->hal.param.maxaccel * error;
+                int32_t sign = (commanded_speed>0)?1:-1;
+                float squared = commanded_speed * commanded_speed + sign * 1.95 * instance->hal.param.maxaccel * error;
+                // The new speed is calculated based on the error on the start of the period. However,
+                // the commanded speed is defined at the end of the period. So we have to compensate for
+                // the acceleration during the period. We also compensate for the difference between the
+                // commanded speed and actual speed of the previous loop.
+                float difference = instance->data.speed_float - *(instance->hal.pin.speed_prediction);
+                if (fabs(difference) > (0.025 * period * 0.000000001 * instance->hal.param.maxaccel)) {
+                    if (difference > 0) {
+                        difference = 0.025 * period * 0.000000001 * instance->hal.param.maxaccel;
+                    } else {
+                        difference = -0.025 * period * 0.000000001 * instance->hal.param.maxaccel;
                     }
                 }
+                sign = (squared<0)?-1*sign:sign;
                 speed_new = sign * sqrt(fabs(squared));
+                // TODO: check whether this overshoots the error in the next step (because the fixed addition
+                // 0f the acceleration of one period). If that is the case, modify the speed to minimize the
+                // error and end the catching up state.
+                speed_new = speed_new + (speed_new<commanded_speed?1:-1) * period * 0.000000001 * instance->hal.param.maxaccel + difference;
+                // Check whether we are in the 'safe-zone', which means that the acceleration is decreased
+                // to less then 50 of the maximum acceleration, whic can be handled with the matching speed
+                // algorithm.
+                if ((fabs(speed_new - *(instance->hal.pin.speed_prediction)) * litexcnc->stepgen.data.recip_dt) < (0.5 * instance->hal.param.maxaccel)) {
+                    instance->hal.pin.catching_up = 0;
+                }
                 if (instance->hal.param.debug) {
                     rtapi_print(" , full accelaration to %.2f", speed_new);
                 }

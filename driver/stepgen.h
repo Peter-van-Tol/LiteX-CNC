@@ -54,6 +54,7 @@ typedef struct {
             hal_bit_t *enable;                /* Enables output steps - when false, no steps are generated and is the hardware disabled */
             hal_float_t *velocity_cmd;        /* Commanded velocity, in length units per second (see parameter position-scale). */
             hal_float_t *position_cmd;        /* Commanded position, in length units (see parameter position-scale). */ 
+            hal_bit_t catching_up;            /* Flag which is set to True when the stepgen is catching up with the position command. */ 
         } pin;
 
         struct {
