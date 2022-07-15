@@ -132,7 +132,7 @@ class StepgenModule(Module, AutoDoc):
 
         # Link step and dir
         self.comb += [
-            pads.dir.eq(self.step),
+            pads.step.eq(self.step),
             pads.dir.eq(self.dir),
         ]
 
