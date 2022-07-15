@@ -79,7 +79,7 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             if (r != 0) { goto fail_params; }
             instance->hal.param.position_mode = 1;
             // - Position mode (including setting the default mode, )
-            r = hal_param_bit_newf(HAL_RW, &(instance->hal.param.debug), litexcnc->fpga->comp_id, "%s.debug", base_name);
+            r = hal_pin_bit_newf(HAL_IN, &(instance->hal.pin.debug), litexcnc->fpga->comp_id, "%s.debug", base_name);
             if (r != 0) { goto fail_params; }
 
             // Create the pins
@@ -230,7 +230,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
 	        }
         }
 
-        if (instance->hal.param.debug) {
+        if (*(instance->hal.pin.debug)) {
             LITEXCNC_PRINT_NO_DEVICE("%llu, %.6f, %.6f, %.6f, %.6f, %.6f", 
                 litexcnc->wallclock->memo.wallclock_ticks,
                 *(instance->hal.pin.position_cmd),
@@ -248,17 +248,17 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             // Estimate the required (average) speed for getting to the commanded position, required time to
             // accelerate to that speed.
             speed_avg = (*(instance->hal.pin.position_cmd) - *(instance->hal.pin.position_prediction)) * litexcnc->stepgen.data.recip_dt;
-            if (instance->hal.param.debug) {
+            if ((*instance->hal.pin.debug)) {
                 rtapi_print(", Avg. speed : %.6f", speed_avg);
             }
             match_time = fabs(speed_avg - *(instance->hal.pin.speed_prediction)) / instance->hal.param.maxaccel * 1.0e9;
-            if (instance->hal.param.debug) {
+            if ((*instance->hal.pin.debug)) {
                 rtapi_print(", match time : %.6f", match_time); 
             }
             if (match_time < litexcnc->clock_frequency_recip) {
                 // Constant speed
                 speed_new = speed_avg;
-                if (instance->hal.param.debug) {
+                if ((*instance->hal.pin.debug)) {
                     rtapi_print(" , constant speed %.2f", speed_new);
                 }
             }
@@ -276,7 +276,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                 // The error can only be fully compensated when the match_time is less then half
                 // of the period, otherwise the acceleration constraint cannot be met.
                 speed_new = speed_avg + pos_error * 2 / match_time;
-                if (instance->hal.param.debug) {
+                if ((*instance->hal.pin.debug)) {
                     rtapi_print(" , matching speed to %.2f", speed_new);
                 }
             } else {
@@ -289,7 +289,9 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                 float commanded_speed = (*(instance->hal.pin.position_cmd) - instance->memo.position_cmd) * litexcnc->stepgen.data.recip_dt;
                 float error = *(instance->hal.pin.position_cmd) - *(instance->hal.pin.position_prediction);
                 int32_t sign = (commanded_speed>0)?1:-1;
-                float squared = commanded_speed * commanded_speed + sign * 1.95 * instance->hal.param.maxaccel * error;
+                // TODO: should compensate more for the commanded speed
+                speed_new = commanded_speed + ((error<0)?-1:1) * sqrt(((error<0)?-1:1) * 1.95 * instance->hal.param.maxaccel * error);
+                // rtapi_print(" , test %.2f %.2f %.2f", commanded_speed, speed_new, (error<0)?-1:1 * sqrt(((error<0)?-1:1) * 1.95 * instance->hal.param.maxaccel * error));
                 // The new speed is calculated based on the error on the start of the period. However,
                 // the commanded speed is defined at the end of the period. So we have to compensate for
                 // the acceleration during the period. We also compensate for the difference between the
@@ -302,8 +304,9 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                         difference = -0.025 * period * 0.000000001 * instance->hal.param.maxaccel;
                     }
                 }
-                sign = (squared<0)?-1*sign:sign;
-                speed_new = sign * sqrt(fabs(squared)) + difference;
+                // sign = (squared<0)?-1*sign:sign;
+                // speed_new = sign * sqrt(fabs(squared)) + difference;
+                speed_new += difference;
                 // TODO: check whether this overshoots the error in the next step (because the fixed addition
                 // 0f the acceleration of one period). If that is the case, modify the speed to minimize the
                 // error and end the catching up state.
@@ -317,11 +320,11 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                 } else {
                      speed_new += (speed_new<commanded_speed?1:-1) * period * 0.000000001 * instance->hal.param.maxaccel;
                 }
-                if (instance->hal.param.debug) {
+                if ((*instance->hal.pin.debug)) {
                     rtapi_print(" , full accelaration to %.2f", speed_new);
                 }
             }
-            if (instance->hal.param.debug) {
+            if ((*instance->hal.pin.debug)) {
                 rtapi_print("\n");
             }
             // LITEXCNC_PRINT_NO_DEVICE("Speed for position command: %d units / s \n", speed_new);

@@ -55,6 +55,7 @@ typedef struct {
             hal_float_t *velocity_cmd;        /* Commanded velocity, in length units per second (see parameter position-scale). */
             hal_float_t *position_cmd;        /* Commanded position, in length units (see parameter position-scale). */ 
             hal_bit_t catching_up;            /* Flag which is set to True when the stepgen is catching up with the position command. */ 
+            hal_bit_t *debug;                 /* Flag indicating whether all positional data will be printed to the command line */
         } pin;
 
         struct {
@@ -67,7 +68,6 @@ typedef struct {
             hal_u32_t dir_setup_time;   /* The minimum setup time from direction to step, in nanoseconds periods. Measured from change of direction to rising edge of step. */
             hal_u32_t dir_hold_time;    /* The minimum hold time of direction after step, in nanoseconds. Measured from falling edge of step to change of direction */
             hal_bit_t position_mode;    /* Flag indicating this stepgen should work in position mode, default is True */
-            hal_bit_t debug;            /* Falg indicating whether all positional data will be printed to the command line */
         } param;
 
     } hal;
