@@ -34,6 +34,10 @@
 
     This code was written as part of the LiteX-CNC project.
 */
+#include <stdio.h>
+#include <limits.h>
+#include "litexcnc.h"
+#include "encoder.h"
 
 
 int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config) {
@@ -97,6 +101,10 @@ int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config) {
             // - velocity_rpm
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "velocity_rpm"); 
             r = hal_pin_float_new(name, HAL_OUT, &(instance->hal.pin.velocity_rpm), litexcnc->fpga->comp_id);
+            if (r < 0) { goto fail_pins; }
+            // - velocity_rpm
+            rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "overflow_occurred"); 
+            r = hal_pin_bit_new(name, HAL_OUT, &(instance->hal.pin.overflow_occurred), litexcnc->fpga->comp_id);
             if (r < 0) { goto fail_pins; }
             // Create the params
             // - position_scale
@@ -180,7 +188,6 @@ uint8_t litexcnc_encoder_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             (*data)++; // Proceed the buffer to the next element
         }
     }
-
 }
 
 
@@ -253,6 +260,7 @@ uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // - convert received data to struct
         litexcnc_encoder_instance_read_data_t instance_data;
         memcpy(&instance_data, *data, sizeof instance_data);
+        data += sizeof instance_data;
         // - store the counts from the FPGA to the driver (keep in mind the endianess). Also
         //   take into account whether we are in x4_mode or not.
         if (instance->hal.param.x4_mode) {
@@ -269,11 +277,34 @@ uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         //   within one period (assumption is that the period is less then 15 minutes).
         if (*(instance->hal.pin.index_pulse)) {
             *(instance->hal.pin.position) = *(instance->hal.pin.counts) * instance->data.position_scale_recip;
+            *(instance->hal.pin.overflow_occurred) = false;
         } else {
-            // Roll-over detection; it assumed when the
+            // Roll-over detection; it assumed when the the difference between previous value
+            // and next value is larger then 0.5 times the max-range, that roll-over has occurred.
+            // In this case, we switch to a incremental calculation of the position. This method is
+            // less accurate then the absolute calculation of the position. Once overflow has
+            // occurred, the only way to reset to absolute calculation is by the occurrence of a
+            // index_pulse.
+            int64_t difference = (int64_t) *(instance->hal.pin.counts) - counts_old;
+            if ((difference < INT_MIN) || (difference > INT_MAX)) {
+                // When overflow occurs, the difference will be in order magnitude of 2^32-1, however
+                // a signed integer can only allow for changes of half that size. Because we calculate
+                // in 64-bit, we can detect changes which are larger and thus correct for that.
+                *(instance->hal.pin.overflow_occurred) = true;
+                // Compensate for the roll-over
+                if (difference < 0) {
+                    difference += UINT_MAX;
+                } else {
+                    difference -= UINT_MAX;
+                }
+            }
+            if (*(instance->hal.pin.overflow_occurred)) {
+                *(instance->hal.pin.position) = *(instance->hal.pin.position) + difference * instance->data.position_scale_recip;
+            } else {
+                *(instance->hal.pin.position) = *(instance->hal.pin.counts) * instance->data.position_scale_recip;
+            }
 
         }
-
 
         // Calculate the new speed based on the new position (running average). The
         // running average is not modified when an index-pulse is received, as this

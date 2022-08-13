@@ -74,6 +74,10 @@ typedef struct {
              * of 60 for convenience.
              */
             hal_float_t *velocity_rpm;
+            /* Velocity in scaled units per minute. Simply encoder.N.velocity scaled by a factor 
+             * of 60 for convenience.
+             */
+            hal_bit_t *overflow_occurred;
         } pin;
 
         struct {

@@ -1,8 +1,9 @@
 from typing import List
 import math
+import warnings
 
 # Imports for creating a json-definition
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator
 
 # Imports for creating a LiteX/Migen module
 from litex.soc.interconnect.csr import *
@@ -31,17 +32,70 @@ class EncoderConfig(BaseModel):
     "In the driver the phase-Z bit will not be exported and the function `index-enable` will "
     "be disabled when there is no Z-signal."
     )
+    min_value: int = Field(
+        None,
+        description="The minimum value for the encoder. Extra pulses will not cause the counter"
+        "to decrease beyond this value. This value is inclusive. When the value is not defined, the "
+        "minimum value is unlimited. The minimum value should be smaller then the maximum "
+        "value if both are defined."
+    )
+    max_value: int = Field(
+        None,
+        description="The maximum value for the encoder. Extra pulses will not cause the counter"
+        "to increase beyond this value. This value is inclusive. When the value is not defined, the "
+        "maximum value is unlimited. The maximum value should be larger then the minimum "
+        "value if both are defined."
+    )
+    reset_value: int = Field(
+        0,
+        description="The value to which the counter will be resetted. This is also the initial value "
+        "at which the counter is instantiated. The reset value should be between the minimum value "
+        "and maximum value if these are defined. Default value: 0."
+    )
     io_standard: str = Field(
         "LVCMOS33",
         description="The IO Standard (voltage) to use for the pins."
     )
+
+    @root_validator(skip_on_failure=True)
+    def check_min_max_reset_value(cls, values):
+        """
+        Checks whether the min value is smaller then max value and that the
+        reset value is larger then the minimum value, but smaller then the
+        maximum value.
+        """
+        reset_value = values.get('reset_value')
+        min_value = values.get('min_value', None)
+        # Check the reset value relative to the minimum value if the latter is defined
+        if min_value is not None:
+            if reset_value < min_value:
+                raise ValueError('Reset value should be larger then or equal to the minimum value.')
+        max_value = values.get('max_value', None)
+        # Check the reset value relative to the maximum value if the latter is defined
+        if max_value is not None:
+            if reset_value > max_value:
+                raise ValueError('Reset value should be smaller then or equal to the minimum value.')
+        # If both minimum and maximum values are defined, check whether they are in the
+        # correct order. Technically it is possible to have minimum and maximum value
+        # equal to each other, however this will result in a counter which is not working
+        # (fixed at one value). In this case we warn the user that the counter won't work.
+        if min_value is not None and max_value is not None:
+            if max_value < min_value:
+                raise ValueError('Minimum value should be smaller then the maximum value.')
+            if max_value == min_value:
+                warnings.warn('Minimum and maximum value are equal! The counter will not work '
+                'because its value is fixed. It is recommended to change the values.')
+        # Everything OK, pass on the values
+        return values
 
 
 class EncoderModule(Module, AutoDoc):
     """Hardware counting of quadrature encoder signals."""
     pads_layout = [("pin_A", 1), ("pin_B", 1), ("pin_Z", 1)]
 
-    def __init__(self, pads=None) -> None:
+    COUNTER_SIZE = 64
+
+    def __init__(self, encoder_config: EncoderConfig, pads=None) -> None:
 
         # AutoDoc implementation
         self.intro = ModuleDoc("""
@@ -75,7 +129,7 @@ class EncoderModule(Module, AutoDoc):
 
         # Exported fields
         self.index_enable = Signal()
-        self.counter = Signal((32, True))
+        self.counter = Signal((self.COUNTER_SIZE, True), reset=encoder_config.reset_value)
         self.index_pulse = Signal()
         self.reset_index_pulse = Signal()
 
@@ -117,7 +171,7 @@ class EncoderModule(Module, AutoDoc):
             # Reset the index pulse as soon the CPU has indicated it is read
             If(
                 self.reset_index_pulse & self.index_pulse,
-                self.index_pulse.eq(0),
+                self.index_pulse.eq(encoder_config.reset_value),
                 self.reset_index_pulse.eq(0)
             ),
             # When the `index-enable` flag is set, detext a raising flank and
@@ -136,12 +190,36 @@ class EncoderModule(Module, AutoDoc):
                 count_ena & ~(self.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
                 If(
                     count_dir,
-                    self.counter.eq(self.counter + 1),
+                    self.create_counter_increase(encoder_config),
                 ).Else(
-                    self.counter.eq(self.counter - 1),
+                    self.create_counter_decrease(encoder_config)
                 )
             )
         ]
+
+    def create_counter_increase(self, encoder_config: EncoderConfig):
+        """
+        Creates the statements for increasing the counter. When a maximum
+        value for the counter is defined, this is taken into account.
+        """
+        if encoder_config.max_value is not None:
+            return If(
+                self.counter < encoder_config.max_value,
+                self.counter.eq(self.counter + 1),
+            )
+        return self.counter.eq(self.counter + 1)
+
+    def create_counter_decrease(self, encoder_config: EncoderConfig):
+        """
+        Creates the statements for decreasing the counter. When a minimum
+        value for the counter is defined, this is taken into account.
+        """
+        if encoder_config.min_value is not None:
+            return If(
+                self.counter > encoder_config.min_value,
+                self.counter.eq(self.counter - 1),
+            )
+        return self.counter.eq(self.counter - 1)
 
     @classmethod
     def add_mmio_read_registers(cls, mmio, config: List[EncoderConfig]):
@@ -171,7 +249,7 @@ class EncoderModule(Module, AutoDoc):
                 mmio,
                 f'encoder_{index}_counter',
                 CSRStatus(
-                    size=int(math.ceil(float(len(config))/32))*32,
+                    size=64,
                     name=f'encoder_{index}_counter',
                     description="Encoder counter\n"
                     f"Register containing the count for register {index}."
@@ -231,7 +309,7 @@ class EncoderModule(Module, AutoDoc):
         # - main loop for creating the encoders
         for index, encoder_config in config:
             # Add the io to the FPGA
-            if config.pin_Z:
+            if config.pin_Z is not None:
                 soc.platform.add_extension([
                     ("encoder", index,
                         Subsignal(Pins(encoder_config.pin_A), IOStandard(encoder_config.io_standard)),
@@ -247,7 +325,7 @@ class EncoderModule(Module, AutoDoc):
                     )
                 ])
             # Create the encoder
-            encoder = cls(pads=soc.platform.request("encoder", index))
+            encoder = cls(encoder_config=encoder_config, pads=soc.platform.request("encoder", index))
             # Add the encoder to the soc
             soc.submodules += encoder
             # Hookup the ynchronous logic for transferring the data from the CPU to FPGA
@@ -306,8 +384,16 @@ if __name__ == "__main__":
             i+=1
             if i > 1000:
                 break
-
-    encoder = EncoderModule()
+    
+    config = EncoderConfig(
+        name="test",
+        pin_A="not_used:A",
+        pin_B="not_used:B",
+        min_value=40,
+        max_value=150,
+        reset_value=100
+    )
+    encoder = EncoderModule(config)
     print("\nRunning Sim...\n")
     # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
     run_simulation(encoder, test_encoder(encoder))
