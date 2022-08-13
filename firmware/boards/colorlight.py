@@ -25,13 +25,15 @@ class ColorLightBase(SoCMini):
         elif board == "5a-75e":
             platform = colorlight_5a_75e.Platform(revision=revision)
 
+
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, clk_freq=sys_clk_freq,
             ident          = config.board_name,
             ident_version  = True,
         )
+
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
+        self.submodules.crg = _CRG(self.platform, sys_clk_freq, with_rst=False)
         
         # Etherbone --------------------------------------------------------------------------------
         self.submodules.ethphy = LiteEthPHYRGMII(

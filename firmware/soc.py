@@ -134,54 +134,6 @@ class LitexCNC_Firmware(BaseModel):
 
                 # Create StepGen
                 StepgenModule.create_from_config(self, watchdog, config.stepgen)
-                # # - create the physical output pins
-                # if config.stepgen:
-                #     # -> step
-                #     self.platform.add_extension([
-                #         ("stepgen_step", index, Pins(stepgen_instance.step_pin), IOStandard(stepgen_instance.io_standard)) 
-                #         for index, stepgen_instance 
-                #         in enumerate(config.stepgen)
-                #     ])
-                #     self.stepgen_step_outputs = [pad for pad in self.platform.request_all("stepgen_step").l]
-                #     # -> dir
-                #     self.platform.add_extension([
-                #         ("stepgen_dir", index, Pins(stepgen_instance.dir_pin), IOStandard(stepgen_instance.io_standard)) 
-                #         for index, stepgen_instance 
-                #         in enumerate(config.stepgen)
-                #     ])
-                #     self.stepgen_dir_outputs = [pad for pad in self.platform.request_all("stepgen_dir").l]
-                #     sync_statements = []
-                #     reset_statements = []
-                #     for index, stepgen_config in enumerate(config.stepgen):
-                #         _stepgen = StepgenModule(28, stepgen_config.soft_stop)
-                #         self.submodules += _stepgen
-                #         # Combine input
-                #         self.comb += [
-                #             _stepgen.reset.eq(self.MMIO_inst.reset.storage),
-                #             _stepgen.enable.eq(~watchdog.has_bitten),
-                #             _stepgen.steplen.eq(self.MMIO_inst.stepgen_steplen.storage),
-                #             _stepgen.dir_hold_time.eq(self.MMIO_inst.stepgen_dir_hold_time.storage),
-                #             _stepgen.dir_setup_time.eq(self.MMIO_inst.stepgen_dir_setup_time.storage),
-                #         ]
-                #         # Combine output
-                #         self.comb += [
-                #             self.stepgen_step_outputs[index].eq(_stepgen.step),
-                #             self.stepgen_dir_outputs[index].eq(_stepgen.dir),
-                #         ]
-                #         self.sync += [
-                #             # Store data for position and speed feedback
-                #             getattr(self.MMIO_inst, f'stepgen_{index}_position').status.eq(_stepgen.position),
-                #             getattr(self.MMIO_inst, f'stepgen_{index}_speed').status.eq(_stepgen.speed),
-                #         ]
-                #         sync_statements.extend([
-                #             _stepgen.speed_target.eq(getattr(self.MMIO_inst, f'stepgen_{index}_speed_target').storage),
-                #             _stepgen.max_acceleration.eq(getattr(self.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
-                #         ])
-                #     # Apply the sync-statements when the time is ready
-                #     self.sync += If(
-                #         self.MMIO_inst.wall_clock.status >= self.MMIO_inst.stepgen_apply_time.storage,
-                #         *sync_statements
-                #     )
-
+                
         return _LitexCNC_SoC(
             config=self)
