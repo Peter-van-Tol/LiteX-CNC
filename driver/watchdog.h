@@ -68,13 +68,13 @@ typedef struct {
     // Input pins
     uint32_t timeout_cycles;
 } litexcnc_watchdog_data_write_t;
-#define LITEXCNC_WATCHDOG_DATA_WRITE_SIZE sizeof(litexcnc_watchdog_data_write_t)
+#define LITEXCNC_WATCHDOG_DATA_WRITE_SIZE 4  //sizeof(litexcnc_watchdog_data_write_t)
 // - read
 typedef struct {
     // Input pins
     uint32_t has_bitten; // Flag, but all data will be send with a 4-byte width
 } litexcnc_watchdog_data_read_t;
-#define LITEXCNC_WATCHDOG_DATA_READ_SIZE sizeof(litexcnc_watchdog_data_read_t)
+#define LITEXCNC_WATCHDOG_DATA_READ_SIZE 4  //sizeof(litexcnc_watchdog_data_read_t)
 
 
 // Functions for creating, reading and writing Watchdog pins

@@ -139,7 +139,7 @@ typedef struct {
     int32_t counts;
 } litexcnc_encoder_instance_read_data_t;
 #define LITEXCNC_BOARD_ENCODER_SHARED_INDEX_PULSE_READ_SIZE(litexcnc) (((litexcnc->encoder.num_instances)>>5) + ((litexcnc->encoder.num_instances & 0x1F)?1:0)) *4
-#define LITEXCNC_BOARD_ENCODER_DATA_READ_SIZE(litexcnc) LITEXCNC_BOARD_ENCODER_SHARED_INDEX_PULSE_READ_SIZE(litexcnc) + sizeof(litexcnc_encoder_instance_read_data_t)*litexcnc->encoder.num_instances 
+#define LITEXCNC_BOARD_ENCODER_DATA_READ_SIZE(litexcnc) LITEXCNC_BOARD_ENCODER_SHARED_INDEX_PULSE_READ_SIZE(litexcnc) + litexcnc->encoder.num_instances * 4  //sizeof(litexcnc_encoder_instance_read_data_t)
 
 
 // Functions for creating, reading and writing stepgen pins
