@@ -134,7 +134,8 @@ typedef struct {
     uint32_t max_acceleration;
 } litexcnc_stepgen_instance_write_data_t;
 #define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE 8 //sizeof(litexcnc_stepgen_instance_write_data_t)
-#define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?sizeof(litexcnc_stepgen_general_write_data_t):0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
+// #define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?sizeof(litexcnc_stepgen_general_write_data_t):0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
+#define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?20:0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
 // - read
 typedef struct {
     int64_t position;
