@@ -122,26 +122,31 @@ typedef struct {
 // Defines the data-package for sending the settings for a single step generator. The
 // order of this package MUST coincide with the order in the MMIO definition.
 // - write
+#pragma pack(push,4)
 typedef struct {
     uint32_t steplen;
     uint32_t dir_hold_time;
     uint32_t dir_setup_time;
     uint64_t apply_time;
 } litexcnc_stepgen_general_write_data_t;
-#define LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE 20  //sizeof(litexcnc_stepgen_general_write_data_t)
+#pragma pack(pop)
+#define LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_general_write_data_t)
+#pragma pack(push,4)
 typedef struct {
     uint32_t speed_target;
     uint32_t max_acceleration;
 } litexcnc_stepgen_instance_write_data_t;
-#define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE 8 //sizeof(litexcnc_stepgen_instance_write_data_t)
-// #define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?sizeof(litexcnc_stepgen_general_write_data_t):0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
-#define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?20:0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
+#pragma pack(pop)
+#define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_instance_write_data_t)
+#define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?sizeof(litexcnc_stepgen_general_write_data_t):0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
 // - read
+#pragma pack(push,4)
 typedef struct {
     int64_t position;
     uint32_t speed;
 } litexcnc_stepgen_instance_read_data_t;
-#define LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) litexcnc->stepgen.num_instances*12 //sizeof(litexcnc_stepgen_instance_read_data_t)
+#pragma pack(pop)
+#define LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) litexcnc->stepgen.num_instances*sizeof(litexcnc_stepgen_instance_read_data_t)
 
 
 // Functions for creating, reading and writing stepgen pins
