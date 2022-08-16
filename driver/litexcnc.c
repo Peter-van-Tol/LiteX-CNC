@@ -17,6 +17,7 @@
 //
 #include <stdio.h>
 #include <json-c/json.h>
+#include <time.h>
 
 #include <rtapi_slab.h>
 #include <rtapi_ctype.h>
@@ -50,34 +51,89 @@ struct rtapi_list_head litexcnc_list;
 // This keeps track of the component id. Required for setup and tear down.
 static int comp_id;
 
+bool profiling = true;
+uint32_t loops_read;
+uint32_t loops_write;
+struct timespec begin, end;
+uint32_t fpga_read = 0, watchdog_read = 0, wallclock_read = 0, gpio_read = 0, pwm_read = 0, stepgen_read = 0, encoder_read = 0;
+uint32_t fpga_write = 0, watchdog_write = 0, wallclock_write = 0, gpio_write = 0, pwm_write = 0, stepgen_write = 0, encoder_write = 0;
+
 
 static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
     // Clear buffer
     memset(litexcnc->fpga->read_buffer, 0, litexcnc->fpga->read_buffer_size);
-
+    
     // Read the state from the FPGA
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc->fpga->read(litexcnc->fpga);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    fpga_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
 
-    // LITEXCNC_PRINT_NO_DEVICE("Data received %02X, starting from %02X \n", LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc), litexcnc->fpga->write_buffer_size);
-    // for (size_t i=0; i<litexcnc->fpga->read_buffer_size; i+=4) {
-    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+0],
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+1],
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+2],
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+3]);
-    // }
+    // TODO: don't process the read data in case the read has failed.
 
     // Process the read data
     uint8_t* pointer = litexcnc->fpga->read_buffer;
+    // - watchdog
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_watchdog_process_read(litexcnc, &pointer);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    watchdog_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - wallclock
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_wallclock_process_read(litexcnc, &pointer);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    wallclock_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - gpio
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_gpio_process_read(litexcnc, &pointer);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    gpio_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - pwm
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_pwm_process_read(litexcnc, &pointer);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    pwm_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - stepgen
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_stepgen_process_read(litexcnc, &pointer, period);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    stepgen_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - encoder
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_encoder_process_read(litexcnc, &pointer, period);
-
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    encoder_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    
+    // Profiling
+    if (profiling) {
+        // Increase the counter
+        loops_read++;
+        // When 1000 loops occurred, print out the statistics
+        if (loops_read >= 1000) {
+            // Reset the counter
+            loops_read = 0;
+            // Print statistics
+            LITEXCNC_PRINT_NO_DEVICE("Read statistics (1000 cycles)\n - read device: %u ns\n - watchdog: %u ns\n - wallclock: %u ns\n - gpio: %u ns\n - pwm: %u ns\n - stepgen: %u ns\n - encoder: %u ns",
+                fpga_read,
+                watchdog_read,
+                wallclock_read,
+                gpio_read,
+                pwm_read,
+                stepgen_read,
+                encoder_read
+            );
+            // Reset counters
+            fpga_read = 0;
+            watchdog_read = 0;
+            wallclock_read = 0;
+            gpio_read = 0;
+            pwm_read = 0;
+            stepgen_read = 0;
+            encoder_read = 0;
+        }
+    }
 }
 
 static void litexcnc_write(void *void_litexcnc, long period) {
@@ -88,15 +144,71 @@ static void litexcnc_write(void *void_litexcnc, long period) {
 
     // Process all functions
     uint8_t* pointer = litexcnc->fpga->write_buffer;
+    // - watchdog
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_watchdog_prepare_write(litexcnc, &pointer, period);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    watchdog_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - wallclock
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_wallclock_prepare_write(litexcnc, &pointer);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    wallclock_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - gpio
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    gpio_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - pwm
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    pwm_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - stepgen
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_stepgen_prepare_write(litexcnc, &pointer, period);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    stepgen_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+    // - encoder
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_encoder_prepare_write(litexcnc, &pointer, period);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    encoder_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
 
     // Write the data to the FPGA
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc->fpga->write(litexcnc->fpga);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    fpga_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+
+    // Profiling
+    if (profiling) {
+        // Increase the counter
+        loops_write++;
+        // When 1000 loops occurred, print out the statistics
+        if (loops_write >= 1000) {
+            // Reset the counter
+            loops_write = 0;
+            // Print statistics
+            LITEXCNC_PRINT_NO_DEVICE("Write statistics (1000 cycles)\n - watchdog: %u ns\n - wallclock: %u ns\n - gpio: %u ns\n - pwm: %u ns\n - stepgen: %u ns\n - encoder: %u ns\n - write device: %u ns",
+                watchdog_write,
+                wallclock_write,
+                gpio_write,
+                pwm_write,
+                stepgen_write,
+                encoder_write,
+                fpga_write
+            );
+            // Reset counters
+            watchdog_write = 0;
+            wallclock_write = 0;
+            gpio_write = 0;
+            pwm_write = 0;
+            stepgen_write = 0;
+            encoder_write = 0;
+            fpga_write = 0;
+        }
+    }
 }
 
 static void litexcnc_communicate(void *void_litexcnc, long period) {
