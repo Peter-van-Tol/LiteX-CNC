@@ -80,7 +80,8 @@ typedef struct {
         hal_u32_t steplen;
         hal_u32_t stepspace;
         hal_u32_t dir_setup_time;
-        hal_u32_t dir_hold_time;  
+        hal_u32_t dir_hold_time;
+        hal_float_t maxaccel; 
         bool error_max_speed_printed;
     } memo;
 
@@ -90,6 +91,8 @@ typedef struct {
         int32_t speed;
         float speed_float;
         float scale_recip;
+        float maxaccel_recip;
+        float max_distance_accelerating;
         hal_u32_t steplen_cycles;
         hal_u32_t stepspace_cycles;
         hal_u32_t dirsetup_cycles;
@@ -107,6 +110,8 @@ typedef struct {
 
     struct {
         long period;
+        uint32_t steplen;
+        uint32_t stepspace_cycles;
     } memo;
     
     // Struct containing pre-calculated values
