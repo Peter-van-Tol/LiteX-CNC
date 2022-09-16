@@ -51,177 +51,98 @@ struct rtapi_list_head litexcnc_list;
 // This keeps track of the component id. Required for setup and tear down.
 static int comp_id;
 
-bool profiling = true;
-uint32_t loops_read;
-uint32_t loops_write;
-struct timespec begin, end;
-uint32_t fpga_read = 0, watchdog_read = 0, wallclock_read = 0, gpio_read = 0, pwm_read = 0, stepgen_read = 0, encoder_read = 0;
-uint32_t fpga_write = 0, watchdog_write = 0, wallclock_write = 0, gpio_write = 0, pwm_write = 0, stepgen_write = 0, encoder_write = 0;
+static void litexcnc_config(void* void_litexcnc, long period) {
+    litexcnc_t *litexcnc = void_litexcnc;
+
+    // Clear buffer
+    uint8_t *config_buffer = rtapi_kmalloc(LITEXCNC_CONFIG_HEADER_SIZE, RTAPI_GFP_KERNEL);
+    memset(config_buffer, 0, LITEXCNC_CONFIG_HEADER_SIZE);
+    
+    // Configure all the functions
+    uint8_t* pointer = config_buffer;
+
+    // Configure the general settings
+    litexcnc_config_header_t config_data;
+    config_data.loop_cycles = htobe32((int32_t)((double) litexcnc->clock_frequency * period * 0.000000001));
+    memcpy(pointer, &config_data, sizeof(litexcnc_config_header_t));
+    pointer += sizeof(litexcnc_config_header_t);
+
+    // Configure all the functions
+    // litexcnc_watchdog_config(litexcnc, &pointer, period);
+    // litexcnc_wallclock_config(litexcnc, &pointer, period);
+    // litexcnc_gpio_config(litexcnc, &pointer, period);
+    // litexcnc_pwm_config(litexcnc, &pointer, period);
+    litexcnc_stepgen_config(litexcnc, &pointer, period);
+    // litexcnc_encoder_config(litexcnc, &pointer, period);
+    
+    // Write the data to the FPGA
+    litexcnc->fpga->write_config(litexcnc->fpga, config_buffer, LITEXCNC_CONFIG_HEADER_SIZE);
+}
 
 
 static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
+    // The first loop no data is read, as it is used for sending the configuration to the 
+    // FPGA. The configuration is written in the `litexcnc_write` function. 
+    if (!litexcnc->read_loop_has_run) {
+        litexcnc->read_loop_has_run = true;
+        return;
+    }
+
     // Clear buffer
     memset(litexcnc->fpga->read_buffer, 0, litexcnc->fpga->read_buffer_size);
     
     // Read the state from the FPGA
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc->fpga->read(litexcnc->fpga);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    fpga_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
 
     // TODO: don't process the read data in case the read has failed.
 
-    // Process the read data
+    // Process the read data for the different compenents
     uint8_t* pointer = litexcnc->fpga->read_buffer;
-    // - watchdog
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_watchdog_process_read(litexcnc, &pointer);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    watchdog_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - wallclock
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_wallclock_process_read(litexcnc, &pointer);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    wallclock_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - gpio
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_gpio_process_read(litexcnc, &pointer);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    gpio_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - pwm
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_pwm_process_read(litexcnc, &pointer);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    pwm_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - stepgen
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_stepgen_process_read(litexcnc, &pointer, period);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    stepgen_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - encoder
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_encoder_process_read(litexcnc, &pointer, period);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    encoder_read += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    
-    // Profiling
-    if (profiling) {
-        // Increase the counter
-        loops_read++;
-        // When 1000 loops occurred, print out the statistics
-        if (loops_read >= 1000) {
-            // Reset the counter
-            loops_read = 0;
-            // Print statistics
-            LITEXCNC_PRINT_NO_DEVICE("Read statistics (1000 cycles)\n - read device: %u ns\n - watchdog: %u ns\n - wallclock: %u ns\n - gpio: %u ns\n - pwm: %u ns\n - stepgen: %u ns\n - encoder: %u ns",
-                fpga_read,
-                watchdog_read,
-                wallclock_read,
-                gpio_read,
-                pwm_read,
-                stepgen_read,
-                encoder_read
-            );
-            // Reset counters
-            fpga_read = 0;
-            watchdog_read = 0;
-            wallclock_read = 0;
-            gpio_read = 0;
-            pwm_read = 0;
-            stepgen_read = 0;
-            encoder_read = 0;
-        }
-    }
 }
 
 static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
+
+    // Check whether the write has been initialized AND the read and write functions
+    // are in the recommended order (first read, then write). In the first loop the
+    // we don't write any data to the FPGA, but it is configured. This is required,
+    // because the configuration requires the period to be known, which prevents the
+    // configuration to be performed before the HAL-loop starts
+    if (!litexcnc->write_loop_has_run) {
+        // Check whether the read cycle has been run, if not, the order is not correct
+        if (!litexcnc->read_loop_has_run) {
+            LITEXCNC_WARN("Read and write functions in incorrect order. Recommended order is read first, then write.\n", litexcnc->fpga->name);
+        }
+        // Configure the FPGA and set flag that the write function has been done once
+        litexcnc_config(void_litexcnc, period);
+        litexcnc->write_loop_has_run = true;
+        return;
+    }
 
     // Clear buffer
     memset(litexcnc->fpga->write_buffer, 0, litexcnc->fpga->write_buffer_size);
 
     // Process all functions
     uint8_t* pointer = litexcnc->fpga->write_buffer;
-    // - watchdog
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_watchdog_prepare_write(litexcnc, &pointer, period);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    watchdog_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - wallclock
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_wallclock_prepare_write(litexcnc, &pointer);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    wallclock_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - gpio
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_gpio_prepare_write(litexcnc, &pointer);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    gpio_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - pwm
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_pwm_prepare_write(litexcnc, &pointer);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    pwm_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - stepgen
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_stepgen_prepare_write(litexcnc, &pointer, period);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    stepgen_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-    // - encoder
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc_encoder_prepare_write(litexcnc, &pointer, period);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    encoder_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
 
     // Write the data to the FPGA
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
     litexcnc->fpga->write(litexcnc->fpga);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    fpga_write += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-
-    // Profiling
-    if (profiling) {
-        // Increase the counter
-        loops_write++;
-        // When 1000 loops occurred, print out the statistics
-        if (loops_write >= 1000) {
-            // Reset the counter
-            loops_write = 0;
-            // Print statistics
-            LITEXCNC_PRINT_NO_DEVICE("Write statistics (1000 cycles)\n - watchdog: %u ns\n - wallclock: %u ns\n - gpio: %u ns\n - pwm: %u ns\n - stepgen: %u ns\n - encoder: %u ns\n - write device: %u ns",
-                watchdog_write,
-                wallclock_write,
-                gpio_write,
-                pwm_write,
-                stepgen_write,
-                encoder_write,
-                fpga_write
-            );
-            // Reset counters
-            watchdog_write = 0;
-            wallclock_write = 0;
-            gpio_write = 0;
-            pwm_write = 0;
-            stepgen_write = 0;
-            encoder_write = 0;
-            fpga_write = 0;
-        }
-    }
 }
 
-static void litexcnc_communicate(void *void_litexcnc, long period) {
-
-    // // if there are comm problems, wait for the user to fix it
-    // if ((*litexcnc->fpga->io_error) != 0) return;
-    
-    // Read data to the device
-    litexcnc_read(void_litexcnc, period);
-
-    // Write data from the device
-    litexcnc_write(void_litexcnc, period);
-}
 
 static void litexcnc_cleanup(litexcnc_t *litexcnc) {
     // clean up the Pins, if they're initialized
@@ -244,6 +165,10 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         return -ENOMEM;
     }
     memset(litexcnc, 0, sizeof(litexcnc_t));
+
+    // Set initial values
+    litexcnc->write_loop_has_run = false;
+    litexcnc->read_loop_has_run = false;
 
     // Store the FPGA on it
     litexcnc->fpga = fpga;
