@@ -89,7 +89,12 @@ static int litexcnc_eth_verify_config(litexcnc_fpga_t *this) {
     uint8_t *read_buffer = rtapi_kmalloc(LITEXCNC_HEADER_DATA_READ_SIZE, RTAPI_GFP_KERNEL);
 
     // Read the magic and fingerprint. These are the first registers on the card
-    int r = eb_read8(board->connection, 0x0, read_buffer, LITEXCNC_HEADER_DATA_READ_SIZE, 0);
+    int r = eb_read8(
+        board->connection, 
+        LITEXCNC_ETH_INIT_DATA_BASE_ADDRESS(this), 
+        read_buffer, 
+        LITEXCNC_HEADER_DATA_READ_SIZE, 
+        0);
     if (r < 0){
         LITEXCNC_ERR_NO_DEVICE("Cannot read from FPGA\n");
         return r;
@@ -149,7 +154,7 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
         memcpy(buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
         eb_write8(
             board->connection, 
-            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(this), 
             buffer, 
             LITEXCNC_RESET_HEADER_SIZE,
             0
@@ -159,7 +164,7 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
         // Read the data back
         eb_read8(
             board->connection, 
-            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(this), 
             buffer, 
             LITEXCNC_RESET_HEADER_SIZE,
             0
@@ -182,7 +187,7 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
         memcpy(buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
         eb_write8(
             board->connection, 
-            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(this), 
             buffer, 
             LITEXCNC_RESET_HEADER_SIZE,
             0
@@ -192,7 +197,7 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
         // Read the data back
         eb_read8(
             board->connection, 
-            LITEXCNC_HEADER_DATA_READ_SIZE, 
+            LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(this), 
             buffer, 
             LITEXCNC_RESET_HEADER_SIZE,
             0
@@ -207,6 +212,21 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
 
 }
 
+static int litexcnc_eth_write_config(litexcnc_fpga_t *this, uint8_t *data, size_t size) {
+    /*
+     * This function sends the configuration to the FPGA.
+     */
+    litexcnc_eth_t *board = this->private;
+
+    eb_write8(
+        board->connection, 
+        LITEXCNC_ETH_CONFIG_DATA_BASE_ADDRESS(this), 
+        data, 
+        LITEXCNC_CONFIG_HEADER_SIZE,
+        board->hal.param.debug
+    );
+}
+
 static int litexcnc_eth_read(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
     
@@ -219,13 +239,12 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
     // to read the GPIO out, as the board is not suitable for input yet.
     eb_read8(
         board->connection, 
-        this->write_buffer_size + LITEXCNC_HEADER_DATA_READ_SIZE + LITEXCNC_RESET_HEADER_SIZE, 
+        LITEXCNC_ETH_READ_DATA_BASE_ADDRESS(this), 
         this->read_buffer, 
         this->read_buffer_size,
         board->hal.param.debug
     );
 }
-
 
 static int litexcnc_eth_write(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
@@ -238,7 +257,7 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
     // Write the data (etberbone.h)
     eb_write8(
         board->connection, 
-        LITEXCNC_HEADER_DATA_READ_SIZE + LITEXCNC_RESET_HEADER_SIZE, 
+        LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(this), 
         this->write_buffer, 
         this->write_buffer_size,
         board->hal.param.debug
@@ -249,6 +268,8 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
     // discard that packet to avoid such a queue.
 	//eb_discard_pending_packet(board->connection, this->write_buffer_size);
 }
+
+
 
 
 static int litexcnc_post_register(litexcnc_fpga_t *this) {
@@ -263,7 +284,6 @@ static int litexcnc_post_register(litexcnc_fpga_t *this) {
     return 0;
 
 }
-
 
 static int init_board(litexcnc_eth_t *board, const char *config_file) {
   
@@ -309,6 +329,7 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     board->fpga.comp_id       = comp_id;
     board->fpga.verify_config = litexcnc_eth_verify_config;
     board->fpga.reset         = litexcnc_eth_reset;
+    board->fpga.write_config  = litexcnc_eth_write_config;
     board->fpga.read          = litexcnc_eth_read;
     board->fpga.write         = litexcnc_eth_write;
     board->fpga.post_register = litexcnc_post_register;
