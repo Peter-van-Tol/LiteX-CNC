@@ -77,11 +77,11 @@ typedef struct {
         int64_t position;
         hal_float_t position_cmd;
         hal_float_t position_scale;
+        hal_float_t velocity_cmd;
         hal_u32_t steplen;
         hal_u32_t stepspace;
         hal_u32_t dir_setup_time;
         hal_u32_t dir_hold_time;
-        hal_float_t maxaccel; 
         bool error_max_speed_printed;
     } memo;
 
@@ -89,10 +89,9 @@ typedef struct {
     struct {
         int64_t position;
         int32_t speed;
+        float acceleration;
         float speed_float;
         float scale_recip;
-        float maxaccel_recip;
-        float max_distance_accelerating;
         hal_u32_t steplen_cycles;
         hal_u32_t stepspace_cycles;
         hal_u32_t dirsetup_cycles;
@@ -112,6 +111,7 @@ typedef struct {
         long period;
         uint32_t steplen;
         uint32_t stepspace_cycles;
+        uint64_t apply_time;
     } memo;
     
     // Struct containing pre-calculated values
@@ -126,12 +126,18 @@ typedef struct {
 
 // Defines the data-package for sending the settings for a single step generator. The
 // order of this package MUST coincide with the order in the MMIO definition.
-// - write
-#pragma pack(push,4)
+// - config
+#pragma pack(push, 4)
 typedef struct {
     uint32_t steplen;
     uint32_t dir_hold_time;
     uint32_t dir_setup_time;
+} litexcnc_stepgen_config_data_t;
+#pragma pack(pop)
+#define LITEXCNC_STEPGEN_CONFIG_DATA_SIZE sizeof(litexcnc_stepgen_config_data_t)
+// - write
+#pragma pack(push,4)
+typedef struct {
     uint64_t apply_time;
 } litexcnc_stepgen_general_write_data_t;
 #pragma pack(pop)
@@ -139,7 +145,7 @@ typedef struct {
 #pragma pack(push,4)
 typedef struct {
     uint32_t speed_target;
-    uint32_t max_acceleration;
+    uint32_t acceleration;
 } litexcnc_stepgen_instance_write_data_t;
 #pragma pack(pop)
 #define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_instance_write_data_t)
@@ -156,6 +162,7 @@ typedef struct {
 
 // Functions for creating, reading and writing stepgen pins
 int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config);
+uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long period);
 
