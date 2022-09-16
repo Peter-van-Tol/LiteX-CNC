@@ -19,6 +19,15 @@
 #include "etherbone.h"
 #include "litexcnc.h"
 
+//#define TIME_ETHERBONE
+#ifdef TIME_ETHERBONE
+#include <time.h>
+uint32_t loops_read;
+uint32_t loops_write;
+struct timespec begin, end;
+uint32_t create_packet = 0, send_adresses = 0, receive_data = 0, unpack_data = 0;
+#endif
+
 struct eb_connection {
     int fd;
     int read_fd;
@@ -127,6 +136,12 @@ int eb_create_packet(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, si
 int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size, bool debug) {
     // Create a buffer for the header (16 bytes) + payload (<size> bytes) and
     // copy the header + data to it
+
+#ifdef TIME_ETHERBONE  
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
+#endif
+
+    // Allocate space for the packet and initialize it to all zeros
     uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
     memset((void*) eth_pkt, 0, sizeof(eth_pkt));
 
@@ -149,16 +164,42 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
         }
     }
 
+#ifdef TIME_ETHERBONE
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    create_packet += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+#endif
+
+#ifdef TIME_ETHERBONE  
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
+#endif
+
     // Send the data to the device
     eb_send(conn, eth_pkt, 16+size);
 
+#ifdef TIME_ETHERBONE
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    send_adresses += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+#endif
+
     // Check response
     uint8_t response[16+size];
-    int count = eb_recv(conn, response, sizeof(response));
+
+#ifdef TIME_ETHERBONE  
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
+#endif
+    int count = eb_recv(conn, response, 16+size);
+#ifdef TIME_ETHERBONE
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    receive_data += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+#endif
     if (count != sizeof(response)) {
         fprintf(stderr, "Unexpected read length: %d, expected %d\n", count, sizeof(response));
         return -1;
     }
+
+#ifdef TIME_ETHERBONE  
+    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
+#endif
 
     // Unpack results
     memcpy(data, &response[16], size);
@@ -173,6 +214,33 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
                 (unsigned char)data[i+3]);
         }
     }
+
+#ifdef TIME_ETHERBONE
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    unpack_data += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
+#endif
+
+#ifdef TIME_ETHERBONE
+    // Increase the counter
+    loops_read++;
+    // When 1000 loops occurred, print out the statistics
+    if (loops_read >= 1000) {
+        // Reset the counter
+        loops_read = 0;
+        // Print statistics
+        LITEXCNC_PRINT_NO_DEVICE("Etherbone read statistics (1000 cycles)\n - create packet: %u ns\n - send adresses: %u ns\n - receive_data: %u ns\n - unpack data: %u ns\n",
+            create_packet,
+            send_adresses,
+            receive_data,
+            unpack_data
+        );
+        // Reset counters
+        create_packet = 0;
+        send_adresses = 0;
+        receive_data = 0;
+        unpack_data = 0;
+    }
+#endif
 }
 
 
@@ -376,7 +444,7 @@ struct eb_connection *eb_connect(const char *addr, const char *port, int is_dire
             return NULL;
         }
 
-		timeout.tv_usec = 10000;
+		timeout.tv_usec = SEND_TIMEOUT_US;
 		err = setsockopt(tx_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
 		if (err < 0) {
             close(rx_socket);
