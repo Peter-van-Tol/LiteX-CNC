@@ -81,6 +81,17 @@ class MMIO(Module, AutoCSR):
             name='reset'
         )
 
+        # INIT - for stepgen
+        self.loop_cycles = CSRStatus(
+            size=32,
+            description="The number of clock cycles within the FPGA is normally updated. Due to jitter "
+            "the actual number of cycles can be more or less then this value, but it is expected to be "
+            "close. This parameter is used by the stepgen module to start the (expected) motion for the next "
+            "segement."
+        )
+        StepgenModule.add_mmio_config_registers(self, config.stepgen)
+
+
         # OUTPUT (as seen from the PC!)
         # - Watchdog
         self.watchdog_data = CSRStorage(

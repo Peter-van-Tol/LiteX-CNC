@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 # Imports for creating a LiteX/Migen module
 from litex.soc.interconnect.csr import *
 from migen import *
+from migen.fhdl.structure import Cat, Constant
 from litex.soc.integration.soc import SoC
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.build.generic_platform import *
@@ -124,10 +125,8 @@ class StepgenModule(Module, AutoDoc):
         # Main parameters for position, speed and acceleration
         self.enable = Signal()
         self.position = Signal(64)
-        self.speed = Signal(32, reset=0x80000000)
-        self.speed_target = Signal(32, reset=0x80000000)
-        self.accel_counter1 = Signal(32)
-        self.accel_counter2 = Signal(32)
+        self.speed = Signal(48, reset=0x8000_0000_0000)
+        self.speed_target = Signal(48, reset=0x8000_0000_0000)
         self.max_acceleration = Signal(32)
 
         # Link step and dir
@@ -149,7 +148,7 @@ class StepgenModule(Module, AutoDoc):
             # preventing possible damage.
             If(
                 ~self.enable,
-                self.speed_target.eq(0x80000000)
+                self.speed_target.eq(0x8000_0000_0000)
             ),
             If(
                 self.max_acceleration == 0,
@@ -160,26 +159,19 @@ class StepgenModule(Module, AutoDoc):
                 If(
                     # Accelerate, difference between actual speed and target speed is too
                     # large to bridge within one clock-cycle
-                    self.speed_target > (self.speed + self.max_acceleration[16:32]),
+                    self.speed_target > (self.speed + self.max_acceleration),
                     # The counters are again a fixed point arithmetric. Every loop we keep
                     # the fraction and add the integer part to the speed. The fraction is
                     # used as a starting point for the next loop.
-                    self.accel_counter2.eq(self.accel_counter1 + self.max_acceleration),
-                    self.speed.eq(self.speed + self.accel_counter2[16:32]),
-                    self.accel_counter1.eq(self.accel_counter2[0:16])
+                    self.speed.eq(self.speed + self.max_acceleration),
                 ).Elif(
                     # Decelerate, difference between actual speed and target speed is too
                     # large to bridge within one clock-cycle
-                    self.speed_target < (self.speed - self.max_acceleration[16:32]),
+                    self.speed_target < (self.speed - self.max_acceleration),
                     # The counters are again a fixed point arithmetric. Every loop we keep
                     # the fraction and add the integer part to the speed. However, we have
                     # keep in mind we are subtracting now every loop
-                    self.accel_counter2.eq(self.accel_counter1 - self.max_acceleration),
-                    If(
-                        self.accel_counter2[16:32] != 0,
-                        self.speed.eq(self.speed - (0xFFFF - self.accel_counter2[16:32] + 1))
-                    ),
-                    self.accel_counter1.eq(self.accel_counter2[0:16])
+                    self.speed.eq(self.speed - self.max_acceleration)
                 ).Else(
                     # Small difference between speed and target speed, gap can be bridged within
                     # one clock cycle.
@@ -193,8 +185,9 @@ class StepgenModule(Module, AutoDoc):
         # to an abrupt standstill
         sync += If(
             self.reset,
-            self.speed_target.eq(0x80000000),
-            self.speed.eq(0x80000000),
+            self.speed_target.eq(0x8000_0000_0000),
+            self.speed.eq(0x8000_0000_0000),
+            self.max_acceleration.eq(0),
             self.position.eq(0),
         )
 
@@ -205,13 +198,13 @@ class StepgenModule(Module, AutoDoc):
                 # speed is set to 0 (with respect to acceleration limits) and the machine will be
                 # stopped when disabled.
                 ~self.reset & ~self.wait,
-                self.position.eq(self.position + self.speed - 0x80000000)
+                self.position.eq(self.position + self.speed[16:48] - 0x8000_0000)
             )
         else:
             sync += If(
                 # Check whether the system is enabled and we are not waiting for the dir_setup
                 ~self.reset & self.enable & ~self.wait,
-                self.position.eq(self.position + self.speed - 0x80000000)
+                self.position.eq(self.position + self.speed[16:48] - 0x8000_0000)
             )
 
         # Translate the position to steps by looking at the n'th bit (pick-off)
@@ -249,7 +242,7 @@ class StepgenModule(Module, AutoDoc):
         )
         # - dir
         sync += If(
-            self.dir != (self.speed[31]),
+            self.dir != (self.speed[47]),
             # Enable the Hold DDS, but wait with changing the dir pin until the
             # dir_hold_counter has been elapsed
             self.hold_dds.eq(1),
@@ -262,13 +255,42 @@ class StepgenModule(Module, AutoDoc):
             ),
             If(
                 self.dir_hold_counter.counter == 0,
-                self.dir.eq(self.speed[31])
+                self.dir.eq(self.speed[47])
             )
         )
 
         # Create the outputs
         self.ios = {self.step, self.dir}
 
+    @classmethod
+    def add_mmio_config_registers(cls, mmio, config: List[StepgenConfig]):
+        """
+        Adds the configuration registers to the MMIO. The configuration registers
+        contain information on the the timings of ALL stepgen.
+
+        TODO: in the next iteration of the stepgen timing configs should be for each
+        stepgen individually.
+        """
+        mmio.stepgen_steplen = CSRStorage(
+            size=32,
+            name=f'stepgen_steplen',
+            description=f'The length of the step pulse in clock cycles',
+            write_from_dev=False
+        )
+        mmio.stepgen_dir_hold_time = CSRStorage(
+            size=32,
+            name=f'stepgen_dir_hold_time',
+            description=f'The minimum delay (in clock cycles) after a step pulse before '
+            'a direction change - may be longer',
+            write_from_dev=False
+        )
+        mmio.stepgen_dir_setup_time = CSRStorage(
+            size=32,
+            name=f'stepgen_dir_setup_time',
+            description=f'The minimum delay (in clock cycles) after a direction change '
+            'and before the next step - may be longer',
+            write_from_dev=False
+        )
 
     @classmethod
     def add_mmio_read_registers(cls, mmio, config: List[StepgenConfig]):
@@ -317,26 +339,6 @@ class StepgenModule(Module, AutoDoc):
             return
         
         # General data - equal for each stepgen
-        mmio.stepgen_steplen = CSRStorage(
-            size=32,
-            name=f'stepgen_steplen',
-            description=f'The length of the step pulse in clock cycles',
-            write_from_dev=False
-        )
-        mmio.stepgen_dir_hold_time = CSRStorage(
-            size=32,
-            name=f'stepgen_dir_hold_time',
-            description=f'The minimum delay (in clock cycles) after a step pulse before '
-            'a direction change - may be longer',
-            write_from_dev=False
-        )
-        mmio.stepgen_dir_setup_time = CSRStorage(
-            size=32,
-            name=f'stepgen_dir_setup_time',
-            description=f'The minimum delay (in clock cycles) after a direction change '
-            'and before the next step - may be longer',
-            write_from_dev=False
-        )
         mmio.stepgen_apply_time = CSRStorage(
             size=64,
             name=f'stepgen_apply_time',
@@ -415,10 +417,10 @@ class StepgenModule(Module, AutoDoc):
             soc.sync += [
                 # Position and feedback from stepgen to MMIO
                 getattr(soc.MMIO_inst, f'stepgen_{index}_position').status.eq(stepgen.position),
-                getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(stepgen.speed),
+                getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(stepgen.speed[16:48]),
             ]
             sync.extend([
-                stepgen.speed_target.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target').storage),
+                stepgen.speed_target.eq(Cat(Constant(0, bits_sign=16), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target').storage)),
                 stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
             ])
 
@@ -438,25 +440,32 @@ if __name__ == "__main__":
         i = 0
         # Setup the stepgen
         yield(stepgen.enable.eq(1))
-        yield(stepgen.speed_target.eq(0x80000000 - int(2**28 / 128)))
+        # yield(stepgen.speed_target.eq(0x80000000 - int(2**28 / 128)))
+        yield(stepgen.speed.eq(0x8000_0000_0000 + (0 << 16)))
+        yield(stepgen.speed_test.eq(0x8000_0000 + (0x53E)))
+        yield(stepgen.max_acceleration.eq(0x36F))
         yield(stepgen.steplen.eq(16))
         yield(stepgen.dir_hold_time.eq(16))
         yield(stepgen.dir_setup_time.eq(32))
+        speed_prev=0
 
         while(1):
-            if i == 390:
-                yield(stepgen.speed_target.eq(0x80000000 + int(2**28 / 128)))
-            position = (yield stepgen.position[:64])
+            # if i == 390:
+            #     yield(stepgen.speed_target.eq(0x80000000 + int(2**28 / 128)))
+            position = (yield stepgen.position)
             step = (yield stepgen.step)
             dir = (yield stepgen.dir)
+            speed = (yield stepgen.speed_reported - 0x8000_0000)
             counter = (yield stepgen.dir_hold_counter.counter)
-            print("position = %d @step %d @dir %d @dir_counter %d @clk %d"%(position, step, dir, counter, i))
+            if speed != speed_prev:
+                print("speed = %d, position = %d @step %d @dir %d @dir_counter %d @clk %d"%(speed, position, step, dir, counter, i))
+                speed_prev = speed
             yield
             i+=1
-            if i > 1000:
+            if i > 100000:
                 break
 
-    stepgen = StepgenModule(pick_off=28, soft_stop=True)
+    stepgen = StepgenModule(pads=None, pick_off=28, soft_stop=True)
     print("\nRunning Sim...\n")
     # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
     run_simulation(stepgen, test_stepgen(stepgen))
