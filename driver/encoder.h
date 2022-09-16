@@ -144,6 +144,7 @@ typedef struct {
 
 // Functions for creating, reading and writing stepgen pins
 int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config);
+uint8_t litexcnc_encoder_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_encoder_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long period);
 

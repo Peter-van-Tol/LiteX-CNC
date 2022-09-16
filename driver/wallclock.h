@@ -74,6 +74,7 @@ typedef struct {
 
 // Functions for creating, reading and writing wall-clock pins
 int litexcnc_wallclock_init(litexcnc_t *litexcnc, json_object *config);
+uint8_t litexcnc_wallclock_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_wallclock_prepare_write(litexcnc_t *litexcnc, uint8_t **data);
 uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data);
 
