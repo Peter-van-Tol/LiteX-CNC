@@ -401,7 +401,7 @@ class StepgenModule(Module, AutoDoc):
             # Create the stepgen and add to the system
             stepgen = cls(
                 pads=soc.platform.request('stepgen', index),
-                pick_off=28,
+                pick_off=32,
                 soft_stop=stepgen_config.soft_stop
             )
             soc.submodules += stepgen
@@ -465,7 +465,7 @@ if __name__ == "__main__":
             if i > 100000:
                 break
 
-    stepgen = StepgenModule(pads=None, pick_off=28, soft_stop=True)
+    stepgen = StepgenModule(pads=None, pick_off=32, soft_stop=True)
     print("\nRunning Sim...\n")
     # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
     run_simulation(stepgen, test_stepgen(stepgen))

@@ -38,7 +38,7 @@
 
 #include "litexcnc.h"
 
-#define PICKOFF 28 
+#define PICKOFF 32
 #define POSITION_MODE 0
 
 // Defines the structure of the PWM instance
