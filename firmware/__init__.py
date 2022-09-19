@@ -14,7 +14,7 @@
 # 
 # In all cases, the version must also be modified in the header-file `litexcnc.h`
 # of the driver. 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 from . import boards
 from .soc import LitexCNC_Firmware

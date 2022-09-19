@@ -32,7 +32,7 @@ typedef struct litexcnc_struct litexcnc_t;
 
 #define LITEXCNC_NAME    "litexcnc"
 #define LITEXCNC_VERSION_MAJOR 1
-#define LITEXCNC_VERSION_MINOR 0
+#define LITEXCNC_VERSION_MINOR 1
 #define LITEXCNC_VERSION_PATCH 0
 
 
