@@ -38,7 +38,6 @@
 
 #include "litexcnc.h"
 
-#define PICKOFF 32
 #define POSITION_MODE 0
 
 // Defines the structure of the PWM instance
@@ -95,7 +94,10 @@ typedef struct {
         hal_u32_t steplen_cycles;
         hal_u32_t stepspace_cycles;
         hal_u32_t dirsetup_cycles;
-        hal_u32_t dirhold_cycles; 
+        hal_u32_t dirhold_cycles;
+        size_t pick_off_pos;
+        size_t pick_off_vel;
+        size_t pick_off_acc;
     } data;
     
 } litexcnc_stepgen_pin_t;

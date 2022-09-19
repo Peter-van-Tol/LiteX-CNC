@@ -1,5 +1,6 @@
 # Imports for creating a json-definition
-from typing import List
+from multiprocessing.sharedctypes import Value
+from typing import Iterable, List
 from pydantic import BaseModel, Field
 
 # Imports for creating a LiteX/Migen module
@@ -57,6 +58,12 @@ class StepgenModule(Module, AutoDoc):
     pads_layout = [("step", 1), ("dir", 1)]
 
     def __init__(self, pads, pick_off, soft_stop) -> None:
+        """
+        
+        NOTE: pickoff should be a three-tuple. A different pick-off for position, speed
+        and acceleration is supported. When pick-off is a integer, all the pick offs will
+        be the same.
+        """
 
         self.intro = ModuleDoc("""
 
@@ -98,6 +105,25 @@ class StepgenModule(Module, AutoDoc):
         if pads is None:
             pads = Record(self.pads_layout)
 
+        # Store the pick-off (to prevent magic numbers later in the code)
+        if isinstance(pick_off, int):
+            self.pick_off_pos = pick_off
+            self.pick_off_vel = pick_off
+            self.pick_off_acc = pick_off
+        elif isinstance(pick_off, Iterable) and not isinstance(pick_off, str):
+            if len(pick_off) <  3:
+                raise ValueError(f"Not enough values for `pick_off` ({len(pick_off)}), minimum length is 3.")
+            self.pick_off_pos = pick_off[0]
+            self.pick_off_vel = max(self.pick_off_pos, pick_off[1])
+            self.pick_off_acc = max(self.pick_off_vel, pick_off[2])
+        else:
+            raise ValueError("`pick_off` must be either a list of pick_offs or a single integer value." )
+
+        # Calculate constants based on the pick-off
+        # - speed_reset_val: 0x8000_0000 in case of 32-bit variable, otherwise increase to set the sign bit
+        self.speed_reset_val = (0x8000_0000 << (self.pick_off_acc - self.pick_off_vel)) 
+
+
         # Values which determine the spacing of the step. These
         # are used to reset the counters.
         # - signals
@@ -124,9 +150,15 @@ class StepgenModule(Module, AutoDoc):
 
         # Main parameters for position, speed and acceleration
         self.enable = Signal()
-        self.position = Signal(64)
-        self.speed = Signal(48, reset=0x8000_0000_0000)
-        self.speed_target = Signal(48, reset=0x8000_0000_0000)
+        self.position = Signal(64 + (self.pick_off_vel - self.pick_off_pos))
+        self.speed = Signal(
+            32 + (self.pick_off_acc - self.pick_off_vel),
+            reset=self.speed_reset_val
+        )
+        self.speed_target = Signal(
+            32 + (self.pick_off_acc - self.pick_off_vel),
+            reset=self.speed_reset_val
+        )
         self.max_acceleration = Signal(32)
 
         # Link step and dir
@@ -148,7 +180,7 @@ class StepgenModule(Module, AutoDoc):
             # preventing possible damage.
             If(
                 ~self.enable,
-                self.speed_target.eq(0x8000_0000_0000)
+                self.speed_target.eq(self.speed_reset_val)
             ),
             If(
                 self.max_acceleration == 0,
@@ -185,8 +217,8 @@ class StepgenModule(Module, AutoDoc):
         # to an abrupt standstill
         sync += If(
             self.reset,
-            self.speed_target.eq(0x8000_0000_0000),
-            self.speed.eq(0x8000_0000_0000),
+            self.speed_target.eq(self.speed_reset_val),
+            self.speed.eq(self.speed_reset_val),
             self.max_acceleration.eq(0),
             self.position.eq(0),
         )
@@ -198,18 +230,23 @@ class StepgenModule(Module, AutoDoc):
                 # speed is set to 0 (with respect to acceleration limits) and the machine will be
                 # stopped when disabled.
                 ~self.reset & ~self.wait,
-                self.position.eq(self.position + self.speed[16:48] - 0x8000_0000)
+                self.position.eq(self.position + self.speed[(self.pick_off_acc - self.pick_off_vel):] - 0x8000_0000)
             )
         else:
             sync += If(
                 # Check whether the system is enabled and we are not waiting for the dir_setup
                 ~self.reset & self.enable & ~self.wait,
-                self.position.eq(self.position + self.speed[16:48] - 0x8000_0000)
+                self.position.eq(self.position + self.speed[(self.pick_off_acc - self.pick_off_vel):] - 0x8000_0000)
             )
 
         # Translate the position to steps by looking at the n'th bit (pick-off)
+        # NOTE: to be able to simply add the velocity to the position for every timestep, the position
+        # registered is widened from the default 64-buit width to 64-bit + difference in pick-off for
+        # position and velocity. This meands that the bit we have to watch is also shifted by the
+        # same amount. This means that although we are watching the position, we have to use the pick-off
+        # for velocity
         sync += If(
-            self.position[pick_off] != self.step_prev,
+            self.position[self.pick_off_vel] != self.step_prev,
             # Corner-case: The machine is at rest and starts to move in the opposite
             # direction. Wait with stepping the machine until the dir setup time has
             # passed.
@@ -217,7 +254,7 @@ class StepgenModule(Module, AutoDoc):
                 ~self.hold_dds,
                 # The relevant bit has toggled, make a step to the next position by
                 # resetting the counters
-                self.step_prev.eq(self.position[pick_off]),
+                self.step_prev.eq(self.position[self.pick_off_vel]),
                 self.steplen_counter.counter.eq(self.steplen),
                 self.dir_hold_counter.counter.eq(self.steplen + self.dir_hold_time),
                 self.dir_setup_counter.counter.eq(self.steplen + self.dir_hold_time + self.dir_setup_time),
@@ -242,7 +279,7 @@ class StepgenModule(Module, AutoDoc):
         )
         # - dir
         sync += If(
-            self.dir != (self.speed[47]),
+            self.dir != (self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1]),
             # Enable the Hold DDS, but wait with changing the dir pin until the
             # dir_hold_counter has been elapsed
             self.hold_dds.eq(1),
@@ -255,7 +292,7 @@ class StepgenModule(Module, AutoDoc):
             ),
             If(
                 self.dir_hold_counter.counter == 0,
-                self.dir.eq(self.speed[47])
+                self.dir.eq(self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1])
             )
         )
 
@@ -401,7 +438,7 @@ class StepgenModule(Module, AutoDoc):
             # Create the stepgen and add to the system
             stepgen = cls(
                 pads=soc.platform.request('stepgen', index),
-                pick_off=32,
+                pick_off=(32, 40, 48),
                 soft_stop=stepgen_config.soft_stop
             )
             soc.submodules += stepgen
@@ -416,11 +453,11 @@ class StepgenModule(Module, AutoDoc):
             ]
             soc.sync += [
                 # Position and feedback from stepgen to MMIO
-                getattr(soc.MMIO_inst, f'stepgen_{index}_position').status.eq(stepgen.position),
-                getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(stepgen.speed[16:48]),
+                getattr(soc.MMIO_inst, f'stepgen_{index}_position').status.eq(stepgen.position[(stepgen.pick_off_vel - stepgen.pick_off_pos):]),
+                getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(stepgen.speed[(stepgen.pick_off_acc - stepgen.pick_off_vel):]),
             ]
             sync.extend([
-                stepgen.speed_target.eq(Cat(Constant(0, bits_sign=16), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target').storage)),
+                stepgen.speed_target.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target').storage)),
                 stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
             ])
 

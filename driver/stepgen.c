@@ -44,6 +44,11 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             // Get pointer to the stepgen instance
             litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
 
+            // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
+            instance->data.pick_off_pos = 32;
+            instance->data.pick_off_vel = 40;
+            instance->data.pick_off_acc = 48;
+
             // Create the basename
             if (json_object_object_get_ex(instance_config, "name", &instance_config_name_field)) {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen.%s", litexcnc->fpga->name, json_object_get_string(instance_config_name_field));
@@ -245,7 +250,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
         // Get pointer to the stepgen instance
         litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
 
-        // Check the limits on the speed of the setpgen
+        // Check the limits on the speed of the stepgen
         if (instance->hal.param.maxvel <= 0.0) {
             // Negative speed is limited as zero
             instance->hal.param.maxvel = 0.0;
@@ -319,7 +324,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             // To prevent rounding errors the acceleration is here already casted to integer (format
             // used by the FPGA) and then back to float to store the value which is actually used by
             // this stepgen (required to calculate the correct location)
-            data_instance.acceleration = ((float) (fabs(instance->data.acceleration) * instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * ((uint64_t) 1 << (PICKOFF + 16)));
+            data_instance.acceleration = ((float) (fabs(instance->data.acceleration) * instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (instance->data.pick_off_acc)));
             // Catch the special case the accelaration_int is 0. In this case the target speed is applied
             // immediately, which requires the speed new to be modified because the speed profile is rectangular
             // instead of triangular.
@@ -328,7 +333,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
                 instance->data.acceleration = 0;
             } else {
                 speed_new = *(instance->hal.pin.speed_prediction) + instance->data.acceleration * period * 1e-9;
-                instance->data.acceleration = (float) data_instance.acceleration * instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / ((uint32_t) 1 << 16);
+                instance->data.acceleration = (float) data_instance.acceleration * instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << instance->data.pick_off_acc);
             }
 
             // Store this position command for the following loop
@@ -350,8 +355,8 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
 
         // Store the speed. For the speed_float we calculate it based on the int-value which
         // is send to the FPGA to account for any rounding errors
-        instance->data.speed = (speed_new * instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1 << PICKOFF);
-        instance->data.speed_float = (float) instance->data.speed * instance->data.scale_recip * litexcnc->clock_frequency ;
+        instance->data.speed = (speed_new * instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << instance->data.pick_off_vel);
+        instance->data.speed_float = (float) instance->data.speed * instance->data.scale_recip * litexcnc->clock_frequency / (1LL << instance->data.pick_off_vel);
 
         // Now the new speed has been calculated, convert it from units/s to steps per clock-cycle
         data_instance.speed_target = htobe32(instance->data.speed + 0x80000000);
@@ -391,7 +396,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
 		        // Value too small, take a safe value
 		        instance->hal.param.position_scale = 1.0;
 	        }
-            instance->data.scale_recip = (1.0 / (1L << PICKOFF)) / instance->hal.param.position_scale;
+            instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
             instance->memo.position_scale = instance->hal.param.position_scale; 
         }
 
@@ -408,11 +413,11 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         instance->data.speed = (int64_t) be32toh(speed) -  0x80000000;
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
         // Convert the received position to HAL pins for counts and floating-point position
-        *(instance->hal.pin.counts) = instance->data.position >> PICKOFF;
+        *(instance->hal.pin.counts) = instance->data.position >> instance->data.pick_off_pos;
         // Check: why is a half step subtracted from the position. Will case a possible problem 
         // when the power is cycled -> will lead to a moving reference frame  
-        *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1<<(PICKOFF-1))) * instance->data.scale_recip;
-        *(instance->hal.pin.speed_fb) = (double) litexcnc->clock_frequency * instance->data.speed * instance->data.scale_recip;
+        *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1LL<<(instance->data.pick_off_pos-1))) * instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
+        *(instance->hal.pin.speed_fb) = (double) litexcnc->clock_frequency * instance->data.speed * instance->data.scale_recip / (1LL << instance->data.pick_off_vel);
 
         /* -------------------
          * Predict the position and speed at the theoretical end of the start of the 
