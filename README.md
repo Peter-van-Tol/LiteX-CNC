@@ -23,35 +23,49 @@ This project would not be possible without:
 ### Installation
 The installation of the driver is independent from the configuration. In order to install the driver, a modified version of `halcompile` is created. The script `halcompile` is a Python-script which creates and executes the required MakeFiles. Because the driver required [json-c](https://github.com/json-c/json-c), an extra flag had to be added.
 
-Firstly install the `json-c` library:
+This guide is written for a default installation of linuxcnc-2.8.2-buster. The steps may differ for other distributions.
+
+Firstly install the needed packages to compile the driver:
 ```bash
-sudo apt-get update
-sudo apt install libjson-c-dev
+sudo apt-get install libjson-c-dev
+sudo apt-get install git
+sudo apt-get install build-essential
 ```
 
-Next, locate the `halcompile` script and replace it with the modified version:
+Next, clone the repository with the source code:
 ```bash
-whereis halcompile
-sudop cp <path/of/modified/version/halcompile.py> </whereis/path/halcompile>
+git clone github.com/Peter-van-Tol/LiteX-CNC.git
+cd LiteX-CNC
+```
+
+Then, locate halcompile, and replace it with the one from this repository:
+```
+# whereis halcompile
+halcompile: /usr/bin/halcompile /usr/share/man/man1/halcompile.1.gz
+sudo cp halcompile.py /usr/bin/halcompile
 ```
 
 > **NOTE**: When the file `halcompile` cannot be found, make sure you have `linuxcnc-dev` installed, i.e. `sudo apt-get install linuxcnc-dev`.
 
 Now, the LiteX-CNC can be build and installed using `halcompile`:
 ```bash
-cd <folder/with/driver/source>
+cd driver
 sudo halcompile --install litexcnc.c litexcnc_eth.c litexcnc_debug.c 
 ```
 
 ### Usage
-Typically main litexcnc driver is loaded first:
-```
-loadrt litexcnc
+First start halrun, then load the litecnc driver:
+```bash
+halrun
+halcmd: loadrt litexcnc
+Note: Using POSIX realtime
+litexcnc: Loading Litex CNC driver version 1.0.0
+halcmd: 
 ```
 
 After loading the main driver, the board-driver can be loaded. At this moment only ethernet cards are supported using the `litexcnc_eth` board-driver. All the board-driver modules accept a load-time modparam of type string array, named `config_file`. This array has one config_file string for each board the driver should use. Each json-file is passed to and parsed by the litexcnc driver when the board-driver registers the board. The paths can contain spaces, so it is usually a good idea to wrap the whole thing in double-quotes (the " character). The comma character (,) separates members of the config array from each other.
 ```
-loadrt litexcnc_eth config_file="/workspace/examples/5a-75e.json"
+halcmd: loadrt litexcnc_eth config_file="/workspace/examples/5a-75e.json"
 ```
 
 ### Functions
@@ -90,3 +104,4 @@ addf test.0.read servo-thread
 All boards which support [LiteEth](https://github.com/enjoy-digital/liteeth) are supported, this includes the re-purposed Colorlight 5a-75a, 5a-75e, i5 and i9 boards. A full list of boards supported by LiteX and whether LiteEth is supported can be found [here](https://github.com/litex-hub/litex-boards).
 
 The structure of the driver allows to add more communication protocols in the future. I'm looking forward to add USB support as well. However, due to the nature of USB-communication this will most likely not result in real-time behaviour.
+ 
