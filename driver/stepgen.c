@@ -195,6 +195,7 @@ uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long perio
     // Put the data on the data-stream and advance the pointer
     memcpy(*data, &config_data, LITEXCNC_STEPGEN_CONFIG_DATA_SIZE);
     *data += LITEXCNC_STEPGEN_CONFIG_DATA_SIZE;
+
 }
 
 uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
@@ -289,7 +290,6 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
 
             // At what speed does the commanded position move => Wrong caclulation, is average, should be end (based on acc1)
             float velocity_cmd = instance->memo.velocity_cmd + acc1 * period * 1e-9;
-            // instance->memo.velocity_cmd = (*(instance->hal.pin.position_cmd) - instance->memo.position_cmd) * litexcnc->stepgen.data.recip_dt;
 
             // Determine the error at the end of this loop (defined as the difference between
             // the postion where we should be, which is the previous position command, and the
@@ -297,16 +297,24 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             // this error cannot be solved within one loop, as this would lead to oscillations.
             float est_error_start = instance->memo.position_cmd - *(instance->hal.pin.position_prediction);
             float est_error_end   = *(instance->hal.pin.position_cmd) - (*(instance->hal.pin.position_prediction) + 0.5 * (velocity_cmd + *(instance->hal.pin.speed_prediction)) * period * 1e-9);  
-            float acc2 = (instance->memo.velocity_cmd  - *(instance->hal.pin.speed_prediction)) * litexcnc->stepgen.data.recip_dt + est_error_end * litexcnc->stepgen.data.recip_dt * litexcnc->stepgen.data.recip_dt;
-            if (*(instance->hal.pin.debug)) {
-                LITEXCNC_PRINT_NO_DEVICE("%.6f, %.6f, %.6f, %.6f, %.6f\n", acc1, instance->memo.velocity_cmd, velocity_cmd, est_error_end, acc2);
+            float coefficient     = 1.0;
+            if (*(instance->hal.pin.position_cmd) == (instance->memo.position_cmd)) {
+                coefficient = 2.0 - 10.0 * fabs(est_error_end) * instance->data.scale_recip;  // For small errors the acceleration is increased to prevent humming.
+                if (coefficient < 1) {
+                    coefficient = 1;
+                }
             }
-            if ((acc1 == 0) && ((est_error_start * est_error_end) < 0)) {
-                // The standard accelaration would flip the sign (thus does not go fast enough)
-                // so we have to speed up the deceleration. Because the cycle time is fixed, this
-                // can only be done when the basic component is zero (commanded speed is constant)
-                acc2 = ((est_error_start - est_error_end) / est_error_start) * acc2;
-            } 
+            float acc2 = (instance->memo.velocity_cmd  - *(instance->hal.pin.speed_prediction)) * litexcnc->stepgen.data.recip_dt + coefficient * est_error_end * litexcnc->stepgen.data.recip_dt * litexcnc->stepgen.data.recip_dt;
+            if (*(instance->hal.pin.debug)) {
+                LITEXCNC_PRINT_NO_DEVICE("%.6f, %.6f, %.6f, %.10f, %.10f, %.6f, %.6f\n", acc1, instance->memo.velocity_cmd, velocity_cmd, est_error_start, est_error_end, coefficient, acc2);
+            }
+            // if (*(instance->hal.pin.position_cmd) == (instance->memo.position_cmd) && ((est_error_start * est_error_end) < 0)) {
+            //     // The standard accelaration would flip the sign (thus does not go fast enough)
+            //     // so we have to speed up the deceleration. Because the cycle time is fixed, this
+            //     // can only be done when the basic component is zero (commanded speed is constant)
+            //     LITEXCNC_PRINT_NO_DEVICE("Skewed\n");
+            //     acc2 = ((est_error_start - est_error_end) / est_error_start) * acc2;
+            // } 
             
             // Store for next loop
             instance->memo.velocity_cmd = velocity_cmd;
