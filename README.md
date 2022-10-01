@@ -2,13 +2,33 @@
 
 This project uses a FPGA board to connect a PC running LinuxCNC to a CNC machine or a robot:
 ```
-+ ----  PC  ------ +                  + --- FPGA board --- +              + - CNC machine - +
-|   LinuxCNC       |                  |                    +              + stepper motors  |
-|      |           |                  |                    +              + encoders        |
-| LiteX-CNC driver + --> Ethernet --> + LiteX-CNC firmware + --> Wires--> + spindle driver  |
-|                  |                  |                    |              + homing switches |
-+------------------+                  +--------------------+              +-----------------+
++ ---------------- + 
+|       PC         |
++ ---------------- +
+|    LinuxCNC      |
+|       |          |
+|    LiteX-CNC     | 
+|    driver        |
++------------------+ 
+        | Ethernet
++ ---------------- + 
+|    FPGA board    |
++ ---------------- +
+|    LiteX-CNC     |
+|    firmware      |
++ ---------------- +
+        | Discrete 
+        | Wires
++ ---------------- +
+|   CNC machine    |
++ ---------------- +
+|  stepper motors  |
+|  encoders        |
+|  spindle driver  |
+|  homing switches |
++ ---------------- +
 ```
+
 This project uses the LiteX framework, and supports all the FPGA cards which are supported by LiteX.  Configuration of the board and driver is done using json-files.
 
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty to obtain a MESA card.
