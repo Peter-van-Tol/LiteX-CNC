@@ -1,6 +1,15 @@
 # Welcome to LiteX-CNC!
 
-This project aims to make a generic CNC firmware and driver for FPGA cards which are supported by LiteX. Configuration of the board and driver is done using json-files.
+This project uses a FPGA board to connect a PC running LinuxCNC to a CNC machine or a robot:
+```
++ ----  PC  ------ +                  + --- FPGA board --- +              + - CNC machine - +
+|   LinuxCNC       |                  |                    +              + stepper motors  |
+|      |           |                  |                    +              + encoders        |
+| LiteX-CNC driver + --> Ethernet --> + LiteX-CNC firmware + --> Wires--> + spindle driver  |
+|                  |                  |                    |              + homing switches |
++------------------+                  +--------------------+              +-----------------+
+```
+This project uses the LiteX framework, and supports all the FPGA cards which are supported by LiteX.  Configuration of the board and driver is done using json-files.
 
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty to obtain a MESA card.
 
@@ -12,10 +21,74 @@ This project would not be possible without:
 - ColorCNC by *romanetz* [link](https://forum.linuxcnc.org/27-driver-boards/44422-colorcnc?start=0);
 - HostMot2 (MESA card driver) as the structure of the driver has been adopted.
 
-## Configuration
-...
-
 ## Firmware
+### Installation
+
+This guide is written for a default installation of linuxcnc-2.8.2-buster. The steps may differ for other distributions.
+
+Firstly install the needed packages to compile the firmware:
+```bash
+sudo apt-get install wget
+sudo apt-get install python3-pip
+sudo apt-get install git
+pip3 install --user meson ninja
+```
+
+Next, install LiteX:
+```bash
+mkdir LiteX
+cd LiteX
+wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
+python3 litex_setup.py --init --install --config=standard --gcc=riscv
+cd ..
+```
+
+Next, install Yosys:
+```bash
+wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-09-20/oss-cad-suite-linux-x64-20220920.tgz
+tar -xvf oss-cad-suite-linux-x64-20220920.tgz
+mkdir -p ~/bin
+ln -s ~/oss-cad-suite/bin/* ~/bin/
+```
+Make sure yosys is added to the PATH:
+```bash
+bash --login
+echo $PATH
+```
+
+Next, clone the repository with the source code:
+```bash
+git clone https://github.com/Peter-van-Tol/LiteX-CNC.git
+cd LiteX-CNC
+git checkout stepgen_improvement
+pip3 install -r requirements.txt
+```
+
+### Usage
+Compile the firmware for the fpga. Make sure to use python3:
+```bash
+python3 -m firmware examples/5a-75e.json
+```
+The generated files are placed in the directory with the same name as the json file:
+```bash
+cd 5a-75e/
+find
+./software
+./software/include
+./software/include/generated
+./software/include/generated/soc.h
+./software/include/generated/mem.h
+./software/include/generated/git.h
+./software/include/generated/csr.h
+./gateware
+./gateware/colorlight_5a_75e.lpf
+./gateware/colorlight_5a_75e.ys
+./gateware/colorlight_5a_75e_mem.init
+./gateware/build_colorlight_5a_75e.sh
+./gateware/colorlight_5a_75e.v
+./csr.csv
+```
+### Flashing the FPGA board
 ...
 
 ## Drivers
