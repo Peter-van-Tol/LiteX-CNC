@@ -81,6 +81,8 @@ typedef struct {
         hal_u32_t stepspace;
         hal_u32_t dir_setup_time;
         hal_u32_t dir_hold_time;
+        hal_float_t maxaccel;       
+        hal_float_t maxvel;
         bool error_max_speed_printed;
     } memo;
 
@@ -91,6 +93,7 @@ typedef struct {
         float acceleration;
         float speed_float;
         float scale_recip;
+        float acc_recip;
         hal_u32_t steplen_cycles;
         hal_u32_t stepspace_cycles;
         hal_u32_t dirsetup_cycles;
@@ -98,6 +101,25 @@ typedef struct {
         size_t pick_off_pos;
         size_t pick_off_vel;
         size_t pick_off_acc;
+        // The data being send to the FPGA (as calculated)
+        float acc1;
+        float speed1;
+        float time1;
+        float acc2;
+        float speed2;
+        float time2;
+        // The data being send to the FPGA (as sent)
+        int32_t fpga_acc1;
+        int32_t fpga_speed1;
+        int32_t fpga_time1;
+        int32_t fpga_acc2;
+        int32_t fpga_speed2;
+        int32_t fpga_time2;
+        // Scales for converting from float to FPGA and vice versa
+        float fpga_speed_scale;
+        float fpga_speed_scale_inv;
+        float fpga_acc_scale;
+        float fpga_acc_scale_inv;
     } data;
     
 } litexcnc_stepgen_pin_t;
@@ -111,9 +133,12 @@ typedef struct {
 
     struct {
         long period;
+        float period_s;
         uint32_t steplen;
         uint32_t stepspace_cycles;
         uint64_t apply_time;
+        uint64_t prev_wall_clock;
+        uint32_t cycles_per_period;
     } memo;
     
     // Struct containing pre-calculated values
@@ -121,6 +146,7 @@ typedef struct {
         float cycles_per_ns; 
         float max_frequency;
         float recip_dt;
+        bool warning_apply_time_exceeded_shown;
     } data;
 
 } litexcnc_stepgen_t;
@@ -146,8 +172,11 @@ typedef struct {
 #define LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_general_write_data_t)
 #pragma pack(push,4)
 typedef struct {
-    uint32_t speed_target;
-    uint32_t acceleration;
+    uint32_t speed_target1;
+    uint32_t acceleration1;
+    uint32_t part1_cycles;
+    uint32_t speed_target2;
+    uint32_t acceleration2;
 } litexcnc_stepgen_instance_write_data_t;
 #pragma pack(pop)
 #define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_instance_write_data_t)
@@ -157,6 +186,7 @@ typedef struct {
 typedef struct {
     int64_t position;
     uint32_t speed;
+    int64_t apply_time2;
 } litexcnc_stepgen_instance_read_data_t;
 #pragma pack(pop)
 #define LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) litexcnc->stepgen.num_instances*sizeof(litexcnc_stepgen_instance_read_data_t)

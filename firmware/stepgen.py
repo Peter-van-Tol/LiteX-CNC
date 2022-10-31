@@ -1,5 +1,4 @@
 # Imports for creating a json-definition
-from multiprocessing.sharedctypes import Value
 from typing import Iterable, List
 from pydantic import BaseModel, Field
 
@@ -159,7 +158,13 @@ class StepgenModule(Module, AutoDoc):
             32 + (self.pick_off_acc - self.pick_off_vel),
             reset=self.speed_reset_val
         )
+        self.speed_target2 = Signal(
+            32 + (self.pick_off_acc - self.pick_off_vel),
+            reset=self.speed_reset_val
+        )
         self.max_acceleration = Signal(32)
+        self.max_acceleration2 = Signal(32)
+        self.apply_time2 = Signal(64)
 
         # Link step and dir
         self.comb += [
@@ -217,9 +222,14 @@ class StepgenModule(Module, AutoDoc):
         # to an abrupt standstill
         sync += If(
             self.reset,
+            # Prevent updating MMIO registers to prevent restart
+            self.apply_time2.eq(2^64-1),
+            # Reset speed and position to 0
             self.speed_target.eq(self.speed_reset_val),
+            self.speed_target2.eq(self.speed_reset_val),
             self.speed.eq(self.speed_reset_val),
             self.max_acceleration.eq(0),
+            self.max_acceleration2.eq(0),
             self.position.eq(0),
         )
 
@@ -361,6 +371,15 @@ class StepgenModule(Module, AutoDoc):
                     name=f'stepgen_{index}_speed'
                 )
             )
+            setattr(
+                mmio,
+                f'stepgen_{index}_apply_time2',
+                CSRStatus(
+                    size=64,
+                    description=f'stepgen_{index}_apply_time2',
+                    name=f'stepgen_{index}_apply_time2'
+                )
+            )
 
     @classmethod
     def add_mmio_write_registers(cls, mmio, config: List[StepgenConfig]):
@@ -388,21 +407,21 @@ class StepgenModule(Module, AutoDoc):
         for index, _ in enumerate(config):
             setattr(
                 mmio,
-                f'stepgen_{index}_speed_target',
+                f'stepgen_{index}_speed_target1',
                 CSRStorage(
                     size=32,
                     reset=0x80000000,  # Very important, as this is threated as 0
-                    name=f'stepgen_{index}_speed_target',
+                    name=f'stepgen_{index}_speed_target1',
                     description=f'The target speed for stepper {index}.',
                     write_from_dev=False
                 )
             )
             setattr(
                 mmio,
-                f'stepgen_{index}_max_acceleration',
+                f'stepgen_{index}_max_acceleration1',
                 CSRStorage(
                     size=32,
-                    name=f'stepgen_{index}_max_acceleration',
+                    name=f'stepgen_{index}_max_acceleration1',
                     description=f'The maximum acceleration for stepper {index}. The storage contains a '
                     'fixed point value, with 16 bits before and 16 bits after the point. Each '
                     'clock cycle, this value will be added or subtracted from the stepgen speed '
@@ -410,6 +429,43 @@ class StepgenModule(Module, AutoDoc):
                     write_from_dev=False
                 )
             )
+            setattr(
+                mmio,
+                f'stepgen_{index}_part1_cycles',
+                CSRStorage(
+                    size=32,
+                    name=f'stepgen_{index}_part1_cycles',
+                    description=f'The number of cycles, starting from the generic apply time, '
+                    'during which the first combination of speed_target and maximum acceleration '
+                    'is applied.',
+                    write_from_dev=False
+                )
+            )
+            setattr(
+                mmio,
+                f'stepgen_{index}_speed_target2',
+                CSRStorage(
+                    size=32,
+                    reset=0x80000000,  # Very important, as this is threated as 0
+                    name=f'stepgen_{index}_speed_target2',
+                    description=f'The target speed for stepper {index}.',
+                    write_from_dev=False
+                )
+            )
+            setattr(
+                mmio,
+                f'stepgen_{index}_max_acceleration2',
+                CSRStorage(
+                    size=32,
+                    name=f'stepgen_{index}_max_acceleration2',
+                    description=f'The maximum acceleration for stepper {index}. The storage contains a '
+                    'fixed point value, with 16 bits before and 16 bits after the point. Each '
+                    'clock cycle, this value will be added or subtracted from the stepgen speed '
+                    'until the target speed is acquired.',
+                    write_from_dev=False
+                )
+            )
+
 
     @classmethod
     def create_from_config(cls, soc: SoC, watchdog, config: List[StepgenConfig]):
@@ -423,10 +479,6 @@ class StepgenModule(Module, AutoDoc):
         # defined in this case)
         if not config:
             return
-
-        # NOTE: all the syncs are bundled with in a If(), so we don't add directly to
-        # the sync here, but instead use this list
-        sync = []
 
         for index, stepgen_config in enumerate(config):
             soc.platform.add_extension([
@@ -449,24 +501,42 @@ class StepgenModule(Module, AutoDoc):
                 stepgen.enable.eq(~watchdog.has_bitten),
                 stepgen.steplen.eq(soc.MMIO_inst.stepgen_steplen.storage),
                 stepgen.dir_hold_time.eq(soc.MMIO_inst.stepgen_dir_hold_time.storage),
-                stepgen.dir_setup_time.eq(soc.MMIO_inst.stepgen_dir_setup_time.storage)
+                stepgen.dir_setup_time.eq(soc.MMIO_inst.stepgen_dir_setup_time.storage),
             ]
             soc.sync += [
                 # Position and feedback from stepgen to MMIO
                 getattr(soc.MMIO_inst, f'stepgen_{index}_position').status.eq(stepgen.position[(stepgen.pick_off_vel - stepgen.pick_off_pos):]),
                 getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(stepgen.speed[(stepgen.pick_off_acc - stepgen.pick_off_vel):]),
+                getattr(soc.MMIO_inst, f'stepgen_{index}_apply_time2').status.eq(stepgen.apply_time2),
             ]
-            sync.extend([
-                stepgen.speed_target.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target').storage)),
-                stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
-            ])
-
-        # Add all the speed targets and the max accelarion in the protected sync
-        soc.sync += If(
-            soc.MMIO_inst.wall_clock.status >= soc.MMIO_inst.stepgen_apply_time.storage,
-            sync,
-            # soc.MMIO_inst.stepgen_apply_time.storage.eq(0)
-        )      
+            # Add speed target and the max acceleration in the protected sync
+            soc.sync += [
+                If(
+                    soc.MMIO_inst.wall_clock.status >= soc.MMIO_inst.stepgen_apply_time.storage,
+                    stepgen.apply_time2.eq(soc.MMIO_inst.stepgen_apply_time.storage + getattr(soc.MMIO_inst, f'stepgen_{index}_part1_cycles').storage),
+                    If(
+                        soc.MMIO_inst.wall_clock.status < stepgen.apply_time2,
+                        stepgen.speed_target.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target1').storage)),
+                        stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration1').storage),
+                        stepgen.speed_target2.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target2').storage)),
+                        stepgen.max_acceleration2.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration2').storage)
+                    )
+                ),
+                If(
+                    soc.MMIO_inst.wall_clock.status >= stepgen.apply_time2,
+                    stepgen.speed_target.eq(stepgen.speed_target2),
+                    stepgen.max_acceleration.eq(stepgen.max_acceleration2)
+                )
+            ]
+            # Add reset logic to stop the motion after reboot of LinuxCNC
+            soc.sync += [
+                soc.MMIO_inst.stepgen_apply_time.we.eq(0),
+                If(
+                    soc.MMIO_inst.reset.storage,
+                    soc.MMIO_inst.stepgen_apply_time.dat_w.eq(0x80000000),
+                    soc.MMIO_inst.stepgen_apply_time.we.eq(1)
+                )
+            ]
 
 
 if __name__ == "__main__":

@@ -10,20 +10,37 @@
         "mac_address": "0x10e2d5000000"
     },
     "gpio_in": [
-        {"pin":"j12:0", "name": "optional_name_unique"}
+        {"pin":"j2:1"},
+        {"pin":"j2:5"}
     ],
     "gpio_out": [
-        {"pin": "j1:1"},
-        {"pin": "j1:5"}
+        {"pin": "j16:1"},
+        {"pin": "j16:5"}
     ],
     "pwm": [
-        {"pin": "j1:2"}
+        {"pin": "j16:2"}
     ],
     "stepgen": [
         {
-            "step_pin": "j2:1",
-            "dir_pin": "j2:5",
+            "step_pin": "j9:0",
+            "dir_pin": "j9:1",
             "soft_stop": true
+        },
+        {
+            "step_pin": "j10:0",
+            "dir_pin": "j10:1",
+            "soft_stop": true
+        },
+        {
+            "step_pin": "j11:0",
+            "dir_pin": "j11:1",
+            "soft_stop": true
+        }
+    ],
+    "encoders": [
+        {  
+            "pin_A":"j1:1",
+            "pin_B":"j1:5"
         }
     ]
 }
