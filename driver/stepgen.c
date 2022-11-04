@@ -167,8 +167,6 @@ uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long perio
     litexcnc->stepgen.memo.period_s = 1e-9 * period;
     litexcnc->stepgen.memo.period_s_recip = 1.0f / litexcnc->stepgen.memo.period_s;
     litexcnc->stepgen.memo.cycles_per_period = litexcnc->stepgen.memo.period_s * litexcnc->clock_frequency;
-    litexcnc->stepgen.memo.prev_wall_clock = litexcnc->wallclock->memo.wallclock_ticks - litexcnc->stepgen.memo.cycles_per_period;
-    litexcnc->stepgen.memo.apply_time = litexcnc->stepgen.memo.prev_wall_clock + 0.9 * litexcnc->stepgen.memo.cycles_per_period;
     // Initialize the running average
     for (size_t i=0; i<STEPGEN_WALLCLOCK_BUFFER; i++){
         litexcnc->stepgen.data.wallclock_buffer[i] = (double) litexcnc->stepgen.memo.period_s;
@@ -232,10 +230,15 @@ uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long perio
 
 uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
 
+    // Declarations
+    static litexcnc_stepgen_general_write_data_t data_general;
+    static litexcnc_stepgen_pin_t *instance;
+    static litexcnc_stepgen_instance_write_data_t instance_data;
+
     // STEP 1: Timing
     // ==============
     // Put the data on the data-stream and advance the pointer
-    litexcnc_stepgen_general_write_data_t data_general = {htobe64(litexcnc->stepgen.memo.apply_time)};
+    data_general.apply_time = htobe64(litexcnc->stepgen.memo.apply_time);
     memcpy(*data, &data_general, LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE);
     *data += LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE;
 
@@ -243,7 +246,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
     // =========================
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
         // Get pointer to the stepgen instance
-        litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
+        instance = &(litexcnc->stepgen.instances[i]);
 
         // Throw error when timings are changed
         // - steplen
@@ -327,14 +330,12 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
         instance->data.fpga_time2 = instance->data.time2 * litexcnc->clock_frequency;
 
         // Convert the integers used and scale it to the FPGA
-        litexcnc_stepgen_instance_write_data_t instance_data = {
-            htobe32(instance->data.fpga_speed1),
-            htobe32(instance->data.fpga_acc1),
-            htobe32(instance->data.fpga_time1),
-            htobe32(instance->data.fpga_speed2),
-            htobe32(instance->data.fpga_acc2)
-        };
-        
+        instance_data.speed_target1 = htobe32(instance->data.fpga_speed1);
+        instance_data.acceleration1 = htobe32(instance->data.fpga_acc1);
+        instance_data.part1_cycles = htobe32(instance->data.fpga_time1);
+        instance_data.speed_target2 = htobe32(instance->data.fpga_speed2);
+        instance_data. acceleration2 = htobe32(instance->data.fpga_acc2);
+
         // Put the data on the data-stream and advance the pointer
         memcpy(*data, &instance_data, LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE);
         *data += LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE;
@@ -365,15 +366,37 @@ float movingAvg(float *ptrArrNumbers, float *ptrSum, size_t pos, size_t len, flo
 
 uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long period) {
 
+    // Declarations
+    static uint64_t next_apply_time;
+    static int32_t loop_cycles;
+    static litexcnc_stepgen_pin_t *instance;
+    //  - parameters for retrieving data from FPGA
+    static int64_t pos;
+    static uint32_t speed;
+    static int64_t tmp_apply_time;
+    // - parameters for determining the position end start of next loop
+    static uint64_t min_time;
+    static uint64_t max_time;
+    static float fraction;
+    static float speed_end;
+
+    // Check for the first cycle and calculate some fake timings. This has to be done at
+    // this location, because in the init the wallclock_ticks is still zero and this would
+    // lead to an underflow.
+    if (litexcnc->stepgen.memo.apply_time == 0) {
+        litexcnc->stepgen.memo.prev_wall_clock = litexcnc->wallclock->memo.wallclock_ticks - litexcnc->stepgen.memo.cycles_per_period;
+        litexcnc->stepgen.memo.apply_time = litexcnc->stepgen.memo.prev_wall_clock + 0.9 * litexcnc->stepgen.memo.cycles_per_period;
+    }
+
     // The next apply time is basically chosen so that the next loop starts exactly when it
     // should (according to the timing of the previous loop). When due to latency excursion
     // this timing cannot be met (outside the bounds or already in the past) this variable
     // is modified. An additional 0.5 is added to prevent rounding errors accumulate over
     // time.
-    uint64_t next_apply_time = (double) litexcnc->stepgen.memo.apply_time + litexcnc->stepgen.memo.period_s * litexcnc->clock_frequency + 0.5;
+    next_apply_time = (double) litexcnc->stepgen.memo.apply_time + litexcnc->stepgen.memo.period_s * litexcnc->clock_frequency + 0.5;
 
     // Determine how many clicks have been passed from the previous loop
-    int32_t loop_cycles = litexcnc->wallclock->memo.wallclock_ticks - litexcnc->stepgen.memo.prev_wall_clock;
+    loop_cycles = litexcnc->wallclock->memo.wallclock_ticks - litexcnc->stepgen.memo.prev_wall_clock;
 
     // Check whether the loop-cycles are within the limits
     if (loop_cycles < (0.9 * litexcnc->stepgen.memo.cycles_per_period)) {
@@ -435,7 +458,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
     // Receive and process the data for all the stepgens
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
         // Get pointer to the stepgen instance
-        litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
+        instance = &(litexcnc->stepgen.instances[i]);
 
         // Copy the periods
         *(instance->hal.pin.period_s) = litexcnc->stepgen.memo.period_s;
@@ -451,8 +474,9 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
             instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
             instance->memo.position_scale = instance->hal.param.position_scale; 
             // Calculate the scales for speed and acceleration
+            instance->data.fpga_pos_scale_inv = (float) instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
             instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << instance->data.pick_off_vel);
-            instance->data.fpga_speed_scale_inv = (float) litexcnc->clock_frequency * instance->data.scale_recip / (1LL << instance->data.pick_off_vel);
+            instance->data.fpga_speed_scale_inv = 1.0f / instance->data.fpga_speed_scale;
             instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (instance->data.pick_off_acc));
             instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << instance->data.pick_off_acc);;
         }
@@ -460,17 +484,25 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // Store the old data
         instance->memo.position = instance->data.position;
         // Read data and proceed the buffer
-        int64_t pos;
         memcpy(&pos, *data, sizeof pos);
         instance->data.position = be64toh(pos);
         // LITEXCNC_PRINT_NO_DEVICE("Pos feedback %d \n", pos);
         *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
-        uint32_t speed;
         memcpy(&speed, *data, sizeof speed);
+        if (*(instance->hal.pin.debug)) {
+            rtapi_print("Speed: %02X %02X %02X %02X, %lu, ",
+                (unsigned char)*(data[i+0]),
+                (unsigned char)*(data[i+1]),
+                (unsigned char)*(data[i+2]),
+                (unsigned char)*(data[i+3]),
+                be32toh(speed));
+        }
         instance->data.speed = (int64_t) be32toh(speed) -  0x80000000;
+        if (*(instance->hal.pin.debug)) {
+            rtapi_print("%ld\n", instance->data.speed);
+        }
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
         // TODO: this is temporary to investigate why the second phase is not working
-        int64_t tmp_apply_time;
         memcpy(&tmp_apply_time, *data, sizeof tmp_apply_time);
         tmp_apply_time = be64toh(tmp_apply_time);
         *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
@@ -479,7 +511,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // Check: why is a half step subtracted from the position. Will case a possible problem 
         // when the power is cycled -> will lead to a moving reference frame  
         // *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1LL<<(instance->data.pick_off_pos-1))) * instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
-        *(instance->hal.pin.position_fb) = (double) instance->data.position * instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
+        *(instance->hal.pin.position_fb) = (double) instance->data.position * instance->data.fpga_pos_scale_inv;
         *(instance->hal.pin.speed_fb) = (double) instance->data.speed * instance->data.fpga_speed_scale_inv;
 
         /* -------------------
@@ -500,11 +532,6 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         *(instance->hal.pin.position_prediction) =  *(instance->hal.pin.position_fb);
         
         // Add the different phases to the speed and position prediction
-        uint64_t min_time;
-        uint64_t max_time;
-        float fraction;
-        float speed_end;
-
         if (*(instance->hal.pin.debug)) {
             rtapi_print("Timings: %.6f, %llu, %llu, %lu, %lu, %llu \n",
                 litexcnc->stepgen.memo.period_s,

@@ -119,6 +119,7 @@ typedef struct {
         uint32_t fpga_speed2;
         uint32_t fpga_time2;
         // Scales for converting from float to FPGA and vice versa
+        float fpga_pos_scale_inv;
         float fpga_speed_scale;
         float fpga_speed_scale_inv;
         float fpga_acc_scale;
