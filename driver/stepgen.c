@@ -44,6 +44,20 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
     struct json_object *instance_config;
     struct json_object *instance_config_name_field;
     char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.stepgen.<stepgen_name>
+
+    // Allocate the module-global HAL shared memory
+    litexcnc->stepgen.hal = (litexcnc_stepgen_hal_t*)hal_malloc(sizeof(litexcnc_stepgen_hal_t));
+    if (litexcnc->stepgen.hal == NULL) {
+        rtapi_print("No memory");
+        LITEXCNC_ERR_NO_DEVICE("Out of memory!\n");
+        r = -ENOMEM;
+        return r;
+    }
+    // - period and reciprocal
+    r = hal_pin_float_newf(HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s), litexcnc->fpga->comp_id, "%s.stepgen.period-s", litexcnc->fpga->name);
+    if (r != 0) { goto fail_pins; }
+    r = hal_pin_float_newf(HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s_recip), litexcnc->fpga->comp_id, "%s.stepgen.period-s-recip", litexcnc->fpga->name);
+    if (r != 0) { goto fail_pins; }
     
     // Parse the contents of the config-json
     if (json_object_object_get_ex(config, "stepgen", &stepgen_config)) {
@@ -136,11 +150,11 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             if (r != 0) { goto fail_pins; }
             r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.acceleration_cmd2), litexcnc->fpga->comp_id, "%s.acceleration-cmd2", base_name);
             if (r != 0) { goto fail_pins; }
-            // - period and reciprocal
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s), litexcnc->fpga->comp_id, "%s.period-s", base_name);
-            if (r != 0) { goto fail_pins; }
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s_recip), litexcnc->fpga->comp_id, "%s.period-s-recip", base_name);
-            if (r != 0) { goto fail_pins; }
+            // // - period and reciprocal
+            // r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s), litexcnc->fpga->comp_id, "%s.period-s", base_name);
+            // if (r != 0) { goto fail_pins; }
+            // r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s_recip), litexcnc->fpga->comp_id, "%s.period-s-recip", base_name);
+            // if (r != 0) { goto fail_pins; }
         }
     }
     return r;
@@ -164,13 +178,13 @@ uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long perio
     
     // Initialize the averaging of the FPGA wall-clock. This is the first loop, so
     // the array is filled with 'ideal' data based on the period.
-    litexcnc->stepgen.memo.period_s = 1e-9 * period;
-    litexcnc->stepgen.memo.period_s_recip = 1.0f / litexcnc->stepgen.memo.period_s;
-    litexcnc->stepgen.memo.cycles_per_period = litexcnc->stepgen.memo.period_s * litexcnc->clock_frequency;
+    *(litexcnc->stepgen.hal->pin.period_s) = 1e-9 * period;
+    *(litexcnc->stepgen.hal->pin.period_s_recip) = 1.0f / *(litexcnc->stepgen.hal->pin.period_s);
+    litexcnc->stepgen.memo.cycles_per_period = *(litexcnc->stepgen.hal->pin.period_s) * litexcnc->clock_frequency;
     // Initialize the running average
     for (size_t i=0; i<STEPGEN_WALLCLOCK_BUFFER; i++){
-        litexcnc->stepgen.data.wallclock_buffer[i] = (double) litexcnc->stepgen.memo.period_s;
-        litexcnc->stepgen.data.wallclock_buffer_sum += litexcnc->stepgen.memo.period_s;
+        litexcnc->stepgen.data.wallclock_buffer[i] = (double) *(litexcnc->stepgen.hal->pin.period_s);
+        litexcnc->stepgen.data.wallclock_buffer_sum += *(litexcnc->stepgen.hal->pin.period_s);
     }
 
     // Timings
@@ -393,7 +407,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
     // this timing cannot be met (outside the bounds or already in the past) this variable
     // is modified. An additional 0.5 is added to prevent rounding errors accumulate over
     // time.
-    next_apply_time = (double) litexcnc->stepgen.memo.apply_time + litexcnc->stepgen.memo.period_s * litexcnc->clock_frequency + 0.5;
+    next_apply_time = (double) litexcnc->stepgen.memo.apply_time + *(litexcnc->stepgen.hal->pin.period_s) * litexcnc->clock_frequency + 0.5;
 
     // Determine how many clicks have been passed from the previous loop
     loop_cycles = litexcnc->wallclock->memo.wallclock_ticks - litexcnc->stepgen.memo.prev_wall_clock;
@@ -442,13 +456,13 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
 
     // Calculate the period in seconds to use for the next step and store the wall clock for
     // next loop
-    litexcnc->stepgen.memo.period_s = movingAvg(
+    *(litexcnc->stepgen.hal->pin.period_s) = movingAvg(
         litexcnc->stepgen.data.wallclock_buffer, 
         &(litexcnc->stepgen.data.wallclock_buffer_sum), 
         litexcnc->stepgen.data.wallclock_buffer_pos, 
         STEPGEN_WALLCLOCK_BUFFER, 
         (double) loop_cycles * litexcnc->clock_frequency_recip);
-    litexcnc->stepgen.memo.period_s_recip = 1.0f / litexcnc->stepgen.memo.period_s;
+    *(litexcnc->stepgen.hal->pin.period_s_recip) = 1.0f /  *(litexcnc->stepgen.hal->pin.period_s);
     litexcnc->stepgen.data.wallclock_buffer_pos++;
     if (litexcnc->stepgen.data.wallclock_buffer_pos >= STEPGEN_WALLCLOCK_BUFFER) {
       litexcnc->stepgen.data.wallclock_buffer_pos = 0;
@@ -459,10 +473,6 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
         // Get pointer to the stepgen instance
         instance = &(litexcnc->stepgen.instances[i]);
-
-        // Copy the periods
-        *(instance->hal.pin.period_s) = litexcnc->stepgen.memo.period_s;
-        *(instance->hal.pin.period_s_recip) = litexcnc->stepgen.memo.period_s_recip;
 
         // Recalculate the reciprocal of the position scale if it has changed
         if (instance->hal.param.position_scale != instance->memo.position_scale) {
@@ -489,18 +499,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // LITEXCNC_PRINT_NO_DEVICE("Pos feedback %d \n", pos);
         *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
         memcpy(&speed, *data, sizeof speed);
-        if (*(instance->hal.pin.debug)) {
-            rtapi_print("Speed: %02X %02X %02X %02X, %lu, ",
-                (unsigned char)*(data[i+0]),
-                (unsigned char)*(data[i+1]),
-                (unsigned char)*(data[i+2]),
-                (unsigned char)*(data[i+3]),
-                be32toh(speed));
-        }
         instance->data.speed = (int64_t) be32toh(speed) -  0x80000000;
-        if (*(instance->hal.pin.debug)) {
-            rtapi_print("%ld\n", instance->data.speed);
-        }
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
         // TODO: this is temporary to investigate why the second phase is not working
         memcpy(&tmp_apply_time, *data, sizeof tmp_apply_time);
@@ -534,7 +533,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // Add the different phases to the speed and position prediction
         if (*(instance->hal.pin.debug)) {
             rtapi_print("Timings: %.6f, %llu, %llu, %lu, %lu, %llu \n",
-                litexcnc->stepgen.memo.period_s,
+                *(litexcnc->stepgen.hal->pin.period_s),
                 litexcnc->wallclock->memo.wallclock_ticks,
                 litexcnc->stepgen.memo.apply_time,
                 instance->data.fpga_time1,
