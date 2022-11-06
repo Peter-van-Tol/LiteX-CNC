@@ -1,5 +1,5 @@
 # Imports for creating a json-definition
-from typing import Iterable, List
+from typing import Iterable, List, Union, Literal
 from pydantic import BaseModel, Field
 
 # Imports for creating a LiteX/Migen module
@@ -10,14 +10,40 @@ from litex.soc.integration.soc import SoC
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.build.generic_platform import *
 
-
-class StepgenConfig(BaseModel):
+class StepGenPinoutStepDirConfig(BaseModel):
+    stepgen_type: Literal['step_dir']
     step_pin: str = Field(
         description="The pin on the FPGA-card for the step signal."
     )
     dir_pin: str = Field(
         None,
         description="The pin on the FPGA-card for the dir signal."
+    )
+
+
+class StepGenPinoutStepDirDifferentialConfig(BaseModel):
+    stepgen_type: Literal['step_dir_differential']
+    step_pos_pin: str = Field(
+        description="The pin on the FPGA-card for the step+ signal."
+    )
+    step_neg_pin: str = Field(
+        description="The pin on the FPGA-card for the step- signal."
+    )
+    dir_pos_pin: str = Field(
+        None,
+        description="The pin on the FPGA-card for the dir+ signal."
+    )
+    dir_neg_pin: str = Field(
+        None,
+        description="The pin on the FPGA-card for the dir- signal."
+    )
+
+class StepgenConfig(BaseModel):
+    pins: Union[
+            StepGenPinoutStepDirConfig, 
+            StepGenPinoutStepDirDifferentialConfig] = Field(
+        ...,
+        description="The configuration of the stepper type and pin-out."
     )
     name: str = Field(
         None,
@@ -53,10 +79,9 @@ class StepgenCounter(Module, AutoDoc):
         )
 
 
-class StepgenModule(Module, AutoDoc):
-    pads_layout = [("step", 1), ("dir", 1)]
+class StepgenGeneratorModule(Module, AutoDoc):
 
-    def __init__(self, pads, pick_off, soft_stop) -> None:
+    def __init__(self, pick_off, soft_stop) -> None:
         """
         
         NOTE: pickoff should be a three-tuple. A different pick-off for position, speed
@@ -99,11 +124,6 @@ class StepgenModule(Module, AutoDoc):
           the wait-Signal HIGH.
         """
         )
-        # Require to test working with Verilog, basically creates extra signals not
-        # connected to any pads.
-        if pads is None:
-            pads = Record(self.pads_layout)
-
         # Store the pick-off (to prevent magic numbers later in the code)
         if isinstance(pick_off, int):
             self.pick_off_pos = pick_off
@@ -121,31 +141,13 @@ class StepgenModule(Module, AutoDoc):
         # Calculate constants based on the pick-off
         # - speed_reset_val: 0x8000_0000 in case of 32-bit variable, otherwise increase to set the sign bit
         self.speed_reset_val = (0x8000_0000 << (self.pick_off_acc - self.pick_off_vel)) 
+        self.step_prev = Signal()
 
-
-        # Values which determine the spacing of the step. These
-        # are used to reset the counters.
-        # - signals
-        self.steplen = Signal(32)
-        self.dir_hold_time = Signal(32)
-        self.dir_setup_time = Signal(32)
-        # - counters
-        self.steplen_counter = StepgenCounter()
-        self.dir_hold_counter = StepgenCounter()
-        self.dir_setup_counter = StepgenCounter()
-        self.submodules += [
-            self.steplen_counter,
-            self.dir_hold_counter,
-            self.dir_setup_counter
-        ]
-        self.hold_dds = Signal()
-        self.wait = Signal()
+        # Reset signal
         self.reset = Signal()
 
-        # Output parameters
-        self.step = Signal()
-        self.step_prev = Signal()
-        self.dir = Signal(reset=True)
+        # Signal which stops the generator momentarily
+        self.wait = Signal()
 
         # Main parameters for position, speed and acceleration
         self.enable = Signal()
@@ -165,12 +167,6 @@ class StepgenModule(Module, AutoDoc):
         self.max_acceleration = Signal(32)
         self.max_acceleration2 = Signal(32)
         self.apply_time2 = Signal(64)
-
-        # Link step and dir
-        self.comb += [
-            pads.step.eq(self.step),
-            pads.dir.eq(self.dir),
-        ]
 
         # Optionally, use a different clock domain
         sync = self.sync
@@ -249,14 +245,76 @@ class StepgenModule(Module, AutoDoc):
                 self.position.eq(self.position + self.speed[(self.pick_off_acc - self.pick_off_vel):] - 0x8000_0000)
             )
 
+
+class StepgenStepDirModule(Module, AutoDoc):
+    """Stepgen for step/dir type of drives (such as Leadshine DM-series), where it is
+    driven single-ended. For high-speed operations (>100 kHz step frequency), consider
+    to use the class StepgenStepDirDifferential.
+    """
+    STEPGEN_TYPE = 1
+    pads_layout = [("step", 1), ("dir", 1)]
+
+    def __init__(self, pads, generator) -> None:
+        """
+        Ini
+        NOTE: pickoff should be a three-tuple. A different pick-off for position, speed
+        and acceleration is supported. When pick-off is a integer, all the pick offs will
+        be the same.
+        """
+        # Required to test working with Verilog, basically creates extra signals not
+        # connected to any pads.
+        if pads is None:
+            pads = Record(self.pads_layout)
+
+        # Pin the generator
+        self.generator = generator
+        self.submodules += [
+            self.generator
+        ]
+
+        # Create signals and routines
+        self._create_signals()
+        self._create_routine()
+        self._create_comb(pads)
+
+        # Create the outputs (required for synthesis)
+        self.ios = {self.step, self.dir}
+
+    def _create_signals(self) -> None:
+        """Creates the signals required for the step / dir stepgen
+        """
+        # Output parameters
+        self.step = Signal()
+        self.dir = Signal(reset=True)
+        # Create counters for step-space
+        # - signals
+        self.steplen = Signal(32)
+        self.dir_hold_time = Signal(32)
+        self.dir_setup_time = Signal(32)
+        # - counters
+        self.steplen_counter = StepgenCounter()
+        self.dir_hold_counter = StepgenCounter()
+        self.dir_setup_counter = StepgenCounter()
+        self.submodules += [
+            self.steplen_counter,
+            self.dir_hold_counter,
+            self.dir_setup_counter
+        ]
+        # Signal which indicates direction has changed
+        self.hold_dds = Signal()
+
+    def _create_routine(self):
+        """Creates the program for the stepgen. Listens to whether the significant
+        bit (defined by pick_off for position) has changed. When changed, will generate
+        a pulse. Also detects changes in direction and acts accordingly."""
         # Translate the position to steps by looking at the n'th bit (pick-off)
         # NOTE: to be able to simply add the velocity to the position for every timestep, the position
         # registered is widened from the default 64-buit width to 64-bit + difference in pick-off for
         # position and velocity. This meands that the bit we have to watch is also shifted by the
         # same amount. This means that although we are watching the position, we have to use the pick-off
         # for velocity
-        sync += If(
-            self.position[self.pick_off_vel] != self.step_prev,
+        self.sync += If(
+            self.generator.position[self.generator.pick_off_vel] != self.generator.step_prev,
             # Corner-case: The machine is at rest and starts to move in the opposite
             # direction. Wait with stepping the machine until the dir setup time has
             # passed.
@@ -264,50 +322,94 @@ class StepgenModule(Module, AutoDoc):
                 ~self.hold_dds,
                 # The relevant bit has toggled, make a step to the next position by
                 # resetting the counters
-                self.step_prev.eq(self.position[self.pick_off_vel]),
+                self.generator.step_prev.eq(self.generator.position[self.generator.pick_off_vel]),
                 self.steplen_counter.counter.eq(self.steplen),
                 self.dir_hold_counter.counter.eq(self.steplen + self.dir_hold_time),
                 self.dir_setup_counter.counter.eq(self.steplen + self.dir_hold_time + self.dir_setup_time),
-                self.wait.eq(False)
+                self.generator.wait.eq(False)
             ).Else(
-                self.wait.eq(True)
+                self.generator.wait.eq(True)
             )
         )
+
         # Reset the DDS flag when dir_setup_counter has lapsed
-        sync += If(
+        self.sync += If(
             self.dir_setup_counter.counter == 0,
             self.hold_dds.eq(0)
         )
 
         # Convert the parameters to output of step and dir
         # - step
-        sync += If(
+        self.sync += If(
             self.steplen_counter.counter > 0,
             self.step.eq(1)
         ).Else(
             self.step.eq(0)
         )
         # - dir
-        sync += If(
-            self.dir != (self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1]),
+        self.sync += If(
+            self.dir != (self.generator.speed[32 + (self.generator.pick_off_acc - self.generator.pick_off_vel) - 1]),
             # Enable the Hold DDS, but wait with changing the dir pin until the
             # dir_hold_counter has been elapsed
             self.hold_dds.eq(1),
             # Corner-case: The machine is at rest and starts to move in the opposite
             # direction. In this case the dir pin is toggled, while a step can follow
             # suite. We wait in this case the minimum dir_setup_time
-            If(
-                self.dir_setup_counter.counter == 0,
-                self.dir_setup_counter.counter.eq(self.dir_setup_time)
-            ),
+            self.dir_setup_counter.counter.eq(self.dir_setup_time),
             If(
                 self.dir_hold_counter.counter == 0,
-                self.dir.eq(self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1])
+                self.dir.eq(self.generator.speed[32 + (self.generator.pick_off_acc - self.generator.pick_off_vel) - 1])
             )
         )
 
-        # Create the outputs
-        self.ios = {self.step, self.dir}
+    def _create_comb(self, pads):
+        """Creates the combinatorial statements.
+        """
+        # Link step and dir
+        self.comb += [
+            pads.step.eq(self.step),
+            pads.dir.eq(self.dir),
+        ]
+
+    @classmethod
+    def create_from_config(cls, soc: SoC, index, stepgen_config: StepgenConfig, generator):
+        """
+        Adds the module as defined in the configuration to the SoC.
+
+        NOTE: the configuration must be a list and should contain all the module at
+        once. Otherwise naming conflicts will occur.
+        """
+        soc.platform.add_extension([
+            ("stepgen", index,
+                Subsignal(
+                    "step", 
+                    Pins(stepgen_config.pins.step_pin), IOStandard(stepgen_config.io_standard)),
+                Subsignal(
+                    "dir", 
+                    Pins(stepgen_config.pins.dir_pin), IOStandard(stepgen_config.io_standard))
+            )
+        ])
+        # Create the stepgen and add to the system
+        stepgen = cls(
+            pads=soc.platform.request('stepgen', index),
+            generator=generator
+        )
+        soc.submodules += stepgen
+        # Connect all the memory
+        soc.comb += [
+            # Data from MMIO to stepgen
+            stepgen.steplen.eq(soc.MMIO_inst.stepgen_steplen.storage),
+            stepgen.dir_hold_time.eq(soc.MMIO_inst.stepgen_dir_hold_time.storage),
+            stepgen.dir_setup_time.eq(soc.MMIO_inst.stepgen_dir_setup_time.storage),
+        ]
+
+
+class StepgenModuleFactory():
+
+    STEPGEN_TYPES = {
+        'step_dir': StepgenStepDirModule,
+        'step_dir_differential': None
+    }
 
     @classmethod
     def add_mmio_config_registers(cls, mmio, config: List[StepgenConfig]):
@@ -466,7 +568,6 @@ class StepgenModule(Module, AutoDoc):
                 )
             )
 
-
     @classmethod
     def create_from_config(cls, soc: SoC, watchdog, config: List[StepgenConfig]):
         """
@@ -481,51 +582,37 @@ class StepgenModule(Module, AutoDoc):
             return
 
         for index, stepgen_config in enumerate(config):
-            soc.platform.add_extension([
-                ("stepgen", index,
-                    Subsignal("step", Pins(stepgen_config.step_pin), IOStandard(stepgen_config.io_standard)),
-                    Subsignal("dir", Pins(stepgen_config.dir_pin), IOStandard(stepgen_config.io_standard))
-                )
-            ])
-            # Create the stepgen and add to the system
-            stepgen = cls(
-                pads=soc.platform.request('stepgen', index),
+            # Create the connector
+            generator = StepgenGeneratorModule(
                 pick_off=(32, 40, 48),
                 soft_stop=stepgen_config.soft_stop
             )
-            soc.submodules += stepgen
-            # Connect all the memory
-            soc.comb += [
-                # Data from MMIO to stepgen
-                stepgen.reset.eq(soc.MMIO_inst.reset.storage),
-                stepgen.enable.eq(~watchdog.has_bitten),
-                stepgen.steplen.eq(soc.MMIO_inst.stepgen_steplen.storage),
-                stepgen.dir_hold_time.eq(soc.MMIO_inst.stepgen_dir_hold_time.storage),
-                stepgen.dir_setup_time.eq(soc.MMIO_inst.stepgen_dir_setup_time.storage),
-            ]
+            # Determine which stepgen should be created
+            cls.STEPGEN_TYPES[stepgen_config.pins.stepgen_type].create_from_config(soc, index, stepgen_config, generator)
+            # Connect the generator
             soc.sync += [
                 # Position and feedback from stepgen to MMIO
-                getattr(soc.MMIO_inst, f'stepgen_{index}_position').status.eq(stepgen.position[(stepgen.pick_off_vel - stepgen.pick_off_pos):]),
-                getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(stepgen.speed[(stepgen.pick_off_acc - stepgen.pick_off_vel):]),
-                getattr(soc.MMIO_inst, f'stepgen_{index}_apply_time2').status.eq(stepgen.apply_time2),
+                getattr(soc.MMIO_inst, f'stepgen_{index}_position').status.eq(generator.position[(generator.pick_off_vel - generator.pick_off_pos):]),
+                getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(generator.speed[(generator.pick_off_acc - generator.pick_off_vel):]),
+                getattr(soc.MMIO_inst, f'stepgen_{index}_apply_time2').status.eq(generator.apply_time2),
             ]
             # Add speed target and the max acceleration in the protected sync
             soc.sync += [
                 If(
                     soc.MMIO_inst.wall_clock.status >= soc.MMIO_inst.stepgen_apply_time.storage,
-                    stepgen.apply_time2.eq(soc.MMIO_inst.stepgen_apply_time.storage + getattr(soc.MMIO_inst, f'stepgen_{index}_part1_cycles').storage),
+                    generator.apply_time2.eq(soc.MMIO_inst.stepgen_apply_time.storage + getattr(soc.MMIO_inst, f'stepgen_{index}_part1_cycles').storage),
                     If(
-                        soc.MMIO_inst.wall_clock.status < stepgen.apply_time2,
-                        stepgen.speed_target.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target1').storage)),
-                        stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration1').storage),
-                        stepgen.speed_target2.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target2').storage)),
-                        stepgen.max_acceleration2.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration2').storage)
+                        soc.MMIO_inst.wall_clock.status < generator.apply_time2,
+                        generator.speed_target.eq(Cat(Constant(0, bits_sign=(generator.pick_off_acc - generator.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target1').storage)),
+                        generator.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration1').storage),
+                        generator.speed_target2.eq(Cat(Constant(0, bits_sign=(generator.pick_off_acc - generator.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target2').storage)),
+                        generator.max_acceleration2.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration2').storage)
                     )
                 ),
                 If(
-                    soc.MMIO_inst.wall_clock.status >= stepgen.apply_time2,
-                    stepgen.speed_target.eq(stepgen.speed_target2),
-                    stepgen.max_acceleration.eq(stepgen.max_acceleration2)
+                    soc.MMIO_inst.wall_clock.status >= generator.apply_time2,
+                    generator.speed_target.eq(generator.speed_target2),
+                    generator.max_acceleration.eq(generator.max_acceleration2)
                 )
             ]
             # Add reset logic to stop the motion after reboot of LinuxCNC
@@ -546,33 +633,31 @@ if __name__ == "__main__":
     def test_stepgen(stepgen):
         i = 0
         # Setup the stepgen
-        yield(stepgen.enable.eq(1))
-        # yield(stepgen.speed_target.eq(0x80000000 - int(2**28 / 128)))
-        yield(stepgen.speed.eq(0x8000_0000_0000 + (0 << 16)))
-        yield(stepgen.speed_test.eq(0x8000_0000 + (0x53E)))
-        yield(stepgen.max_acceleration.eq(0x36F))
+        yield(stepgen.generator.enable.eq(1))
+        yield(stepgen.generator.speed_target.eq(0x8000_0000_00 - 0x53E00))
+        yield(stepgen.generator.speed.eq(0x8000_0000_00 + (0 << 16)))
+        yield(stepgen.generator.max_acceleration.eq(0x36F))
         yield(stepgen.steplen.eq(16))
         yield(stepgen.dir_hold_time.eq(16))
         yield(stepgen.dir_setup_time.eq(32))
         speed_prev=0
 
         while(1):
-            # if i == 390:
-            #     yield(stepgen.speed_target.eq(0x80000000 + int(2**28 / 128)))
-            position = (yield stepgen.position)
+            # if i == 50:
+            #     yield(stepgen.generator.speed_target.eq(0x8000_0000_00 - 0x53E00))
+            position = (yield stepgen.generator.position)
             step = (yield stepgen.step)
             dir = (yield stepgen.dir)
-            speed = (yield stepgen.speed_reported - 0x8000_0000)
-            counter = (yield stepgen.dir_hold_counter.counter)
-            if speed != speed_prev:
-                print("speed = %d, position = %d @step %d @dir %d @dir_counter %d @clk %d"%(speed, position, step, dir, counter, i))
-                speed_prev = speed
+            speed = (yield stepgen.generator.speed - 0x8000_0000)
+            counter = (yield stepgen.dir_setup_counter.counter)
+            print("speed = %d, position = %d @step %d @dir %d @dir_counter %d @clk %d"%(speed, position, step, dir, counter, i))
             yield
             i+=1
             if i > 100000:
                 break
-
-    stepgen = StepgenModule(pads=None, pick_off=32, soft_stop=True)
+    
+    generator = StepgenGeneratorModule(pick_off=(32, 40, 48), soft_stop=True)
+    stepgen = StepgenStepDirModule(pads=None, generator=generator)
     print("\nRunning Sim...\n")
     # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
     run_simulation(stepgen, test_stepgen(stepgen))

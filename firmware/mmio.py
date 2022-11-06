@@ -15,7 +15,7 @@ from migen import *
 from . import __version__
 from .encoder import EncoderModule
 from .gpio import GPIO_Out, GPIO_In
-from .stepgen import StepgenModule
+from .stepgen import StepgenModuleFactory
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .soc import LitexCNC_Firmware
@@ -89,7 +89,7 @@ class MMIO(Module, AutoCSR):
             "close. This parameter is used by the stepgen module to start the (expected) motion for the next "
             "segement."
         )
-        StepgenModule.add_mmio_config_registers(self, config.stepgen)
+        StepgenModuleFactory.add_mmio_config_registers(self, config.stepgen)
 
 
         # OUTPUT (as seen from the PC!)
@@ -110,7 +110,7 @@ class MMIO(Module, AutoCSR):
                 setattr(self, f'pwm_{index}_period', CSRStorage(size=32, description=f'pwm_{index}_period', name=f'pwm_{index}_period', write_from_dev=False))
                 setattr(self, f'pwm_{index}_width', CSRStorage(size=32, description=f'pwm_{index}_width', name=f'pwm_{index}_width', write_from_dev=False))
         # - Stepgen
-        StepgenModule.add_mmio_write_registers(self, config.stepgen)
+        StepgenModuleFactory.add_mmio_write_registers(self, config.stepgen)
         # - Encoder (new style!)
         EncoderModule.add_mmio_write_registers(self, config.encoders)
 
@@ -132,5 +132,5 @@ class MMIO(Module, AutoCSR):
         )
         # Modules
         GPIO_In.add_mmio_read_registers(self, config.gpio_in)
-        StepgenModule.add_mmio_read_registers(self, config.stepgen)
+        StepgenModuleFactory.add_mmio_read_registers(self, config.stepgen)
         EncoderModule.add_mmio_read_registers(self, config.encoders)

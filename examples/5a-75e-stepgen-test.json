@@ -22,18 +22,27 @@
     ],
     "stepgen": [
         {
-            "step_pin": "j9:0",
-            "dir_pin": "j9:1",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "j9:0",
+                "dir_pin": "j9:1"
+            },
             "soft_stop": true
         },
         {
-            "step_pin": "j10:0",
-            "dir_pin": "j10:1",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "j10:0",
+                "dir_pin": "j10:1"
+            },
             "soft_stop": true
         },
         {
-            "step_pin": "j11:0",
-            "dir_pin": "j11:1",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "j11:0",
+                "dir_pin": "j11:1"
+            },
             "soft_stop": true
         }
     ],
