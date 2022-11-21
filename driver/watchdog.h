@@ -64,21 +64,26 @@ typedef struct {
 // watchdog. The order of this package MUST coincide with the order in the 
 // MMIO definition.
 // - write
+#pragma pack(push,4)
 typedef struct {
     // Input pins
     uint32_t timeout_cycles;
 } litexcnc_watchdog_data_write_t;
-#define LITEXCNC_WATCHDOG_DATA_WRITE_SIZE 4  //sizeof(litexcnc_watchdog_data_write_t)
+#pragma pack(pop)
+#define LITEXCNC_WATCHDOG_DATA_WRITE_SIZE sizeof(litexcnc_watchdog_data_write_t)
 // - read
+#pragma pack(push,4)
 typedef struct {
     // Input pins
     uint32_t has_bitten; // Flag, but all data will be send with a 4-byte width
 } litexcnc_watchdog_data_read_t;
-#define LITEXCNC_WATCHDOG_DATA_READ_SIZE 4  //sizeof(litexcnc_watchdog_data_read_t)
+#pragma pack(pop)
+#define LITEXCNC_WATCHDOG_DATA_READ_SIZE sizeof(litexcnc_watchdog_data_read_t)
 
 
 // Functions for creating, reading and writing Watchdog pins
 int litexcnc_watchdog_init(litexcnc_t *litexcnc, json_object *config);
+uint8_t litexcnc_watchdog_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data);
 

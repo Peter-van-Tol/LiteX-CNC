@@ -348,7 +348,8 @@ class RV901T(SoCMini):
             phy=self.ethphy,
             mac_address=config.etherbone.mac_address,
             ip_address=str(config.etherbone.ip_address),
-            buffer_depth=255
+            buffer_depth=255,
+            data_width=32
         )
 
         # Timing constraints

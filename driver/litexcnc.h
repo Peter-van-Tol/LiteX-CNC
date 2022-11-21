@@ -32,7 +32,7 @@ typedef struct litexcnc_struct litexcnc_t;
 
 #define LITEXCNC_NAME    "litexcnc"
 #define LITEXCNC_VERSION_MAJOR 1
-#define LITEXCNC_VERSION_MINOR 0
+#define LITEXCNC_VERSION_MINOR 1
 #define LITEXCNC_VERSION_PATCH 0
 
 
@@ -72,6 +72,7 @@ struct litexcnc_fpga_struct {
     // - on failure they return FALSE (0) and set *self->io_error (below) to TRUE
     int (*verify_config)(litexcnc_fpga_t *self);
     int (*reset)(litexcnc_fpga_t *self);
+    int (*write_config)(litexcnc_fpga_t *self, uint8_t *data, size_t size);
 
     // Functions to read and write data from the board
     // - on success these two return TRUE (not zero)
@@ -106,9 +107,13 @@ struct litexcnc_struct {
         size_t num_encoder_instances;
     } config;
 
-    // The fingerprint of the
+    // The fingerprint of the FPGA and driver
     uint32_t config_fingerprint;
     uint32_t driver_version;
+
+    // Booleans to indicate whether the loop is run for the first time
+    bool write_loop_has_run;
+    bool read_loop_has_run;
 
     // the litexcnc "Components"
     litexcnc_watchdog_t *watchdog;
@@ -118,7 +123,6 @@ struct litexcnc_struct {
     litexcnc_stepgen_t stepgen;
     litexcnc_encoder_t encoder;
 
-
     struct rtapi_list_head list;
 };
 
@@ -126,20 +130,33 @@ struct litexcnc_struct {
 // Defines the data-packages for retrieving the header information and
 // sending and retrieving the reset signal
 // - read
+#pragma pack(push,4)
 typedef struct {
     // Input pins
     uint32_t magic;
     uint32_t version;
     uint32_t fingerprint;
 } litexcnc_header_data_read_t;
-#define LITEXCNC_HEADER_DATA_READ_SIZE 12  //sizeof(litexcnc_header_data_read_t)
+#pragma pack(pop)
+#define LITEXCNC_HEADER_DATA_READ_SIZE sizeof(litexcnc_header_data_read_t)
+
 // - write (reset)
+#pragma pack(push,4)
 typedef struct {
     // Input pins
     uint32_t magic;
 } litexcnc_reset_header_t;
-#define LITEXCNC_RESET_HEADER_SIZE 4 //sizeof(litexcnc_reset_header_t)
+#pragma pack(pop)
+#define LITEXCNC_RESET_HEADER_SIZE sizeof(litexcnc_reset_header_t)
 
+// - configuration of the FPGA
+#pragma pack(push,4)
+typedef struct {
+    // Input pins
+    uint32_t loop_cycles;
+} litexcnc_config_header_t;
+#pragma pack(pop)
+#define LITEXCNC_CONFIG_HEADER_SIZE sizeof(litexcnc_config_header_t) + LITEXCNC_STEPGEN_CONFIG_DATA_SIZE
 
 int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file);
 void litexcnc_unregister(litexcnc_fpga_t *fpga);

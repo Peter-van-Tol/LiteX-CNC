@@ -11,7 +11,7 @@ from .etherbone import Etherbone, EthPhy
 from .gpio import GPIO, GPIO_Out, GPIO_In
 from .mmio import MMIO
 from .pwm import PWM, PwmPdmModule
-from .stepgen import StepgenConfig, StepgenModule
+from .stepgen import StepgenConfig, StepgenModuleFactory
 from .watchdog import WatchDogModule
 
 
@@ -133,7 +133,7 @@ class LitexCNC_Firmware(BaseModel):
                         ]
 
                 # Create StepGen
-                StepgenModule.create_from_config(self, watchdog, config.stepgen)
+                StepgenModuleFactory.create_from_config(self, watchdog, config.stepgen)
                 
         return _LitexCNC_SoC(
             config=self)

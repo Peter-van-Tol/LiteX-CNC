@@ -17,6 +17,7 @@
 //
 #include <stdio.h>
 #include <json-c/json.h>
+#include <time.h>
 
 #include <rtapi_slab.h>
 #include <rtapi_ctype.h>
@@ -50,26 +51,54 @@ struct rtapi_list_head litexcnc_list;
 // This keeps track of the component id. Required for setup and tear down.
 static int comp_id;
 
+static void litexcnc_config(void* void_litexcnc, long period) {
+    litexcnc_t *litexcnc = void_litexcnc;
+
+    // Clear buffer
+    uint8_t *config_buffer = rtapi_kmalloc(LITEXCNC_CONFIG_HEADER_SIZE, RTAPI_GFP_KERNEL);
+    memset(config_buffer, 0, LITEXCNC_CONFIG_HEADER_SIZE);
+    
+    // Configure all the functions
+    uint8_t* pointer = config_buffer;
+
+    // Configure the general settings
+    litexcnc_config_header_t config_data;
+    config_data.loop_cycles = htobe32((int32_t)((double) litexcnc->clock_frequency * period * 0.000000001));
+    memcpy(pointer, &config_data, sizeof(litexcnc_config_header_t));
+    pointer += sizeof(litexcnc_config_header_t);
+
+    // Configure all the functions
+    // litexcnc_watchdog_config(litexcnc, &pointer, period);
+    // litexcnc_wallclock_config(litexcnc, &pointer, period);
+    // litexcnc_gpio_config(litexcnc, &pointer, period);
+    // litexcnc_pwm_config(litexcnc, &pointer, period);
+    litexcnc_stepgen_config(litexcnc, &pointer, period);
+    // litexcnc_encoder_config(litexcnc, &pointer, period);
+    
+    // Write the data to the FPGA
+    litexcnc->fpga->write_config(litexcnc->fpga, config_buffer, LITEXCNC_CONFIG_HEADER_SIZE);
+}
+
 
 static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
+    // The first loop no data is read, as it is used for sending the configuration to the 
+    // FPGA. The configuration is written in the `litexcnc_write` function. 
+    if (!litexcnc->read_loop_has_run) {
+        litexcnc->read_loop_has_run = true;
+        return;
+    }
+
     // Clear buffer
     memset(litexcnc->fpga->read_buffer, 0, litexcnc->fpga->read_buffer_size);
-
+    
     // Read the state from the FPGA
     litexcnc->fpga->read(litexcnc->fpga);
 
-    // LITEXCNC_PRINT_NO_DEVICE("Data received %02X, starting from %02X \n", LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc), litexcnc->fpga->write_buffer_size);
-    // for (size_t i=0; i<litexcnc->fpga->read_buffer_size; i+=4) {
-    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+0],
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+1],
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+2],
-    //         (unsigned char)litexcnc->fpga->read_buffer[i+3]);
-    // }
+    // TODO: don't process the read data in case the read has failed.
 
-    // Process the read data
+    // Process the read data for the different compenents
     uint8_t* pointer = litexcnc->fpga->read_buffer;
     litexcnc_watchdog_process_read(litexcnc, &pointer);
     litexcnc_wallclock_process_read(litexcnc, &pointer);
@@ -77,11 +106,26 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_pwm_process_read(litexcnc, &pointer);
     litexcnc_stepgen_process_read(litexcnc, &pointer, period);
     litexcnc_encoder_process_read(litexcnc, &pointer, period);
-
 }
 
 static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
+
+    // Check whether the write has been initialized AND the read and write functions
+    // are in the recommended order (first read, then write). In the first loop the
+    // we don't write any data to the FPGA, but it is configured. This is required,
+    // because the configuration requires the period to be known, which prevents the
+    // configuration to be performed before the HAL-loop starts
+    if (!litexcnc->write_loop_has_run) {
+        // Check whether the read cycle has been run, if not, the order is not correct
+        if (!litexcnc->read_loop_has_run) {
+            LITEXCNC_WARN("Read and write functions in incorrect order. Recommended order is read first, then write.\n", litexcnc->fpga->name);
+        }
+        // Configure the FPGA and set flag that the write function has been done once
+        litexcnc_config(void_litexcnc, period);
+        litexcnc->write_loop_has_run = true;
+        return;
+    }
 
     // Clear buffer
     memset(litexcnc->fpga->write_buffer, 0, litexcnc->fpga->write_buffer_size);
@@ -99,17 +143,6 @@ static void litexcnc_write(void *void_litexcnc, long period) {
     litexcnc->fpga->write(litexcnc->fpga);
 }
 
-static void litexcnc_communicate(void *void_litexcnc, long period) {
-
-    // // if there are comm problems, wait for the user to fix it
-    // if ((*litexcnc->fpga->io_error) != 0) return;
-    
-    // Read data to the device
-    litexcnc_read(void_litexcnc, period);
-
-    // Write data from the device
-    litexcnc_write(void_litexcnc, period);
-}
 
 static void litexcnc_cleanup(litexcnc_t *litexcnc) {
     // clean up the Pins, if they're initialized
@@ -132,6 +165,10 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         return -ENOMEM;
     }
     memset(litexcnc, 0, sizeof(litexcnc_t));
+
+    // Set initial values
+    litexcnc->write_loop_has_run = false;
+    litexcnc->read_loop_has_run = false;
 
     // Store the FPGA on it
     litexcnc->fpga = fpga;

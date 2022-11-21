@@ -64,14 +64,17 @@ typedef struct {
 // NOTE: The wall clock is a read-only 
 #define LITEXCNC_WALLCLOCK_DATA_WRITE_SIZE 0
 // - read
+#pragma pack(push,4)
 typedef struct {
     // Input pins
     uint64_t count;
 } litexcnc_wallclock_data_read_t;
-#define LITEXCNC_WALLCLOCK_DATA_READ_SIZE 8 //sizeof(litexcnc_wallclock_data_read_t)
+#pragma pack(pop)
+#define LITEXCNC_WALLCLOCK_DATA_READ_SIZE sizeof(litexcnc_wallclock_data_read_t)
 
 // Functions for creating, reading and writing wall-clock pins
 int litexcnc_wallclock_init(litexcnc_t *litexcnc, json_object *config);
+uint8_t litexcnc_wallclock_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_wallclock_prepare_write(litexcnc_t *litexcnc, uint8_t **data);
 uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data);
 

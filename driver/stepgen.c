@@ -1,18 +1,40 @@
+/********************************************************************
+* Description:  stepgen.c
+*               A Litex-CNC component that converts a speed command
+*               to steps made by the FPGA.
+*
+* Author: Peter van Tol <petertgvantol AT gmail DOT com>
+* License: GPL Version 2
+*    
+* Copyright (c) 2022 All rights reserved.
+*
+********************************************************************/
 
+/** This program is free software; you can redistribute it and/or
+    modify it under the terms of version 2 of the GNU General
+    Public License as published by the Free Software Foundation.
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
+    You should have received a copy of the GNU General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+    THE AUTHORS OF THIS LIBRARY ACCEPT ABSOLUTELY NO LIABILITY FOR
+    ANY HARM OR LOSS RESULTING FROM ITS USE.  IT IS _EXTREMELY_ UNWISE
+    TO RELY ON SOFTWARE ALONE FOR SAFETY.  Any machinery capable of
+    harming persons must have provisions for completely removing power
+    from all motors, etc, before persons enter any danger area.  All
+    machinery must be designed to comply with local and national safety
+    codes, and the authors of this software can not, and do not, take
+    any responsibility for such compliance.
+
+    This code was written as part of the LiteX-CNC project.
+*/
 #include "litexcnc.h"
 #include "stepgen.h"
-
-// Declaration of parameters used in litexcnc_stepgen_prepare_write
-double max_speed_desired;
-double speed_new;
-double speed_avg;
-double match_time;
-double pos_avg;
-double pos_error;
-
-
 
 int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
 
@@ -22,12 +44,27 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
     struct json_object *instance_config;
     struct json_object *instance_config_name_field;
     char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.stepgen.<stepgen_name>
+
+    // Allocate the module-global HAL shared memory
+    litexcnc->stepgen.hal = (litexcnc_stepgen_hal_t*)hal_malloc(sizeof(litexcnc_stepgen_hal_t));
+    if (litexcnc->stepgen.hal == NULL) {
+        rtapi_print("No memory");
+        LITEXCNC_ERR_NO_DEVICE("Out of memory!\n");
+        r = -ENOMEM;
+        return r;
+    }
+    // - period and reciprocal
+    r = hal_pin_float_newf(HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s), litexcnc->fpga->comp_id, "%s.stepgen.period-s", litexcnc->fpga->name);
+    if (r != 0) { goto fail_pins; }
+    r = hal_pin_float_newf(HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s_recip), litexcnc->fpga->comp_id, "%s.stepgen.period-s-recip", litexcnc->fpga->name);
+    if (r != 0) { goto fail_pins; }
     
     // Parse the contents of the config-json
     if (json_object_object_get_ex(config, "stepgen", &stepgen_config)) {
         // Store the amount of stepgen instances on this board
         litexcnc->stepgen.num_instances = json_object_array_length(stepgen_config);
         litexcnc->config.num_stepgen_instances = litexcnc->stepgen.num_instances;
+        
         // Allocate the module-global HAL shared memory
         litexcnc->stepgen.instances = (litexcnc_stepgen_pin_t *)hal_malloc(litexcnc->stepgen.num_instances * sizeof(litexcnc_stepgen_pin_t));
         if (litexcnc->stepgen.instances == NULL) {
@@ -35,12 +72,18 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             r = -ENOMEM;
             return r;
         }
+
         // Create the pins and params in the HAL
         for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
             instance_config = json_object_array_get_idx(stepgen_config, i);
             
             // Get pointer to the stepgen instance
             litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
+
+            // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
+            instance->data.pick_off_pos = 32;
+            instance->data.pick_off_vel = 40;
+            instance->data.pick_off_acc = 48;
 
             // Create the basename
             if (json_object_object_get_ex(instance_config, "name", &instance_config_name_field)) {
@@ -54,10 +97,10 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             r = hal_param_float_newf(HAL_RO, &(instance->hal.param.frequency), litexcnc->fpga->comp_id, "%s.frequency", base_name);
             if (r < 0) { goto fail_params; }
             // - Maximum acceleration
-            r = hal_param_float_newf(HAL_RW, &(instance->hal.param.maxaccel), litexcnc->fpga->comp_id, "%s.maxaccel", base_name);
+            r = hal_param_float_newf(HAL_RW, &(instance->hal.param.max_acceleration), litexcnc->fpga->comp_id, "%s.max-acceleration", base_name);
             if (r != 0) { goto fail_params; }
             // - Maximum velocity
-            r = hal_param_float_newf(HAL_RW, &(instance->hal.param.maxvel), litexcnc->fpga->comp_id, "%s.maxvel", base_name);
+            r = hal_param_float_newf(HAL_RW, &(instance->hal.param.max_velocity), litexcnc->fpga->comp_id, "%s.max-velocity", base_name);
             if (r != 0) { goto fail_params; }
             // - Scale of position
             r = hal_param_float_newf(HAL_RW, &(instance->hal.param.position_scale), litexcnc->fpga->comp_id, "%s.position-scale", base_name);
@@ -74,11 +117,7 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             // - Timing - dirhold
             r = hal_param_u32_newf(HAL_RW, &(instance->hal.param.dir_hold_time), litexcnc->fpga->comp_id, "%s.dir-hold-time", base_name);
             if (r != 0) { goto fail_params; }
-            // - Position mode (including setting the default mode, )
-            r = hal_param_bit_newf(HAL_RW, &(instance->hal.param.position_mode), litexcnc->fpga->comp_id, "%s.position-mode", base_name);
-            if (r != 0) { goto fail_params; }
-            instance->hal.param.position_mode = 1;
-            // - Position mode (including setting the default mode, )
+            // - Flag setting whether debug is active
             r = hal_pin_bit_newf(HAL_IN, &(instance->hal.pin.debug), litexcnc->fpga->comp_id, "%s.debug", base_name);
             if (r != 0) { goto fail_params; }
 
@@ -93,30 +132,33 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.position_prediction), litexcnc->fpga->comp_id, "%s.position_prediction", base_name);
             if (r != 0) { goto fail_pins; }
             // - speed_fb
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.speed_fb), litexcnc->fpga->comp_id, "%s.speed-feedback", base_name);
+            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.speed_fb), litexcnc->fpga->comp_id, "%s.velocity-feedback", base_name);
             if (r != 0) { goto fail_pins; }
             // - speed_prediction
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.speed_prediction), litexcnc->fpga->comp_id, "%s.speed-prediction", base_name);
+            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.speed_prediction), litexcnc->fpga->comp_id, "%s.velocity-prediction", base_name);
             if (r != 0) { goto fail_pins; }
             // - enable
             r = hal_pin_bit_newf(HAL_IN, &(instance->hal.pin.enable), litexcnc->fpga->comp_id, "%s.enable", base_name);
             if (r != 0) { goto fail_pins; }
             // - velocity_cmd
-            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.velocity_cmd), litexcnc->fpga->comp_id, "%s.velocity-cmd", base_name);
+            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.velocity_cmd1), litexcnc->fpga->comp_id, "%s.velocity-cmd1", base_name);
             if (r != 0) { goto fail_pins; }
-            // - position_cmd
-            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.position_cmd), litexcnc->fpga->comp_id, "%s.position-cmd", base_name);
+            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.velocity_cmd2), litexcnc->fpga->comp_id, "%s.velocity-cmd2", base_name);
             if (r != 0) { goto fail_pins; }
+            // - acceleration_cmd
+            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.acceleration_cmd1), litexcnc->fpga->comp_id, "%s.acceleration-cmd1", base_name);
+            if (r != 0) { goto fail_pins; }
+            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.acceleration_cmd2), litexcnc->fpga->comp_id, "%s.acceleration-cmd2", base_name);
+            if (r != 0) { goto fail_pins; }
+            // // - period and reciprocal
+            // r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s), litexcnc->fpga->comp_id, "%s.period-s", base_name);
+            // if (r != 0) { goto fail_pins; }
+            // r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s_recip), litexcnc->fpga->comp_id, "%s.period-s-recip", base_name);
+            // if (r != 0) { goto fail_pins; }
         }
     }
-
-    // Pre-calculate the amount of cycles per nanp-second. Required to convert the 
-    // timings to amount of clock-cycles
-    litexcnc->stepgen.data.cycles_per_ns = litexcnc->clock_frequency * 1E-9; 
-
     return r;
 
-    
 fail_params:
     if (r < 0) {
         LITEXCNC_ERR_NO_DEVICE("Error adding stepgen params, aborting\n");
@@ -132,236 +174,305 @@ fail_pins:
 }
 
 
-uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
-
-    // Check whether the period of the thread has changed
-    if (litexcnc->stepgen.memo.period != period) { 
-        // - Calculate the reciprocal once here, to avoid multiple divides later
-        litexcnc->stepgen.data.recip_dt = 1.0 / (period * 0.000000001);
-        litexcnc->stepgen.memo.period = period;
+uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long period) {
+    
+    // Initialize the averaging of the FPGA wall-clock. This is the first loop, so
+    // the array is filled with 'ideal' data based on the period.
+    *(litexcnc->stepgen.hal->pin.period_s) = 1e-9 * period;
+    *(litexcnc->stepgen.hal->pin.period_s_recip) = 1.0f / *(litexcnc->stepgen.hal->pin.period_s);
+    litexcnc->stepgen.memo.cycles_per_period = *(litexcnc->stepgen.hal->pin.period_s) * litexcnc->clock_frequency;
+    // Initialize the running average
+    for (size_t i=0; i<STEPGEN_WALLCLOCK_BUFFER; i++){
+        litexcnc->stepgen.data.wallclock_buffer[i] = (double) *(litexcnc->stepgen.hal->pin.period_s);
+        litexcnc->stepgen.data.wallclock_buffer_sum += *(litexcnc->stepgen.hal->pin.period_s);
     }
 
-    // STEP 1: Timings
+    // Timings
     // ===============
-    // Check whether any of the parameter of the stepgens has changed. All stepgens
-    // will use the same values for steplen, dir_hold_time and dir_setup_time. The
-    // maximum value is governing, so we start with the value 0. For each instance
+    // All stepgens will use the same values for steplen, dir_hold_time and dir_setup_time.
+    // The maximum value is governing, so we start with the value 0. For each instance
     // it is checked whether the value has changed. If it has changed, the time is
     // converted to cycles.
     // NOTE: all timings are in nano-seconds (1E-9), so the timing is multiplied with
     // the clock-frequency and divided by 1E9. However, this might lead to issues
     // with roll-over of the 32-bit integer. 
-    litexcnc_stepgen_general_write_data_t data_general = {0,0,0,0};
+    // TODO: Make the timings settings per stepgen unit
+    litexcnc_stepgen_config_data_t config_data = {0,0,0};
     uint32_t stepspace_cycles = 0; // Separate variable, as it is not part of the data-package
+
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
         // Get pointer to the stepgen instance
         litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
 
-        // Recalculate the timings
+        // Calculate the timings
         // - steplen
-        if (instance->hal.param.steplen != instance->memo.steplen) {
-            instance->data.steplen_cycles = instance->hal.param.steplen * litexcnc->stepgen.data.cycles_per_ns + 0.5;
-            instance->memo.steplen = instance->hal.param.steplen; 
-        }
-        if (instance->data.steplen_cycles > data_general.steplen) {data_general.steplen = instance->data.steplen_cycles;};
+        instance->data.steplen_cycles = ceil((float) instance->hal.param.steplen * litexcnc->clock_frequency * 1e-9);
+        instance->memo.steplen = instance->hal.param.steplen; 
+        if (instance->data.steplen_cycles > config_data.steplen) {config_data.steplen = instance->data.steplen_cycles;};
         // - stepspace
-        if (instance->hal.param.stepspace != instance->memo.stepspace) {
-            instance->data.stepspace_cycles = instance->hal.param.stepspace * litexcnc->stepgen.data.cycles_per_ns + 0.5;
-            instance->memo.stepspace = instance->hal.param.stepspace; 
-        }
+        instance->data.stepspace_cycles = ceil((float) instance->hal.param.stepspace * litexcnc->clock_frequency * 1e-9);
+        instance->memo.stepspace = instance->hal.param.stepspace; 
         if (instance->data.stepspace_cycles > stepspace_cycles) {stepspace_cycles = instance->data.stepspace_cycles;};
         // - dir_hold_time
-        if (instance->hal.param.dir_hold_time != instance->memo.dir_hold_time) {
-            instance->data.dirhold_cycles = instance->hal.param.dir_hold_time * litexcnc->stepgen.data.cycles_per_ns + 0.5;
-            instance->memo.dir_hold_time = instance->hal.param.dir_hold_time; 
-        }
-        if (instance->data.dirhold_cycles > data_general.dir_hold_time) {data_general.dir_hold_time = instance->data.dirhold_cycles;};
+        instance->data.dirhold_cycles = ceil((float) instance->hal.param.dir_hold_time * litexcnc->clock_frequency * 1e-9);
+        instance->memo.dir_hold_time = instance->hal.param.dir_hold_time; 
+        if (instance->data.dirhold_cycles > config_data.dir_hold_time) {config_data.dir_hold_time = instance->data.dirhold_cycles;};
         // - dir_setup_time
-        if (instance->hal.param.dir_setup_time != instance->memo.dir_setup_time) {
-            instance->data.dirsetup_cycles = instance->hal.param.dir_setup_time * litexcnc->stepgen.data.cycles_per_ns + 0.5;
-            instance->memo.dir_setup_time = instance->hal.param.dir_setup_time; 
-        }
-        if (instance->data.dirsetup_cycles > data_general.dir_setup_time) {data_general.dir_setup_time = instance->data.dirsetup_cycles;};
+        instance->data.dirsetup_cycles = ceil((float) instance->hal.param.dir_setup_time * litexcnc->clock_frequency * 1e-9);
+        instance->memo.dir_setup_time = instance->hal.param.dir_setup_time; 
+        if (instance->data.dirsetup_cycles > config_data.dir_setup_time) {config_data.dir_setup_time = instance->data.dirsetup_cycles;};
     }
 
-    // Calculate the maximum frequency for stepgen
-    litexcnc->stepgen.data.max_frequency = (double) litexcnc->clock_frequency / (data_general.steplen + stepspace_cycles);
-
-    // Determine the apply time
-    data_general.apply_time = litexcnc->wallclock->memo.wallclock_ticks + (double) 0.9 * period * litexcnc->clock_frequency * 0.000000001;
+    // Calculate the maximum frequency for stepgen (in if statement to prevent division)
+    if ((litexcnc->stepgen.memo.stepspace_cycles != stepspace_cycles) || (litexcnc->stepgen.memo.steplen != config_data.steplen)) {
+        litexcnc->stepgen.data.max_frequency = (double) litexcnc->clock_frequency / (config_data.steplen + stepspace_cycles);
+        litexcnc->stepgen.memo.steplen = config_data.steplen;
+        litexcnc->stepgen.memo.stepspace_cycles = stepspace_cycles;
+    }
 
     // Convert the general data to the correct byte order
-    data_general.steplen = htobe32(data_general.steplen);
-    data_general.dir_hold_time = htobe32(data_general.dir_hold_time);
-    data_general.dir_setup_time = htobe32(data_general.dir_setup_time);
-    data_general.apply_time = htobe64(data_general.apply_time);
+    config_data.steplen = htobe32(config_data.steplen);
+    config_data.dir_hold_time = htobe32(config_data.dir_hold_time);
+    config_data.dir_setup_time = htobe32(config_data.dir_setup_time);
 
     // Put the data on the data-stream and advance the pointer
+    memcpy(*data, &config_data, LITEXCNC_STEPGEN_CONFIG_DATA_SIZE);
+    *data += LITEXCNC_STEPGEN_CONFIG_DATA_SIZE;
+
+}
+
+
+uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
+
+    // Declarations
+    static litexcnc_stepgen_general_write_data_t data_general;
+    static litexcnc_stepgen_pin_t *instance;
+    static litexcnc_stepgen_instance_write_data_t instance_data;
+
+    // STEP 1: Timing
+    // ==============
+    // Put the data on the data-stream and advance the pointer
+    data_general.apply_time = htobe64(litexcnc->stepgen.memo.apply_time);
     memcpy(*data, &data_general, LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE);
     *data += LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE;
 
     // STEP 2: Speed per stepgen
     // =========================
-    double desired_speed;
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
-        litexcnc_stepgen_instance_write_data_t data_instance;
         // Get pointer to the stepgen instance
-        litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
+        instance = &(litexcnc->stepgen.instances[i]);
 
-        // Check the limits on the speed of the setpgen
-        if (instance->hal.param.maxvel <= 0.0) {
-            // Negative speed is limited as zero
-            instance->hal.param.maxvel = 0.0;
-        } else {
-            // Maximum speed is positive and no zero, compare with maximum frequency
-            max_speed_desired = instance->hal.param.maxvel;
-	        if (max_speed_desired > (litexcnc->stepgen.data.max_frequency * fabs(instance->hal.param.position_scale))) {
-                instance->hal.param.maxvel = litexcnc->stepgen.data.max_frequency * fabs(instance->hal.param.position_scale);
-		        // Maximum speed is too high, complain about it and modify the value
-		        if (!instance->memo.error_max_speed_printed) {
-		            LITEXCNC_ERR_NO_DEVICE(
-			            "STEPGEN: Channel %d: The requested maximum velocity of %.2f units/sec is too high.\n",
-			            i, max_speed_desired);
-		            LITEXCNC_ERR_NO_DEVICE(
-			            "STEPGEN: The maximum possible velocity is %.2f units/second\n",
-			            instance->hal.param.maxvel);
-		            instance->memo.error_max_speed_printed = true;
-		        }
-	        }
+        // Throw error when timings are changed
+        // - steplen
+        if (instance->hal.param.steplen != instance->memo.steplen) {
+            LITEXCNC_ERR("Cannot change parameter `steplen` after configuration of the FPGA. Change is cancelled.\n", litexcnc->fpga->name);
+            instance->hal.param.steplen = instance->memo.steplen;
         }
+        // - stepspace
+        if (instance->hal.param.stepspace != instance->memo.stepspace) {
+            LITEXCNC_ERR("Cannot change parameter `stepspace` after configuration of the FPGA. Change is cancelled.\n", litexcnc->fpga->name);
+            instance->hal.param.stepspace = instance->memo.stepspace;
+        }
+        // - dir_hold_time
+        if (instance->hal.param.dir_hold_time != instance->memo.dir_hold_time) {
+            LITEXCNC_ERR("Cannot change parameter `dir_hold_time` after configuration of the FPGA. Change is cancelled.\n", litexcnc->fpga->name);
+            instance->hal.param.dir_hold_time = instance->memo.dir_hold_time;
+        }
+        // - dir_setup_time
+        if (instance->hal.param.dir_setup_time != instance->memo.dir_setup_time) {
+            LITEXCNC_ERR("Cannot change parameter `dir_setup_time` after configuration of the FPGA. Change is cancelled.\n", litexcnc->fpga->name);
+            instance->hal.param.dir_setup_time = instance->memo.dir_setup_time;
+        }
+
+        // Recalculate the reciprocal of the position scale if it has changed
+        if (instance->hal.param.position_scale != instance->memo.position_scale) {
+            // Prevent division by zero
+            if ((instance->hal.param.position_scale > -1e-20) && (instance->hal.param.position_scale < 1e-20)) {
+                // Value too small, take a safe value
+                instance->hal.param.position_scale = 1.0;
+            }
+            instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
+            instance->memo.position_scale = instance->hal.param.position_scale; 
+            // Calculate the scales for speed and acceleration
+            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << instance->data.pick_off_vel);
+            instance->data.fpga_speed_scale_inv = (float) litexcnc->clock_frequency * instance->data.scale_recip / (1LL << instance->data.pick_off_vel);
+            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (instance->data.pick_off_acc));
+            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << instance->data.pick_off_acc);;
+        }
+
+        // Limit the speed to the maximum speed (both phases)
+        if (*(instance->hal.pin.velocity_cmd1) > instance->hal.param.max_velocity) {
+            *(instance->hal.pin.velocity_cmd1) = instance->hal.param.max_velocity;
+        } else if (*(instance->hal.pin.velocity_cmd1) < (-1 * instance->hal.param.max_velocity)) {
+            *(instance->hal.pin.velocity_cmd1) = -1 * instance->hal.param.max_velocity;
+        }
+        if (*(instance->hal.pin.velocity_cmd2) > instance->hal.param.max_velocity) {
+            *(instance->hal.pin.velocity_cmd2) = instance->hal.param.max_velocity;
+        } else if (*(instance->hal.pin.velocity_cmd2) < (-1 * instance->hal.param.max_velocity)) {
+            *(instance->hal.pin.velocity_cmd2) = -1 * instance->hal.param.max_velocity;
+        }
+
+        // Limit the acceleration to the maximum acceleration (both phases). The acceleration
+        // should be positive
+        if (*(instance->hal.pin.acceleration_cmd1) < 0) {
+            *(instance->hal.pin.acceleration_cmd1) = -1 * *(instance->hal.pin.acceleration_cmd1);
+        }
+        if (*(instance->hal.pin.acceleration_cmd1) > instance->hal.param.max_acceleration) {
+            *(instance->hal.pin.acceleration_cmd1) = instance->hal.param.max_acceleration;
+        }
+        if (*(instance->hal.pin.acceleration_cmd2) < 0) {
+            *(instance->hal.pin.acceleration_cmd2) = -1 * *(instance->hal.pin.acceleration_cmd2);
+        }
+        if (*(instance->hal.pin.acceleration_cmd2) > instance->hal.param.max_acceleration) {
+            *(instance->hal.pin.acceleration_cmd2) = instance->hal.param.max_acceleration;
+        }
+
+        // The data being send to the FPGA (as calculated) in units and seconds
+        instance->data.speed1 = *(instance->hal.pin.velocity_cmd1);
+        instance->data.acc1 = *(instance->hal.pin.acceleration_cmd1);
+        instance->data.time1 = fabs((*(instance->hal.pin.velocity_cmd1) - *(instance->hal.pin.speed_prediction)) / *(instance->hal.pin.acceleration_cmd1));
+        instance->data.speed2 = *(instance->hal.pin.velocity_cmd2);
+        instance->data.acc2 = *(instance->hal.pin.acceleration_cmd2);
+        instance->data.time2 = instance->data.time1 + fabs((*(instance->hal.pin.velocity_cmd2) - *(instance->hal.pin.velocity_cmd1)) / *(instance->hal.pin.acceleration_cmd2));
+
+        // Calculate the time spent accelerating for the first phase in steps and clock cycles
+        instance->data.fpga_speed1 = (int64_t) (instance->data.speed1 * instance->data.fpga_speed_scale) + 0x80000000;
+        instance->data.fpga_acc1 = instance->data.acc1 * instance->data.fpga_acc_scale;
+        instance->data.fpga_time1 = instance->data.time1 * litexcnc->clock_frequency;
+        instance->data.fpga_speed2 = (int64_t) (instance->data.speed2 * instance->data.fpga_speed_scale) + 0x80000000;
+        instance->data.fpga_acc2 = instance->data.acc2 * instance->data.fpga_acc_scale;
+        instance->data.fpga_time2 = instance->data.time2 * litexcnc->clock_frequency;
+
+        // Convert the integers used and scale it to the FPGA
+        instance_data.speed_target1 = htobe32(instance->data.fpga_speed1);
+        instance_data.acceleration1 = htobe32(instance->data.fpga_acc1);
+        instance_data.part1_cycles = htobe32(instance->data.fpga_time1);
+        instance_data.speed_target2 = htobe32(instance->data.fpga_speed2);
+        instance_data. acceleration2 = htobe32(instance->data.fpga_acc2);
+
+        // Put the data on the data-stream and advance the pointer
+        memcpy(*data, &instance_data, LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE);
+        *data += LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE;
 
         if (*(instance->hal.pin.debug)) {
-            LITEXCNC_PRINT_NO_DEVICE("%llu, %.6f, %.6f, %.6f, %.6f, %.6f", 
+            LITEXCNC_PRINT_NO_DEVICE("Stepgen: data sent to FPGA %llu, %llu, %lu, %lu, %lu, %lu, %lu \n", 
                 litexcnc->wallclock->memo.wallclock_ticks,
-                *(instance->hal.pin.position_cmd),
-                *(instance->hal.pin.position_fb), 
-                *(instance->hal.pin.position_prediction),
-                *(instance->hal.pin.speed_fb),
-                *(instance->hal.pin.speed_prediction)
+                litexcnc->stepgen.memo.apply_time,
+                instance->data.fpga_speed1,
+                instance->data.fpga_acc1,
+                instance->data.fpga_time1,
+                instance->data.fpga_speed2,
+                instance->data.fpga_acc2
             );
         }
-
-        // NOTE: The acceleration is not limited by this component. The physical maximum 
-        // acceleration is applied within the FPGA
-        if (instance->hal.param.position_mode) {
-            // Position mode (currently the only supported method)
-            // Estimate the required (average) speed for getting to the commanded position, required time to
-            // accelerate to that speed.
-            speed_avg = (*(instance->hal.pin.position_cmd) - *(instance->hal.pin.position_prediction)) * litexcnc->stepgen.data.recip_dt;
-            if ((*instance->hal.pin.debug)) {
-                rtapi_print(", Avg. speed : %.6f", speed_avg);
-            }
-            match_time = fabs(speed_avg - *(instance->hal.pin.speed_prediction)) / instance->hal.param.maxaccel * 1.0e9;
-            if ((*instance->hal.pin.debug)) {
-                rtapi_print(", match time : %.6f", match_time); 
-            }
-            if (match_time < litexcnc->clock_frequency_recip) {
-                // Constant speed
-                speed_new = speed_avg;
-                if ((*instance->hal.pin.debug)) {
-                    rtapi_print(" , constant speed %.2f", speed_new);
-                }
-            }
-            else if (!instance->hal.pin.catching_up && (match_time <= (0.5 * period))) {
-                // The average speed can be obtained during one period. Now determine at which 
-                // position we would end up if this average speed was used. There will be a difference 
-                // between the commanded position and the 'average' position we have to compensate for.
-                pos_avg = *(instance->hal.pin.position_prediction) \
-                        + (
-                            0.5 * ( *(instance->hal.pin.speed_prediction) + speed_avg) * match_time \
-                            + (period - match_time) * speed_avg) \
-                        * 1e-9;
-                pos_error = *(instance->hal.pin.position_cmd) - pos_avg;
-                // Determine which the 'extra' speed required to solve for this position error. 
-                // The error can only be fully compensated when the match_time is less then half
-                // of the period, otherwise the acceleration constraint cannot be met.
-                speed_new = speed_avg + pos_error * 2 / match_time;
-                if ((*instance->hal.pin.debug)) {
-                    rtapi_print(" , matching speed to %.2f", speed_new);
-                }
-            } else {
-                // Set the flag that we are catching up with the error
-                // TODO: why can this not be a pointer?
-                instance->hal.pin.catching_up = 1;
-                // The whole period we must accelerate to even get to the average speed. Apply 
-                // maximum acceleration. If this happens multiple periods in a row, this might
-                // get into following errors.
-                float commanded_speed = (*(instance->hal.pin.position_cmd) - instance->memo.position_cmd) * litexcnc->stepgen.data.recip_dt;
-                float error = *(instance->hal.pin.position_cmd) - *(instance->hal.pin.position_prediction);
-                int32_t sign = (commanded_speed>0)?1:-1;
-                // TODO: should compensate more for the commanded speed
-                speed_new = commanded_speed + ((error<0)?-1:1) * sqrt(((error<0)?-1:1) * 1.95 * instance->hal.param.maxaccel * error);
-                // rtapi_print(" , test %.2f %.2f %.2f", commanded_speed, speed_new, (error<0)?-1:1 * sqrt(((error<0)?-1:1) * 1.95 * instance->hal.param.maxaccel * error));
-                // The new speed is calculated based on the error on the start of the period. However,
-                // the commanded speed is defined at the end of the period. So we have to compensate for
-                // the acceleration during the period. We also compensate for the difference between the
-                // commanded speed and actual speed of the previous loop.
-                float difference = instance->data.speed_float - *(instance->hal.pin.speed_prediction);
-                if (fabs(difference) > (0.025 * period * 0.000000001 * instance->hal.param.maxaccel)) {
-                    if (difference > 0) {
-                        difference = 0.025 * period * 0.000000001 * instance->hal.param.maxaccel;
-                    } else {
-                        difference = -0.025 * period * 0.000000001 * instance->hal.param.maxaccel;
-                    }
-                }
-                // sign = (squared<0)?-1*sign:sign;
-                // speed_new = sign * sqrt(fabs(squared)) + difference;
-                speed_new += difference;
-                // TODO: check whether this overshoots the error in the next step (because the fixed addition
-                // 0f the acceleration of one period). If that is the case, modify the speed to minimize the
-                // error and end the catching up state.
-                if (fabs(commanded_speed - speed_new) < (period * 0.000000001 * instance->hal.param.maxaccel)) {
-                    float position_new = *(instance->hal.pin.position_prediction) + 0.5 * (*(instance->hal.pin.speed_prediction) + commanded_speed) * period * 0.000000001;
-                    float error_new = *(instance->hal.pin.position_cmd) - position_new;
-                    if (fabs(error_new) <= fabs(error)) {
-                        speed_new = commanded_speed;
-                        instance->hal.pin.catching_up = 0;
-                    }
-                } else {
-                     speed_new += (speed_new<commanded_speed?1:-1) * period * 0.000000001 * instance->hal.param.maxaccel;
-                }
-                if ((*instance->hal.pin.debug)) {
-                    rtapi_print(" , full accelaration to %.2f", speed_new);
-                }
-            }
-            if ((*instance->hal.pin.debug)) {
-                rtapi_print("\n");
-            }
-            // LITEXCNC_PRINT_NO_DEVICE("Speed for position command: %d units / s \n", speed_new);
-            // Store this position command for the following loop
-            instance->memo.position_cmd = *(instance->hal.pin.position_cmd);
-        } else {
-            // Speed mode
-            speed_new = *(instance->hal.pin.velocity_cmd);
-            // LITEXCNC_PRINT_NO_DEVICE("Speed commanded: %0.2f units / s \n", speed_new);
-        }
-        // Limit the speed to the maximum speed
-        if (speed_new > instance->hal.param.maxvel) {
-            speed_new = instance->hal.param.maxvel;
-        } else if (speed_new < -1 * instance->hal.param.maxvel) {
-            speed_new = -1 * instance->hal.param.maxvel;
-        }
-        // Store the speed
-        instance->data.speed_float = speed_new;
-        instance->data.speed = (speed_new * instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1 << PICKOFF);
-        
-        // Now the new speed has been calculated, convert it from units/s to steps per clock-cycle
-        data_instance.speed_target = htobe32((speed_new * instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1 << PICKOFF) + 0x80000000);
-        data_instance.max_acceleration = htobe32(((float) (instance->hal.param.maxaccel * instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * ((uint64_t) 1 << (PICKOFF + 16))));
-        
-        // Put the data on the data-stream and advance the pointer
-        memcpy(*data, &data_instance, LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE);
-        *data += LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE;
     }
 }
 
+float movingAvg(float *ptrArrNumbers, float *ptrSum, size_t pos, size_t len, float nextNum)
+{
+  //Subtract the oldest number from the prev sum, add the new number
+  *ptrSum = *ptrSum - ptrArrNumbers[pos] + nextNum;
+  //Assign the nextNum to the position in the array
+  ptrArrNumbers[pos] = nextNum;
+  //return the average
+  return *ptrSum * STEPGEN_WALLCLOCK_BUFFER_RECIP;
+}
 
 uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long period) {
+
+    // Declarations
+    static uint64_t next_apply_time;
+    static int32_t loop_cycles;
+    static litexcnc_stepgen_pin_t *instance;
+    //  - parameters for retrieving data from FPGA
+    static int64_t pos;
+    static uint32_t speed;
+    static int64_t tmp_apply_time;
+    // - parameters for determining the position end start of next loop
+    static uint64_t min_time;
+    static uint64_t max_time;
+    static float fraction;
+    static float speed_end;
+
+    // Check for the first cycle and calculate some fake timings. This has to be done at
+    // this location, because in the init the wallclock_ticks is still zero and this would
+    // lead to an underflow.
+    if (litexcnc->stepgen.memo.apply_time == 0) {
+        litexcnc->stepgen.memo.prev_wall_clock = litexcnc->wallclock->memo.wallclock_ticks - litexcnc->stepgen.memo.cycles_per_period;
+        litexcnc->stepgen.memo.apply_time = litexcnc->stepgen.memo.prev_wall_clock + 0.9 * litexcnc->stepgen.memo.cycles_per_period;
+    }
+
+    // The next apply time is basically chosen so that the next loop starts exactly when it
+    // should (according to the timing of the previous loop). When due to latency excursion
+    // this timing cannot be met (outside the bounds or already in the past) this variable
+    // is modified. An additional 0.5 is added to prevent rounding errors accumulate over
+    // time.
+    next_apply_time = (double) litexcnc->stepgen.memo.apply_time + *(litexcnc->stepgen.hal->pin.period_s) * litexcnc->clock_frequency + 0.5;
+
+    // Determine how many clicks have been passed from the previous loop
+    loop_cycles = litexcnc->wallclock->memo.wallclock_ticks - litexcnc->stepgen.memo.prev_wall_clock;
+
+    // Check whether the loop-cycles are within the limits
+    if (loop_cycles < (0.9 * litexcnc->stepgen.memo.cycles_per_period)) {
+        // The previous loop was way too short
+        next_apply_time += (loop_cycles - 0.9 * litexcnc->stepgen.memo.cycles_per_period);
+        loop_cycles = 0.9 * litexcnc->stepgen.memo.cycles_per_period;
+    } else if (loop_cycles > (1.1 * litexcnc->stepgen.memo.cycles_per_period)) {
+        // The previous loop was way too long, possibly a latency excursion
+        next_apply_time += (loop_cycles - 1.1 * litexcnc->stepgen.memo.cycles_per_period);
+        loop_cycles = 1.1 * litexcnc->stepgen.memo.cycles_per_period;
+    }
+
+    // Check whether the nex_apply_time is within the expected range. When outside of the range, 
+    // the value is clipped and a warning is shown to the user. The warning is only shown once.
+    if (next_apply_time < litexcnc->wallclock->memo.wallclock_ticks + 0.81 * litexcnc->stepgen.memo.cycles_per_period) {
+        rtapi_print("Apply time exceeding limits: %llu, %llu, %llu, ",
+            litexcnc->wallclock->memo.wallclock_ticks,
+            litexcnc->stepgen.memo.apply_time,
+            next_apply_time
+        );
+        next_apply_time = litexcnc->wallclock->memo.wallclock_ticks + 0.81 * litexcnc->stepgen.memo.cycles_per_period;
+        rtapi_print("%llu \n", next_apply_time);
+        // Show warning
+        if (!litexcnc->stepgen.data.warning_apply_time_exceeded_shown) {
+            LITEXCNC_ERR_NO_DEVICE("Apply time exceeded limits.");
+            litexcnc->stepgen.data.warning_apply_time_exceeded_shown = true;
+        }
+    }
+    if (next_apply_time > litexcnc->wallclock->memo.wallclock_ticks + 0.99 * litexcnc->stepgen.memo.cycles_per_period){
+        rtapi_print("Apply time exceeding limits: %llu, %llu, %llu \n",
+            litexcnc->wallclock->memo.wallclock_ticks,
+            litexcnc->stepgen.memo.apply_time,
+            next_apply_time
+        );        
+        next_apply_time = litexcnc->wallclock->memo.wallclock_ticks + 0.99 * litexcnc->stepgen.memo.cycles_per_period;
+        rtapi_print("%llu \n", next_apply_time);
+        // Show warning
+        if (!litexcnc->stepgen.data.warning_apply_time_exceeded_shown) {
+            LITEXCNC_ERR_NO_DEVICE("Apply time exceeded limits.");
+            litexcnc->stepgen.data.warning_apply_time_exceeded_shown = true;
+        }
+    }
+
+    // Calculate the period in seconds to use for the next step and store the wall clock for
+    // next loop
+    *(litexcnc->stepgen.hal->pin.period_s) = movingAvg(
+        litexcnc->stepgen.data.wallclock_buffer, 
+        &(litexcnc->stepgen.data.wallclock_buffer_sum), 
+        litexcnc->stepgen.data.wallclock_buffer_pos, 
+        STEPGEN_WALLCLOCK_BUFFER, 
+        (double) loop_cycles * litexcnc->clock_frequency_recip);
+    *(litexcnc->stepgen.hal->pin.period_s_recip) = 1.0f /  *(litexcnc->stepgen.hal->pin.period_s);
+    litexcnc->stepgen.data.wallclock_buffer_pos++;
+    if (litexcnc->stepgen.data.wallclock_buffer_pos >= STEPGEN_WALLCLOCK_BUFFER) {
+      litexcnc->stepgen.data.wallclock_buffer_pos = 0;
+    }
+    litexcnc->stepgen.memo.prev_wall_clock = litexcnc->wallclock->memo.wallclock_ticks;
 
     // Receive and process the data for all the stepgens
     for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
         // Get pointer to the stepgen instance
-        litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
+        instance = &(litexcnc->stepgen.instances[i]);
 
         // Recalculate the reciprocal of the position scale if it has changed
         if (instance->hal.param.position_scale != instance->memo.position_scale) {
@@ -370,29 +481,37 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
 		        // Value too small, take a safe value
 		        instance->hal.param.position_scale = 1.0;
 	        }
-            instance->data.scale_recip = (1.0 / (1L << PICKOFF)) / instance->hal.param.position_scale;
+            instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
             instance->memo.position_scale = instance->hal.param.position_scale; 
+            // Calculate the scales for speed and acceleration
+            instance->data.fpga_pos_scale_inv = (float) instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
+            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << instance->data.pick_off_vel);
+            instance->data.fpga_speed_scale_inv = 1.0f / instance->data.fpga_speed_scale;
+            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (instance->data.pick_off_acc));
+            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << instance->data.pick_off_acc);;
         }
 
         // Store the old data
         instance->memo.position = instance->data.position;
         // Read data and proceed the buffer
-        int64_t pos;
         memcpy(&pos, *data, sizeof pos);
         instance->data.position = be64toh(pos);
         // LITEXCNC_PRINT_NO_DEVICE("Pos feedback %d \n", pos);
         *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
-        uint32_t speed;
         memcpy(&speed, *data, sizeof speed);
         instance->data.speed = (int64_t) be32toh(speed) -  0x80000000;
-        // LITEXCNC_PRINT_NO_DEVICE("Speed feedback %d \n", instance->data.speed);
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
+        // TODO: this is temporary to investigate why the second phase is not working
+        memcpy(&tmp_apply_time, *data, sizeof tmp_apply_time);
+        tmp_apply_time = be64toh(tmp_apply_time);
+        *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
         // Convert the received position to HAL pins for counts and floating-point position
-        *(instance->hal.pin.counts) = instance->data.position >> PICKOFF;
+        *(instance->hal.pin.counts) = instance->data.position >> instance->data.pick_off_pos;
         // Check: why is a half step subtracted from the position. Will case a possible problem 
         // when the power is cycled -> will lead to a moving reference frame  
-        *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1<<(PICKOFF-1))) * instance->data.scale_recip;
-        *(instance->hal.pin.speed_fb) = (double) litexcnc->clock_frequency * instance->data.speed * instance->data.scale_recip;
+        // *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1LL<<(instance->data.pick_off_pos-1))) * instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
+        *(instance->hal.pin.position_fb) = (double) instance->data.position * instance->data.fpga_pos_scale_inv;
+        *(instance->hal.pin.speed_fb) = (double) instance->data.speed * instance->data.fpga_speed_scale_inv;
 
         /* -------------------
          * Predict the position and speed at the theoretical end of the start of the 
@@ -410,29 +529,72 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // - start with the current speed and position
         *(instance->hal.pin.speed_prediction) = *(instance->hal.pin.speed_fb);
         *(instance->hal.pin.position_prediction) =  *(instance->hal.pin.position_fb);
-        // - pending apply time
-        // TODO: expected to be non-relevant though
-        // - check whether the difference in target speed and current speed can be bridged 
-        //   within 1 period.
-	    double match_time = fabs(*(instance->hal.pin.speed_fb) - instance->data.speed_float) / instance->hal.param.maxaccel * 1e9;
-        if (match_time <= (0.9 * period)) {
-            // The predicted speed at the end of the period is equal to the commanded velocity
-            *(instance->hal.pin.speed_prediction) = instance->data.speed_float;
-            // The position is calculated based on the average speed during the acceleration fase (the match_time) and 
-            // commanded speed during the constant speed fase
-            *(instance->hal.pin.position_prediction) +=  0.5 * (*(instance->hal.pin.speed_fb) + *(instance->hal.pin.speed_prediction)) * (match_time * 0.000000001);
-            *(instance->hal.pin.position_prediction) +=  *(instance->hal.pin.speed_prediction) * (((0.9 * period) - match_time) * 0.000000001);
-        } else {
-            // The speed is equal to the current velocity + acceleration / deceleration
-            if (*(instance->hal.pin.speed_fb) < instance->data.speed_float) {
-                // Acceleration, current speed is lower then the commanded speed
-                *(instance->hal.pin.speed_prediction) += (0.9 * period * 0.000000001) * instance->hal.param.maxaccel;
-            } else {
-                // Deceleration, current speed is larger then the commanded speed
-                *(instance->hal.pin.speed_prediction) -= (0.9 * period * 0.000000001) * instance->hal.param.maxaccel;
+        
+        // Add the different phases to the speed and position prediction
+        if (*(instance->hal.pin.debug)) {
+            rtapi_print("Timings: %.6f, %llu, %llu, %lu, %lu, %llu \n",
+                *(litexcnc->stepgen.hal->pin.period_s),
+                litexcnc->wallclock->memo.wallclock_ticks,
+                litexcnc->stepgen.memo.apply_time,
+                instance->data.fpga_time1,
+                instance->data.fpga_time2,
+                next_apply_time
+            );
+        }
+        if (litexcnc->wallclock->memo.wallclock_ticks <= litexcnc->stepgen.memo.apply_time + instance->data.fpga_time1) {
+            min_time = litexcnc->wallclock->memo.wallclock_ticks;
+            if (litexcnc->stepgen.memo.apply_time > min_time) {
+                min_time = litexcnc->stepgen.memo.apply_time;
             }
-            // The position can be determined based on the average speed (area under the trapezoidal speed curve)
-            *(instance->hal.pin.position_prediction) +=  0.5 * (*(instance->hal.pin.speed_fb) + *(instance->hal.pin.speed_prediction)) * (0.9 * period * 0.000000001);
+            max_time = litexcnc->stepgen.memo.apply_time + instance->data.fpga_time1;
+            if (next_apply_time < max_time) {
+                max_time = next_apply_time;
+            }
+            if ((litexcnc->stepgen.memo.apply_time + instance->data.fpga_time1 - min_time) <= 0) {
+                fraction = 1.0;
+            } else {
+                fraction = (float) (max_time - min_time) / (litexcnc->stepgen.memo.apply_time + instance->data.fpga_time1 - min_time);
+            }
+            speed_end = (1.0 - fraction) * *(instance->hal.pin.speed_prediction) + fraction * instance->data.speed1;
+            *(instance->hal.pin.position_prediction) += 0.5 * (*(instance->hal.pin.speed_prediction) + speed_end) * (max_time - min_time) * litexcnc->clock_frequency_recip;
+            *(instance->hal.pin.speed_prediction) = speed_end;
+        }
+        if ((litexcnc->wallclock->memo.wallclock_ticks <= litexcnc->stepgen.memo.apply_time + instance->data.fpga_time2) && (litexcnc->stepgen.memo.apply_time + instance->data.fpga_time1 < next_apply_time)) {
+            min_time = litexcnc->wallclock->memo.wallclock_ticks;
+            if ((litexcnc->stepgen.memo.apply_time + instance->data.fpga_time1) > min_time) {
+                *(instance->hal.pin.speed_prediction) = instance->data.speed1;
+                min_time = litexcnc->stepgen.memo.apply_time + instance->data.fpga_time1;
+            }
+            max_time = litexcnc->stepgen.memo.apply_time + instance->data.fpga_time2;
+            if (next_apply_time < max_time) {
+                max_time = next_apply_time;
+            }
+            if ((litexcnc->stepgen.memo.apply_time + instance->data.fpga_time2 - min_time) <= 0) {
+                fraction = 1.0;
+            } else {
+                fraction = (float) (max_time - min_time) / (litexcnc->stepgen.memo.apply_time + instance->data.fpga_time2 - min_time);
+            }
+            speed_end = (1.0 - fraction) * *(instance->hal.pin.speed_prediction) + fraction * instance->data.speed2;
+            *(instance->hal.pin.position_prediction) += 0.5 * (*(instance->hal.pin.speed_prediction) + speed_end) * (max_time - min_time) * litexcnc->clock_frequency_recip;
+            *(instance->hal.pin.speed_prediction) = speed_end;
+        }
+        if (next_apply_time > litexcnc->stepgen.memo.apply_time + instance->data.fpga_time2) {
+            // Some constant speed should be added
+            *(instance->hal.pin.speed_prediction) = instance->data.speed2;
+            *(instance->hal.pin.position_prediction) += instance->data.speed2 * (next_apply_time - (litexcnc->stepgen.memo.apply_time + instance->data.fpga_time2)) * litexcnc->clock_frequency_recip;
+        }
+        if (*(instance->hal.pin.debug)) {
+            rtapi_print("Stepgen speed feedback result: %llu, %llu, %.6f, %.6f, %.6f, %.6f \n",
+                litexcnc->wallclock->memo.wallclock_ticks,
+                next_apply_time,
+                *(instance->hal.pin.speed_fb),
+                *(instance->hal.pin.speed_prediction),
+                *(instance->hal.pin.position_fb),
+                *(instance->hal.pin.position_prediction)
+            );
         }
     }
+
+    // Push the apply for the write loop
+    litexcnc->stepgen.memo.apply_time = next_apply_time;
 }

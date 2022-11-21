@@ -85,18 +85,21 @@ typedef struct {
 
 // Defines the data-package for sending the settings for a single PWM generator. The
 // order of this package MUST coincide with the order in the MMIO definition.
+#pragma pack(push,4)
 typedef struct {
     // Input pins
     uint32_t enable;
     uint32_t period;
     uint32_t width;
 } litexcnc_pwm_data_t;
-#define LITEXCNC_PWM_DATA_SIZE 12  //sizeof(litexcnc_pwm_data_t)
+#pragma pack(pop)
+#define LITEXCNC_PWM_DATA_SIZE sizeof(litexcnc_pwm_data_t)
 #define LITEXCNC_BOARD_PWM_DATA_WRITE_SIZE(litexcnc) (LITEXCNC_PWM_DATA_SIZE * litexcnc->pwm.num_instances)
 #define LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc) 0 // PWM does not send data back
 
 // Functions for creating, reading and writing PWM pins
 int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config);
+uint8_t litexcnc_pwm_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_pwm_prepare_write(litexcnc_t *litexcnc, uint8_t **data);
 uint8_t litexcnc_pwm_process_read(litexcnc_t *litexcnc, uint8_t** data);
 
