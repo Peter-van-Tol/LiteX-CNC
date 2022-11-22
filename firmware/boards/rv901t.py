@@ -320,19 +320,18 @@ class RV901T(SoCMini):
     def __init__(
             self,
             config,  #: 'LitexCNC_Firmware',
-            eth_phy=0,
-            sys_clk_freq=int(50e6)  # sys_clk_freq = int(133e6)
+            eth_phy=0
         ):
         platform = RV901T_Platform()
 
         # SoCMini -------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq,
+        SoCMini.__init__(self, platform, config.clock_frequency,
             ident          = config.board_name,
             ident_version  = True
         )
 
         # CRG -----------------------------------------------------------------
-        self.submodules.crg = crg = _CRG(platform, sys_clk_freq)
+        self.submodules.crg = crg = _CRG(platform, config.clock_frequency)
 
         # Etherbone -----------------------------------------------------------
         self.ethphy = LiteEthPHYRGMII(

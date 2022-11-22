@@ -38,7 +38,7 @@
         },
         {
             "name": "stepgen_shared_enable",
-            "pin":"J600:39"
+            "pin":"J600:47"
         }
     ],
     "pwm": [
@@ -50,26 +50,40 @@
     "stepgen": [
         {
             "name": "stepgen_0",
-            "step_pin": "J600:38",
-            "dir_pin": "J600:36",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:38",
+                "dir_pin": "J600:36"
+            },
             "soft_stop": true
         },
         {
             "name": "stepgen_1",
-            "step_pin": "J600:34",
-            "dir_pin": "J600:32",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:34",
+                "dir_pin": "J600:32"
+            },
             "soft_stop": true
         },
         {
             "name": "stepgen_2",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:34",
+                "dir_pin": "J600:32"
+            },
             "step_pin": "J600:37",
             "dir_pin": "J600:35",
             "soft_stop": true
         },
         {
             "name": "stepgen_3",
-            "step_pin": "J600:33",
-            "dir_pin": "J600:31",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:33",
+                "dir_pin": "J600:231"
+            },
             "soft_stop": true
         }
     ],
