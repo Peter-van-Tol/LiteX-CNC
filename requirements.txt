@@ -1,3 +1,0 @@
-click~=8.0
-packaging
-pydantic
