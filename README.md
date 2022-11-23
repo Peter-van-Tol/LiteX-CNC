@@ -1,49 +1,63 @@
 # Welcome to LiteX-CNC!
 
-This project aims to make a generic CNC firmware and driver for FPGA cards which are supported by LiteX. Configuration of the board and driver is done using json-files.
+This project aims to make a generic CNC firmware and driver for FPGA cards which are supported by LiteX. Configuration of the board and driver is done using json-files. The supported boards are the Colorlight boards 5A-75B and 5A-75E, as these are fully supported with the open source toolchain.
+
+> **RV901T** <br>
+> Although the RV901T is also supported by Litex, the firmware cannot be automatically build with LitexCNC, as it requires the Xilinx-software to compile the Verilog to a bit-stream. LitexCNC can be used to create the Verilog and the driver will work when the bit-stream is loaded on the board. However, there is a gap in the toolchain not covered. There are known issues with the compantibility of Litex with Xilinx.
 
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty to obtain a MESA card.
 
 > **Experimental** <br>
-> At this moment this code is experimental and requires expansion. A test card has been received and a test setup has been created with an Raspberry Pi. The modules GPIO and PWM are tested and are working. Expansion of the project with stepgen, encoders, watchdog, etc. is now required.
+> At this moment this code is experimental and requires expansion. A test card has been received and a test setup has been created with an Raspberry Pi. The modules GPIO, PWM, Stepgen are tested and are working. Expansion of the project with encoders, I2C, RS489, etc. is now required.
 
 ## Acknowledgements
 This project would not be possible without:
 - ColorCNC by *romanetz* [link](https://forum.linuxcnc.org/27-driver-boards/44422-colorcnc?start=0);
 - HostMot2 (MESA card driver) as the structure of the driver has been adopted.
 
-## Configuration
+## Installation
+LitexCNC can be installed using pip:
+```shell
+pip install litexcnc[cli]
+```
+
+After installation of LitexCNC, one can setup building environment for the firmware using the included scripts:
+```shell
+litexcnc install_litex
+litexcnc install_toolchain
+```
+
+Both Litex and the toolchain (OSS-CAD-suite) will be installed by default be installed in the `/opt` folder. Optionally the flag `--user` can be supplied to both commands, in which case the building environment is installed in `HOME`-directory.
+
+## Configuration of the FPGA
+
+### Structure of the JSON file
 ...
 
-## Firmware
-...
-
-## Drivers
-
-### Installation
-The installation of the driver is independent from the configuration. In order to install the driver, a modified version of `halcompile` is created. The script `halcompile` is a Python-script which creates and executes the required MakeFiles. Because the driver required [json-c](https://github.com/json-c/json-c), an extra flag had to be added.
-
-Firstly install the `json-c` library:
-```bash
-sudo apt-get update
-sudo apt install libjson-c-dev
+### Building the firmware (bit-file)
+The firmare can be created based with the following command:
+```shell
+litexcnc build_firmware "<path-to-your-configuration>" --build 
 ```
 
-Next, locate the `halcompile` script and replace it with the modified version:
-```bash
-whereis halcompile
-sudop cp <path/of/modified/version/halcompile.py> </whereis/path/halcompile>
+### Compiling the driver
+
+> Compilation of the driver is only required once as long the same version of LitexCNC is used. When LitexCNC is updated, please re-install the driver; the version of the firmware should always be the same as the version of the driver. 
+
+The firmare can be created based with the following command:
+```shell
+litexcnc install_driver
 ```
 
-> **NOTE**: When the file `halcompile` cannot be found, make sure you have `linuxcnc-dev` installed, i.e. `sudo apt-get install linuxcnc-dev`.
+This script will run `apt-get` to install the following packages:
+- `libjson-c-dev`, which is required to read the configuration files. 
+- `linuxcnc-dev`, which is required for running `halcompile`.
 
-Now, the LiteX-CNC can be build and installed using `halcompile`:
-```bash
-cd <folder/with/driver/source>
-sudo halcompile --install litexcnc.c litexcnc_eth.c litexcnc_debug.c 
-```
 
-### Usage
+
+After this, the driver is installed using `halcompile`.
+
+## Usage in HAL
 Typically main litexcnc driver is loaded first:
 ```
 loadrt litexcnc
@@ -66,8 +80,9 @@ The table below gives the functions exported by LiteX-CNC.
 Example:
 ```
 loadrt threads name1=servo-thread period1=1000000
-addf test.0.write servo-thread
 addf test.0.read servo-thread
+# Add any function between the `read` and `write` routine of LitexCNC
+addf test.0.write servo-thread
 ```
 
 ### Pins and parameters
