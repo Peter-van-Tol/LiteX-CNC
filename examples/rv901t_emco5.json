@@ -1,6 +1,6 @@
 {
     "board_name": "EMCO5",
-    "baseclass": "firmware.boards.RV901T",
+    "baseclass": "litexcnc.firmware.boards.RV901T",
     "clock_frequency": 50000000,
     "ethphy": {
         "tx_delay": 0

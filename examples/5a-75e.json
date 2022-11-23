@@ -1,6 +1,6 @@
 {
     "board_name": "example_5a-75e",
-    "baseclass": "firmware.boards.ColorLight_5A_75E_V6_0",
+    "baseclass": "litexcnc.firmware.boards.ColorLight_5A_75E_V6_0",
     "clock_frequency": 50000000,
     "ethphy": {
         "tx_delay": 0

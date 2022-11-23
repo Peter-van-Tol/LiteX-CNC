@@ -1071,7 +1071,14 @@ modinc = None
 def find_modinc():
     global modinc
     if modinc: return modinc
-    d = os.path.abspath(os.path.dirname(os.path.dirname(sys.argv[0])))
+    # Check to find the original halcompile
+    from subprocess import check_output
+    location = check_output(["whereis", "halcompile"]).decode("utf-8") 
+    location = location.split(":")[1].strip()
+    if not location:
+        raise FileNotFoundError()
+    d = os.path.abspath(os.path.dirname(os.path.dirname(location)))
+    # d = os.path.abspath(os.path.dirname(os.path.dirname(sys.argv[0])))
     for e in ['src', 'etc/linuxcnc', '/etc/linuxcnc', 'share/linuxcnc']:
         e = os.path.join(d, e, 'Makefile.modinc')
         if os.path.exists(e):
@@ -1505,6 +1512,7 @@ def main():
             except: # os.error:
                 pass
             raise
+
 if __name__ == '__main__':
     main()
 
