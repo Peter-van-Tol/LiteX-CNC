@@ -15,7 +15,7 @@ name: Upload Python Package
 on:
   push:
     tags:
-      - "v*"
+      - '**'
 
 permissions:
   contents: read
