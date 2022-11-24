@@ -1,9 +1,7 @@
 {
     "board_name": "test_PWM_GPIO",
-    "baseclass": "litex_boards.targets.colorlight_5a_75x.BaseSoC",
-    "board": "5a-75e",
-    "revision": "6.0",
-    "clock_frequency": 50000000,
+    "baseclass": "litexcnc.firmware.boards.ColorLight_5A_75E_V6_0",
+    "clock_frequency": 40000000,
     "ethphy": {
         "tx_delay": 0
     },
@@ -12,20 +10,46 @@
         "mac_address": "0x10e2d5000000"
     },
     "gpio_in": [
-        {"pin":"j12:0", "name": "optional_name_unique"}
+        {"pin":"j2:1"},
+        {"pin":"j2:5"}
     ],
     "gpio_out": [
-        {"pin": "j1:1"},
-        {"pin": "j1:5"}
+        {"pin": "j16:1"},
+        {"pin": "j16:5"}
     ],
     "pwm": [
-        {"pin": "j1:2"}
+        {"pin": "j16:2"}
     ],
     "stepgen": [
         {
-            "step_pin": "j2:1",
-            "dir_pin": "j2:5",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "j9:0",
+                "dir_pin": "j9:1"
+            },
             "soft_stop": true
+        },
+        {
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "j10:0",
+                "dir_pin": "j10:1"
+            },
+            "soft_stop": true
+        },
+        {
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "j11:0",
+                "dir_pin": "j11:1"
+            },
+            "soft_stop": true
+        }
+    ],
+    "encoders": [
+        {  
+            "pin_A":"j1:1",
+            "pin_B":"j1:5"
         }
     ]
 }

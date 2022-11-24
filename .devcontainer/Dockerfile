@@ -77,27 +77,11 @@ RUN git clone https://github.com/LinuxCNC/linuxcnc.git && \
     ./autogen.sh && \
     ./configure --with-realtime=uspace &&\
     make && \
-    echo '# set PATH so it includes oss-cad-suite' >> /etc/profile && \
+    echo '# set PATH so it includes linuxcnc binaries' >> /etc/profile && \
     echo 'if [ -d "/opt/linuxcnc/bin" ] ; then' >> /etc/profile && \
     echo 'PATH="/opt/linuxcnc/bin:$PATH"' >> /etc/profile && \
     echo 'fi' >> /etc/profile && \
-    echo '# set PATH so it includes oss-cad-suite' >> /etc/profile && \
+    echo '# set PATH so it includes linuxcnc scripts' >> /etc/profile && \
     echo 'if [ -d "/opt/linuxcnc/scripts" ] ; then' >> /etc/profile && \
     echo 'PATH="/opt/linuxcnc/scripts:$PATH"' >> /etc/profile && \
-    echo 'fi' >> /etc/profile
-
-# Install LiteX (inlcuding toolchain)
-RUN mkdir LiteX && \
-    cd LiteX && \
-    wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py && \
-    pip3 install --user  meson ninja && \
-    python3 litex_setup.py --init --install --config=standard --gcc=riscv
-
-# Install 
-RUN wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-02-27/oss-cad-suite-linux-x64-20220227.tgz  && \
-    tar -xvf oss-cad-suite-linux-x64-20220227.tgz -C /opt/ && \
-    rm oss-cad-suite-linux-x64-20220227.tgz  && \
-    echo '# set PATH so it includes oss-cad-suite' >> /etc/profile && \
-    echo 'if [ -d "/opt/oss-cad-suite/bin" ] ; then' >> /etc/profile && \
-    echo 'PATH="/opt/oss-cad-suite/bin:$PATH"' >> /etc/profile && \
     echo 'fi' >> /etc/profile

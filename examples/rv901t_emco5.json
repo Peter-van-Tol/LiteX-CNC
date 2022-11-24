@@ -1,0 +1,112 @@
+{
+    "board_name": "EMCO5",
+    "baseclass": "litexcnc.firmware.boards.RV901T",
+    "clock_frequency": 50000000,
+    "ethphy": {
+        "tx_delay": 0
+    },
+    "etherbone": {
+        "ip_address": "10.0.0.10",
+        "mac_address": "0x10e2d5000000"
+    },
+    "gpio_in": [
+        {
+            "name": "rapid_override_reset",
+            "pin":"J601:7"
+        },
+        {
+            "name": "feed_override_reset",
+            "pin":"J601:8"
+        },
+        {
+            "name": "spindle_override_reset",
+            "pin":"J601:9"
+        }
+    ],
+    "gpio_out": [
+        {
+            "name": "rapid_override_active",
+            "pin":"J601:15"
+        },
+        {
+            "name": "feed_override_active",
+            "pin":"J601:16"
+        },
+        {
+            "name": "spindle_override_active",
+            "pin":"J601:17"
+        },
+        {
+            "name": "stepgen_shared_enable",
+            "pin":"J600:47"
+        }
+    ],
+    "pwm": [
+        {
+            "name": "test_otherwise_no_compile",
+            "pin":"J600:7"
+        }
+    ],
+    "stepgen": [
+        {
+            "name": "stepgen_0",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:38",
+                "dir_pin": "J600:36"
+            },
+            "soft_stop": true
+        },
+        {
+            "name": "stepgen_1",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:34",
+                "dir_pin": "J600:32"
+            },
+            "soft_stop": true
+        },
+        {
+            "name": "stepgen_2",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:34",
+                "dir_pin": "J600:32"
+            },
+            "step_pin": "J600:37",
+            "dir_pin": "J600:35",
+            "soft_stop": true
+        },
+        {
+            "name": "stepgen_3",
+            "pins" : {
+                "stepgen_type": "step_dir",
+                "step_pin": "J600:33",
+                "dir_pin": "J600:231"
+            },
+            "soft_stop": true
+        }
+    ],
+    "encoders": [
+        {
+            "name": "rapid_override",
+            "pin_A": "J601:7",
+            "pin_B": "J601:8"
+        },
+        {
+            "name": "feed_override",
+            "pin_A": "J601:9",
+            "pin_B": "J601:10"
+        },
+        {
+            "name": "spindle_override",
+            "pin_A": "J601:11",
+            "pin_B": "J601:12"
+        },
+        {
+            "name": "MPG",
+            "pin_A": "J601:13",
+            "pin_B": "J601:14"
+        }
+    ]
+}

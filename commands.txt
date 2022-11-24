@@ -1,0 +1,5 @@
+cd ./driver
+scp -r * litexcnc@litexcnc-dev:~/driver
+cd ..\5a-75e-stepgen-test\gateware
+scp  colorlight_5a_75e.svf pi@192.168.178.19:~/colorlight_5a_75e.svf
+cd ../../driver
