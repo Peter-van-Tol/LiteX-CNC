@@ -1,6 +1,6 @@
-==================
-wb_python_template
-==================
+=========
+Litex-CNC
+=========
 
 This project aims to make a generic CNC firmware and driver for FPGA cards which are supported by
 LiteX. Configuration of the board and driver is done using json-files. The supported boards are the
@@ -13,6 +13,7 @@ Contents
    :maxdepth: 2
 
    Overview <readme>
+   Modules <modules/index>
    License <license>
    Changelog <changelog>
 
