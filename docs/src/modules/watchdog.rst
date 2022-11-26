@@ -18,34 +18,20 @@ The watchdog does not have any configuration.
 Input pins
 ==========
 
-.. list-table:: Input pins
-   :header-rows: 1
+.. csv-table:: Input pins
+  :header: "Name", "Type", "Description"
 
-    * - Name
-      - Type
-      - Description
-    * - <board-name>.watchdog.timeout_ns
-      - integer
-      - The time out (in ns) after which the watchdog will bite. It is recommended to set the watchdog
-        at least 1.5 times the period of the servo-thread to give some leeway. If set too tight, this
-        will lead to a watchdog which bites as soon as there is a latency excursion.
+  "<board-name>.watchdog.timeout_ns", "integer", "The time out (in ns) after which the watchdog will bite. It is recommended to set the watchdog at least 1.5 times the period of the servo-thread to give some leeway. If set too tight, this will lead to a watchdog which bites as soon as there is a latency excursion."
+
 
 Output pins
 ===========
 
-.. list-table:: Output pins
-   :header-rows: 1
-
-    * - Name
-      - Type
-      - Description
-    * - <board-name>.watchdog.has_bitten
-      - hal_bit (i/o)
-      - Flag indicating that the watchdog has not been petted on time and that it has bitten. should
-        be set to False or 0 to restart the working of the FPGA
-    * - <board-name>.watchdog.timeout_cycles
-      - hal_bit
-      - The number of cycles of the FPGA before the watchdog bites (DEBUG). 
+.. csv-table:: Output pins
+  :header: "Name", "Type", "Description"
+ 
+  	"<board-name>.watchdog.has_bitten", "hal_bit (i/o)", "Flag indicating that the watchdog has not been petted on time and that it has bitten. should be set to False or 0 to restart the working of the FPGA"
+    "<board-name>.watchdog.timeout_cycles", "integer", "The number of cycles of the FPGA before the watchdog bites (DEBUG).""
 
 Example
 =======
