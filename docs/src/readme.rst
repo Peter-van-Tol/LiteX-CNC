@@ -25,6 +25,7 @@ Acknowledgements
 ================
 
 This project would not be possible without:
+
 * ColorCNC by *romanetz* (`link <https://forum.linuxcnc.org/27-driver-boards/44422-colorcnc?start=0>`_);
 * HostMot2 (MESA card driver) as the structure of the driver has been adopted.
 
@@ -112,6 +113,7 @@ config array from each other.
     loadrt litexcnc_eth config_file="/workspace/examples/5a-75e.json"
 
 The driver exposes two functions to the HAL:
+
 * ``<BoardName>.<BoardNum>.read``: This reads the encoder counters, stepgen feedbacks, and GPIO input
   pins from the FPGA.
 * ``<BoardName>.<BoardNum>.write``: This updates the PWM duty cycles, stepgen rates, and GPIO outputs
@@ -119,6 +121,7 @@ The driver exposes two functions to the HAL:
   effected by this function. 
 
 It is strongly recommended to have structure the functions in the HAL-file as follows:
+
 #. Read the status from the FPGA using the ``<BoardName>.<BoardNum>.read``.
 #. Add all functions which process the received data.
 #. Write the new information to the FPGA using the ``<BoardName>.<BoardNum>.write``.
