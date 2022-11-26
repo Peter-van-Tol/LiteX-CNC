@@ -9,7 +9,6 @@
 
 import os
 import sys
-import shutil
 
 # -- Path setup --------------------------------------------------------------
 
@@ -21,40 +20,6 @@ __location__ = os.path.dirname(__file__)
 root = os.path.join(__location__, "../../src")
 sys.path.insert(0, root)
 os.environ['PYTHONPATH'] = root
-
-# -- Run sphinx-apidoc -------------------------------------------------------
-# This hack is necessary since RTD does not issue `sphinx-apidoc` before running
-# `sphinx-build -b html . _build/html`. See Issue:
-# https://github.com/readthedocs/readthedocs.org/issues/1139
-# DON'T FORGET: Check the box "Install your project inside a virtualenv using
-# setup.py install" in the RTD Advanced Settings.
-# Additionally it helps us to avoid running apidoc manually
-
-try:  # for Sphinx >= 1.7
-    from sphinx.ext import apidoc
-except ImportError:
-    from sphinx import apidoc
-
-output_dir = os.path.join(__location__, "api")
-module_dir = os.path.join(__location__, "../../src/pyscaffoldext")
-try:
-    shutil.rmtree(output_dir)
-except FileNotFoundError:
-    pass
-
-try:
-    import sphinx
-
-    cmd_line = f"sphinx-apidoc --implicit-namespaces -f -o {output_dir} {module_dir}"
-
-    args = cmd_line.split(" ")
-    if tuple(sphinx.__version__.split(".")) >= ("1", "7"):
-        # This is a rudimentary parse_version to avoid external dependencies
-        args = args[1:]
-
-    apidoc.main(args)
-except Exception as e:
-    print("Running `sphinx-apidoc` failed!\n{}".format(e))
 
 # -- General configuration ---------------------------------------------------
 
@@ -89,7 +54,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "pyscaffoldext-wb_python_template"
+project = "Litex-CNC"
 copyright = "2022, Peter van Tol"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -101,7 +66,7 @@ copyright = "2022, Peter van Tol"
 # If you don’t need the separation provided between version and release,
 # just set them both to the same value.
 try:
-    from pyscaffoldext.wb_gitlab_setup import __version__ as version
+    from litexcnc import __version__ as version
 except ImportError:
     version = ""
 
@@ -229,7 +194,7 @@ html_static_path = ["../_static"]
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "pyscaffoldext-wb_python_template-doc"
+htmlhelp_basename = "litex-CNC-doc"
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -246,7 +211,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-    ("index", "user_guide.tex", "pyscaffoldext-wb_python_template Documentation", "Peter van Tol", "manual")
+    ("index", "user_guide.tex", "Litex-CNC Documentation", "Peter van Tol", "manual")
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
