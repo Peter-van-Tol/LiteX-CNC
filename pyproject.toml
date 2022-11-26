@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "litexcnc", from = "src"}]
 homepage = "https://github.com/Peter-van-Tol/LiteX-CNC"
 repository = "https://github.com/Peter-van-Tol/LiteX-CNC"
-documentation = ""
+documentation = "https://litex-cnc.readthedocs.io/en/latest/"
 keywords = [
     "FPGA",
     "CNC",
