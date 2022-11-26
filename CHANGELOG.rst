@@ -12,8 +12,11 @@ Version 0.9.0-alpha1
 This is a test version for release to PyPi. 
 
 * ``driver``:
+
   * Main driver with supported modules: ``GPIO``, ``PWM``, ``StepGen``
   * Ethernet/Etherbone driver
+
 * ``firmware``:
+
   * Supported modules: ``GPIO``, ``PWM``, ``StepGen``
   * Supported cards: ``5A-75B``, ``5A-75E``
