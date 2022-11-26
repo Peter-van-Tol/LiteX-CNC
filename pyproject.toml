@@ -51,6 +51,10 @@ cli = ["click", "chardet", "meson", "ninja", "requests", "yapps"]
 [tool.poetry.scripts]
 litexcnc = { callable = "litexcnc.__main__:cli", extras = ["cli"] }
 
+[tool.poetry.group.docs.dependencies]
+sphinx = "^5.3.0"
+sphinx-rtd-theme = "^1.1.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
