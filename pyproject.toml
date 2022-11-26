@@ -3,9 +3,36 @@ name = "litexcnc"
 version = "0.9.0a1"
 description = "Generic CNC firmware and driver for FPGA cards which are supported by LiteX"
 authors = ["Peter van Tol <petertgvantol@gmail.com>"]
-license = "GNU GPL"
+license = "GPL-3.0-or-later"
 readme = "README.md"
 packages = [{include = "litexcnc", from = "src"}]
+homepage = "https://github.com/Peter-van-Tol/LiteX-CNC"
+repository = "https://github.com/Peter-van-Tol/LiteX-CNC"
+documentation = ""
+keywords = [
+    "FPGA",
+    "CNC",
+    "CNC-controller",
+    "CNC-machine",
+    "linuxcnc",
+    "linuxcnc-FPGA",
+    "litex"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Environment :: Other Environment",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Other",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: System :: Hardware :: Hardware Drivers"
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
