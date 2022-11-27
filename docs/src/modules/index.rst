@@ -14,18 +14,10 @@ number of modules, as long as the following conditions are met:
 .. warning::
     When replacing the buffers with wires, the pins accept only 3.3 Volt!
 
-Contents
-========
-
 .. toctree::
    :maxdepth: 2
 
    Watchdog <watchdog>
    GPIO <gpio>
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   PWM <pwm>
+ 

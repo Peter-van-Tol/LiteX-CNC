@@ -71,22 +71,22 @@ HAL
 Input pins
 ----------
 
-.. list-table:: Input pins
+.. list-table::
    :widths: auto
    :header-rows: 1
 
    * - Name
      - Type
      - Description
-   * - | <board-name>.gpio.<n>.out
-       | <board-name>.gpio.<name>.out
+   * - <board-name>.gpio.<n>.out
+       <board-name>.gpio.<name>.out
      - HAL_BIT
      - Drives a physical output pin.
 
 Output pins
 -----------
 
-.. list-table:: Output pins
+.. list-table::
    :widths: auto
    :header-rows: 1
 
@@ -106,7 +106,7 @@ Output pins
 Parameters
 ----------
 
-.. list-table:: Output pins
+.. list-table::
    :widths: auto
    :header-rows: 1
 
@@ -122,3 +122,11 @@ Example
 -------
 
 ...
+
+
+
+Break-out boards
+================
+
+
+
