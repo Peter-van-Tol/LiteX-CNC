@@ -43,6 +43,7 @@ After installation of LitexCNC, one can setup building environment for the firmw
 scripts:
 
 .. code-block:: shell
+
     litexcnc install_litex
     litexcnc install_toolchain
 
@@ -90,6 +91,7 @@ The firmare can be created based with the following command:
     litexcnc install_driver
 
 This script will run ``apt-get`` to install the following packages:
+
 - ``libjson-c-dev``, which is required to read the configuration files. 
 
 After this, the driver is installed using ``halcompile``.
@@ -99,6 +101,7 @@ Usage in HAL
 Typically main litexcnc driver is loaded first:
 
 .. code-block::
+
     loadrt litexcnc
 
 After loading the main driver, the board-driver can be loaded. At this moment only ethernet cards 
@@ -110,6 +113,7 @@ the whole thing in double-quotes (the " character). The comma character (,) sepa
 config array from each other.
 
 .. code-block:: shell
+
     loadrt litexcnc_eth config_file="/workspace/examples/5a-75e.json"
 
 The driver exposes two functions to the HAL:
