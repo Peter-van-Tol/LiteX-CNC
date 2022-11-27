@@ -143,7 +143,8 @@ Timing parameters - step/dir
 The timing diagram for both ``step/dir`` is shown below. There is no Difference
 in timing diagram when differential output is used.
 
-.. code-block::      
+.. code-block::   
+
                _____         _____               _____
     STEP  ____/     \_______/     \_____________/     \______
               |     |       |     |             |     |
@@ -181,6 +182,7 @@ Example
 The code below gives an example for a single axis, using the ``step-dir`` step type.
 
 .. code-block::
+    
     loadrt [KINS]KINEMATICS
     loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS
     loadrt litexcnc
