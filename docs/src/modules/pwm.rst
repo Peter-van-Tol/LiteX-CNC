@@ -7,12 +7,12 @@ signals. It is meant as a drop-in replacement for the `LinuxCNC PWMGEN component
 although this module only supports a single output.
 
   | **Difference betweeen PDM and PWM**
-  | Pulse-width modulation (PWM) is a special case of PDM where the switching frequency is fixed and all
-  | the pulses corresponding to one sample are contiguous in the digital signal. For a 50% voltage with a
-  | resolution of 8-bits, a PWM waveform will turn on for 128 clock cycles and then off for the remaining
-  | 128 cycles. With PDM and the same clock rate the signal would alternate between on and off every other
-  | cycle. The average is 50% for both waveforms, but the PDM signal switches more often. For 100% or 0%
-  | level, they are the same.
+  | Pulse-width modulation (PWM) is a special case of PDM where the switching frequency is fixed 
+  | and althe pulses corresponding to one sample are contiguous in the digital signal. For a 50% 
+  | voltage with a resolution of 8-bits, a PWM waveform will turn on for 128 clock cycles and then 
+  | off for the remaining 128 cycles. With PDM and the same clock rate the signal would alternate 
+  | between on and off every other cycle. The average is 50% for both waveforms, but the PDM signal 
+  | switches more often. For 100% or 0% level, they are the same.
 
 From the definition above it is important to not that although the resolution of PDM is better, the frequency
 is much higher. When using PDM it is important that the hardware can handle these frequencies, which may be
@@ -41,7 +41,7 @@ Defining the pin is required in the configuration. Optionally one can give the p
 will be used in the HAL. When no name is supplied, the pin is numbered, starting at 0. 
 
 .. warning::
-  When _inserting_ new pins in the list and the firmware is re-compiled, this will lead to a renumbering
+  When *inserting* new pins in the list and the firmware is re-compiled, this will lead to a renumbering
   of the HAL-pins. When using numbers, it is therefore **strongly** recommended only to append pins to 
   prevent a complete overhaul of the HAL.
 
@@ -62,8 +62,9 @@ Input pins
 <board-name>.pwm.<n>.value / <board-name>.pwm.<name>.value (HAL_FLOAT)
     Commanded value. When value = 0.0, duty cycle is 0%, and when value = ±scale, duty cycle is
     ± 100%. (Subject to min-dc and max-dc limitations.)
-<board-name>.pwm.<n>.scale / <board-name>.pwm.<name>.scale (HAL_FLOAT)
-<board-name>.pwm.<n>.offset / <board-name>.pwm.<name>.offset (HAL_FLOAT)
+| <board-name>.pwm.<n>.scale / <board-name>.pwm.<name>.scale (HAL_FLOAT)
+    ..
+| <board-name>.pwm.<n>.offset / <board-name>.pwm.<name>.offset (HAL_FLOAT)
     These parameters provide a scale and offset from the value pin to the actual duty cycle. 
     The duty cycle is calculated according to duty_cycle = (value/scale) + offset, with 1.0
     meaning 100%.
