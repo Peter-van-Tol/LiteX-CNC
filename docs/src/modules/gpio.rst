@@ -32,8 +32,8 @@ The configuration of the GPIO consists of separate blocks for GPIO In and GPIO O
           "pin":"j2:5",
           "name": "optional_name_input"
         },
-        ...
-        {"pin": "j3:5"},
+        ...,
+        {"pin": "j3:5"}
     ],
     "gpio_out": [
         {"pin": "j15:1"},
@@ -41,12 +41,12 @@ The configuration of the GPIO consists of separate blocks for GPIO In and GPIO O
           "pin": "j15:5"
           "name": "optional_name_output"
         },
-        ...
-        {"pin": "j16:5"},
+        ...,
+        {"pin": "j16:5"}
     ],
 
 Defining the pin is required in the configuration. Optionally one can give the pin a name which
-will be used in the HAL. When no name is supplied, the pin is numbered, starting at 0. GPIO 
+will be used in the HAL. When no name is supplied, the pin is numbered, starting at 0. 
 
 .. note::
   In and GPIO out are numbered separately, so both ``<board-name>.gpio.0.out`` and ``<board-name>.gpio.0.in``
@@ -55,7 +55,7 @@ will be used in the HAL. When no name is supplied, the pin is numbered, starting
   be driven or read from the name.
 
 .. warning::
-  When _inserting_ new pins in the list and the firmware is re-compiled, this will lead to a renumbering
+  When *inserting* new pins in the list and the firmware is re-compiled, this will lead to a renumbering
   of the HAL-pins. When using numbers, it is therefore **strongly** recommended only to append pins to 
   prevent a complete overhaul of the HAL.
 
@@ -93,9 +93,7 @@ Example
 
 ...
 
-
 Break-out boards
 ================
 
-
-
+...
