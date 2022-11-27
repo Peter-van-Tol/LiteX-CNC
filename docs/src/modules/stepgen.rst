@@ -6,7 +6,7 @@ The module ``StepGen`` is used to control stepper motors. The maximum step rate 
 software or CPU, but rather by the speed of the FPGA. Based on a 50 MHz FPGA the maximum step frequency
 is tuned to be approximately 400 kHz. The maximum step frequency scales linearly with the FPGA frequency
 
-In contrast to the `LinuxCNC stepgen component<https://linuxcnc.org/docs/html/man/man9/stepgen.9.html>`_, 
+In contrast to the `LinuxCNC stepgen component <https://linuxcnc.org/docs/html/man/man9/stepgen.9.html>`_, 
 which has both *position*  and *velocity* modes, the module ``StepGen`` only has velocity mode. Velocity 
 control drives the motor at a commanded speed, subject to accel and velocity limits. To convert the
 position command to the required velocity command the component ``pos2vel`` can be used, which is part
@@ -182,7 +182,7 @@ Example
 The code below gives an example for a single axis, using the ``step-dir`` step type.
 
 .. code-block::
-    
+
     loadrt [KINS]KINEMATICS
     loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS
     loadrt litexcnc
