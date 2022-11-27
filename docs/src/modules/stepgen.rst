@@ -85,47 +85,47 @@ HAL
 Input pins
 ----------
 
-<board-name>.stepgen.<n>.enable / <board-name>.stepgen.<name>.enable (HAL_BIT)
+<board-name>.stepgen.<index/name>.enable (HAL_BIT)
     Enables output steps - when false, no steps are generated and is the hardware disabled.
-<board-name>.stepgen.<n>.velocity-cmd1 / <board-name>.stepgen.<name>.velocity-cmd1 (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.velocity-cmd1 (HAL_FLOAT)
     Commanded velocity for the first phase, in length units per second (see parameter
     position-scale).
-<board-name>.stepgen.<n>.velocity-cmd2 / <board-name>.stepgen.<name>.velocity-cmd2 (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.velocity-cmd2 (HAL_FLOAT)
     Commanded velocity for the second phase, in length units per second (see parameter
     position-scale). When using the component ``pos2vel`` is used to convert the position
     command to velocity command, this pin should be set to the same value as ``velocity-cmd1``
-<board-name>.stepgen.<n>.acceleration-cmd1 / <board-name>.stepgen.<name>.acceleration-cmd1 (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.acceleration-cmd1 (HAL_FLOAT)
     The acceleration used to accelarate from the current velocity to ``velocity-cmd1``.
-<board-name>.stepgen.<n>.acceleration-cmd2 / <board-name>.stepgen.<name>.acceleration-cmd2 (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.acceleration-cmd2 (HAL_FLOAT)
     The acceleration used to accelarate from ``velocity-cmd1`` to ``velocity-cmd2``.
 
 Output pins
 -----------
 
-<board-name>.stepgen.<n>.counts / <board-name>.stepgen.<name>.counts (HAL_UINT)
+<board-name>.stepgen.<index/name>.counts (HAL_UINT)
     The current position, in counts.
-<board-name>.stepgen.<n>.position_fb / <board-name>.stepgen.<name>.position_fb (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.position_fb (HAL_FLOAT)
     The received position from the FPGA in units.
-<board-name>.stepgen.<n>.position_prediction / <board-name>.stepgen.<name>.position_prediction (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.position_prediction (HAL_FLOAT)
     The predicted position at the start of the next cycle. It is calculated based on the 
     ``position_fb``, and the commanded speeds and acceleration. This HAL-pin should be
      used asfeedback for ``motmod`` to prevent oscillations.
-<board-name>.stepgen.<n>.speed_fb / <board-name>.stepgen.<name>.speed_fb (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.speed_fb (HAL_FLOAT)
     The current speed, in units per second.
-<board-name>.stepgen.<n>.speed_prediction / <board-name>.stepgen.<name>.speed_prediction (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.speed_prediction (HAL_FLOAT)
     The predicted speed at the start of the next cycle. It is calculated based on the 
     ``speed_fb``, and the commanded speeds and acceleration.
 
 Parameters
 ----------
 
-<board-name>.stepgen.<n>.frequency / <board-name>.stepgen.<name>.frequency (FLOAT / RO)
+<board-name>.stepgen.<index/name>.frequency (FLOAT / RO)
     The current step rate, in steps per second, for channel N.
-<board-name>.stepgen.<n>.max-acceleration / <board-name>.stepgen.<name>.max-acceleration (FLOAT / RO)
+<board-name>.stepgen.<index/name>.max-acceleration (FLOAT / RO)
     The acceleration/deceleration limit, in length units per second squared.
-<board-name>.stepgen.<n>.max-velocity / <board-name>.stepgen.<name>.max-velocity (FLOAT / RO)
+<board-name>.stepgen.<index/name>.max-velocity (FLOAT / RO)
     The maximum allowable velocity, in length units per second. 
-<board-name>.stepgen.<n>.position-scale / <board-name>.stepgen.<name>.position-scale (FLOAT / RO)
+<board-name>.stepgen.<index/name>.position-scale (FLOAT / RO)
     The scaling for position feedback, position command, and velocity command, in steps per length unit.
 
 There are five timing parameters which control the output waveform.  No step type uses all five, and
@@ -154,15 +154,15 @@ in timing diagram when differential output is used.
 
 The relevant parameters which are exported to the HAL are:
 
-<board-name>.stepgen.<n>.steplen / <board-name>.stepgen.<name>.steplen (FLOAT)
+<board-name>.stepgen.<index/name>.steplen (FLOAT)
     The length of the step pulses, in nanoseconds. Measured from rising edge to falling edge.
-<board-name>.stepgen.<n>.stepspace / <board-name>.stepgen.<name>.stepspace (FLOAT)
+<board-name>.stepgen.<index/name>.stepspace (FLOAT)
     Space between step pulses, in nanoseconds. Measured from falling edge to rising edge. The 
     actual time depends on the step rate and can be much longer. 
-<board-name>.stepgen.<n>.dir-hold-time / <board-name>.stepgen.<name>.dir-hold-time (FLOAT)
+<board-name>.stepgen.<index/name>.dir-hold-time (FLOAT)
     The minimum hold time of direction after step, in nanoseconds. Measured from falling 
     edge of step to change of direction.
-<board-name>.stepgen.<n>.dir-setup-time / <board-name>.stepgen.<name>.dir-setup-time (FLOAT)
+<board-name>.stepgen.<index/name>.dir-setup-time (FLOAT)
     The minimum setup time from direction to step, in nanoseconds periods. Measured from 
     change of direction to rising edge of step.
 
