@@ -71,58 +71,27 @@ HAL
 Input pins
 ----------
 
-.. list-table::
-   :widths: auto
-   :header-rows: 1
-
-   * - Name
-     - Type
-     - Description
-   * - <board-name>.gpio.<n>.out
-       <board-name>.gpio.<name>.out
-     - HAL_BIT
-     - Drives a physical output pin.
+<board-name>.gpio.<n>.out / <board-name>.gpio.<name>.out (HAL_BIT)
+    Drives a physical output pin.
 
 Output pins
 -----------
 
-.. list-table::
-   :widths: auto
-   :header-rows: 1
-
-   * - Name
-     - Type
-     - Description
-   * - | <board-name>.gpio.<n>.in
-       | <board-name>.gpio.<name>.in
-     - HAL_BIT
-     - Tracks a physical input pin.
-   * - | <board-name>.gpio.<n>.in_not
-       | <board-name>.gpio.<name>.in_not
-     - HAL_BIT
-     - Tracks a physical input pin, but inverted.
-
+<board-name>.gpio.<n>.in / <board-name>.gpio.<name>.in (HAL_BIT)
+    Tracks a physical input pin.
+<board-name>.gpio.<n>.in-not / <board-name>.gpio.<name>.in-not (HAL_BIT)
+    Tracks a physical input pin, but inverted.
 
 Parameters
 ----------
 
-.. list-table::
-   :widths: auto
-   :header-rows: 1
-
-   * - Name
-     - Type
-     - Description
-   * - | <board-name>.gpio.<n>.invert_output
-       | <board-name>.gpio.<name>.invert_output
-     - HAL_BIT
-     - Inverts an output pin.
+<board-name>.gpio.<n>.invert_output / <board-name>.gpio.<name>.invert_output (HAL_BIT)
+    Inverts an output pin.
 
 Example
 -------
 
 ...
-
 
 
 Break-out boards
