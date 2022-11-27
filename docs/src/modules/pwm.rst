@@ -62,9 +62,9 @@ Input pins
 <board-name>.pwm.<n>.value / <board-name>.pwm.<name>.value (HAL_FLOAT)
     Commanded value. When value = 0.0, duty cycle is 0%, and when value = ±scale, duty cycle is
     ± 100%. (Subject to min-dc and max-dc limitations.)
-| <board-name>.pwm.<n>.scale / <board-name>.pwm.<name>.scale (HAL_FLOAT)
+<board-name>.pwm.<n>.scale / <board-name>.pwm.<name>.scale (HAL_FLOAT)
     ..
-| <board-name>.pwm.<n>.offset / <board-name>.pwm.<name>.offset (HAL_FLOAT)
+<board-name>.pwm.<n>.offset / <board-name>.pwm.<name>.offset (HAL_FLOAT)
     These parameters provide a scale and offset from the value pin to the actual duty cycle. 
     The duty cycle is calculated according to duty_cycle = (value/scale) + offset, with 1.0
     meaning 100%.
