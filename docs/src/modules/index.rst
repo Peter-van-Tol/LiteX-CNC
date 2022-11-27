@@ -21,7 +21,7 @@ Contents
    :maxdepth: 2
 
    Watchdog <watchdog>
-   GPIO - In <gpio_in>
+   GPIO <gpio>
 
 Indices and tables
 ==================
