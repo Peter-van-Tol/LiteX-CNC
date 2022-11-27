@@ -39,6 +39,7 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx-code-tabs"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
