@@ -12,7 +12,8 @@ number of modules, as long as the following conditions are met:
   for pin location is not completely free.
 
 .. warning::
-    When replacing the buffers with wires, the pins accept only 3.3 Volt!
+    When replacing the buffers with wires, the pins accept only 3.3 Volt! Also the total power dissipation
+    of the FPGA should not be exceeded.
 
 .. toctree::
    :maxdepth: 2
@@ -20,4 +21,5 @@ number of modules, as long as the following conditions are met:
    Watchdog <watchdog>
    GPIO <gpio>
    PWM <pwm>
+   StepGen <stepgen>
  
