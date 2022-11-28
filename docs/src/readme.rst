@@ -58,9 +58,45 @@ Configuration of the FPGA
 Structure of the JSON file
 --------------------------
 
-Some examples of the 
+The structure of the JSON configuration file is given below. The configuration of the different modules
+is described in their :doc:`relevant sections </modules/index>`.
 
-...
+.. code-block:: json
+
+    "board_name": "test_PWM_GPIO",
+    "baseclass": "litexcnc.firmware.boards.ColorLight_5A_75E_V7_1",
+    "clock_frequency": 40000000,
+    "ethphy": {
+        "tx_delay": 0
+    },
+    "etherbone": {
+        "ip_address": "192.168.2.50",
+        "mac_address": "0x10e2d5000000"
+    },
+    ... (module-config)
+
+The definitions of the entries are:
+
+board_name
+    The name of the board. This name will be used in the HAL.
+base_class
+    The type of FPGA board. Available types are (case-sensistive!):
+    
+    * ``litexcnc.firmware.boards.ColorLight_5A_75B_V6_1`` 
+    * ``litexcnc.firmware.boards.ColorLight_5A_75B_V7_0`` 
+    * ``litexcnc.firmware.boards.ColorLight_5A_75B_V8_0`` 
+    * ``litexcnc.firmware.boards.ColorLight_5A_75E_V6_0`` 
+    * ``litexcnc.firmware.boards.ColorLight_5A_75E_V7_1`` 
+
+clock_frequency
+    The clock-frequency of the board. Recommended value is 40 MHz.
+ethphy
+    Settings for the ethernet adapter, use default value as shown in example
+etherbone
+    Settings for mac-address and ip-address. Change to the needs of the project.
+
+Some example configuration are given in the :doc:`examples sections </examples/index>`.
+
 
 Building the firmware (bit-file)
 --------------------------------

@@ -14,6 +14,7 @@ Contents
 
    Overview <readme>
    Modules <modules/index>
+   Examples <examples/index>
    License <license>
    Changelog <changelog>
 
