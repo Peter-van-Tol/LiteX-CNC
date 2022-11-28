@@ -32,12 +32,12 @@ examples are:
    :header: "Board version", "IP-address", "GPIO (in/out)", "PWM", "Stepgen (type)", "Encoders (type)", "Change buffers", "Link"
    :widths: auto
 
-   "V6.1", "192.168.2.50", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v6.1_i12o14p6s6e6.json>` / :download:`indexed <./named/5a-75b_v6.1_i12o14p6s6e6.json>`
-   "V6.1", "192.168.2.50", "24 / 28", "6", "-", "-", "U28, U24, U23", 
-   "V7.0", "192.168.2.50", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v7.0_i12o14p6s6e6.json>` / :download:`indexed <./named/5a-75b_v7.0_i12o14p6s6e6.json>`
-   "V7.0", "192.168.2.50", "24 / 28", "6", "-", "-", "U28, U24, U23", 
-   "V8.0", "192.168.2.50", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v8.0_i12o14p6s6e6.json>` / :download:`indexed <./named/5a-75b_v8.0_i12o14p6s6e6.json>`
-   "V8.0", "192.168.2.50", "24 / 28", "6", "-", "-", "U28, U24, U23", 
+   "V6.1", "192.168.2.50", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v6.1_i12o14p6s6e6.json>` / :download:`named <./named/5a-75b_v6.1_i12o14p6s6e6.json>`
+   "V6.1", "192.168.2.50", "24 / 28", "6", "\-", "\-", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v6.1_i24o32.json>` / :download:`named <./named/5a-75b_v6.1_i24o32.json>`
+   "V7.0", "192.168.2.50", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v7.0_i12o14p6s6e6.json>` / :download:`named <./named/5a-75b_v7.0_i12o14p6s6e6.json>`
+   "V7.0", "192.168.2.50", "24 / 28", "6", "\-", "\-", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v7.0_i24o32.json>` / :download:`named <./named/5a-75b_v7.0_i24o32.json>`
+   "V8.0", "192.168.2.50", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v8.0_i12o14p6s6e6.json>` / :download:`named <./named/5a-75b_v8.0_i12o14p6s6e6.json>`
+   "V8.0", "192.168.2.50", "24 / 28", "6", "\-", "\-", "U28, U24, U23", :download:`indexed <./indexed/5a-75b_v8.0_i24o32.json>` / :download:`named <./named/5a-75b_v8.0_i24o32.json>`
 
 5A-75E
 ======
