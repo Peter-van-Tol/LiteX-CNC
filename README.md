@@ -62,21 +62,27 @@ wget https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py
 python3 litex_setup.py --init --install --config=standard --gcc=riscv
 cd ..
 ```
+LiteX is installed in ~/local/bin. add this to PATH by starting a new bash shell:
+```bash
+bash --login
+```
 
 Next, install Yosys:
 ```bash
-wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-09-20/oss-cad-suite-linux-x64-20220920.tgz
-tar -xvf oss-cad-suite-linux-x64-20220920.tgz
-mkdir -p ~/bin
-ln -s ~/oss-cad-suite/bin/* ~/bin/
-```
-Make sure yosys is added to the PATH:
-```bash
-bash --login
-echo $PATH
+wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-04/oss-cad-suite-linux-x64-20221204.tgz
+tar -xvf oss-cad-suite-linux-x64-20221204.tgz
 ```
 
-Next, clone the repository with the source code:
+Add Yosys to the PATH by adding this line to ~/.bashrc
+```bash
+export PATH="$HOME/oss-cad-suite/bin:$PATH"
+```
+Make the change to ~/.bashrc active by this command:
+```bash
+source ~/.bashrc
+```
+
+Next, clone the LiteX-CNC repository:
 ```bash
 git clone https://github.com/Peter-van-Tol/LiteX-CNC.git
 cd LiteX-CNC
