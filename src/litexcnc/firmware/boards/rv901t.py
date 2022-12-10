@@ -325,6 +325,7 @@ class RV901T(SoCMini):
         platform = RV901T_Platform()
 
         # SoCMini -------------------------------------------------------------
+        self.clock_frequency = config.clock_frequency
         SoCMini.__init__(self, platform, config.clock_frequency,
             ident          = config.board_name,
             ident_version  = True

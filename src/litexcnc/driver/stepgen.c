@@ -81,9 +81,12 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
 
             // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
+            int8_t shift = 0;
+            while (litexcnc->clock_frequency / (1 << shift) > 400e3)
+                shift += 1;
             instance->data.pick_off_pos = 32;
-            instance->data.pick_off_vel = 40;
-            instance->data.pick_off_acc = 48;
+            instance->data.pick_off_vel = instance->data.pick_off_pos + shift;
+            instance->data.pick_off_acc = instance->data.pick_off_vel + 8;
 
             // Create the basename
             if (json_object_object_get_ex(instance_config, "name", &instance_config_name_field)) {
