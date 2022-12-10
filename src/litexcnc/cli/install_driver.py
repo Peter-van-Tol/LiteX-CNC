@@ -31,6 +31,7 @@ def cli():
     )
     if ret:
         click.echo(click.style("Error", fg="red") + ": Compilation of the driver failed.")
+        return
 
     # Done!
     click.echo(click.style("INFO", fg="blue") + ": LitexCNC driver installed")
