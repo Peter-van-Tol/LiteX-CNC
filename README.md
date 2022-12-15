@@ -44,7 +44,7 @@ This project would not be possible without:
 ## Firmware
 ### Installation
 
-This guide is written for a default installation of linuxcnc-2.8.2-buster. The steps may differ for other distributions.
+This guide is tested on a default installation of LinuxCNC 2.8.4 Debian 10 Buster. The steps may differ for other distributions.
 
 Firstly install the needed packages to compile the firmware:
 ```bash
@@ -69,8 +69,8 @@ bash --login
 
 Next, install Yosys:
 ```bash
-wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-04/oss-cad-suite-linux-x64-20221204.tgz
-tar -xvf oss-cad-suite-linux-x64-20221204.tgz
+wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-15/oss-cad-suite-linux-x64-20221215.tgz
+tar -xvf oss-cad-suite-linux-x64-20221215.tgz
 ```
 
 Add Yosys to the PATH by adding this line to ~/.bashrc
