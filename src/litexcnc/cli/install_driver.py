@@ -25,7 +25,7 @@ def cli():
     # compile the driver
     click.echo(click.style("INFO", fg="blue") + ": Compiling LitexCNC driver...")
     ret = subprocess.call(
-        f'{sys.executable} halcompile.py --install litexcnc.c litexcnc_eth.c litexcnc_debug.c',
+        f'{sys.executable} halcompile.py --install litexcnc.c litexcnc_eth.c litexcnc_debug.c stepgen/pos2vel.c',
         cwd=os.path.dirname(os.path.abspath(driver.__file__)),
         shell=True
     )

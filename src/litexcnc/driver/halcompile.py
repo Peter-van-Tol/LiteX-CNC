@@ -1079,7 +1079,7 @@ def find_modinc():
         raise FileNotFoundError()
     d = os.path.abspath(os.path.dirname(os.path.dirname(location)))
     # d = os.path.abspath(os.path.dirname(os.path.dirname(sys.argv[0])))
-    for e in ['src', 'etc/linuxcnc', '/etc/linuxcnc', 'share/linuxcnc']:
+    for e in ['src', 'etc/linuxcnc', '/etc/linuxcnc', '/usr/share/linuxcnc']:
         e = os.path.join(d, e, 'Makefile.modinc')
         if os.path.exists(e):
             modinc = e
