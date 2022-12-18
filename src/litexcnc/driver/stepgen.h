@@ -52,10 +52,8 @@ typedef struct {
             hal_float_t *speed_fb;            /* The current speed, in length units per second (see parameter position-scale). */ 
             hal_float_t *speed_prediction;    /* The predicted speed, in length units per second (see parameter position-scale), at the start of the next position command execution */ 
             hal_bit_t   *enable;              /* Enables output steps - when false, no steps are generated and is the hardware disabled */
-            hal_float_t *velocity_cmd1;       /* Commanded velocity for the first phase, in length units per second (see parameter position-scale). */
-            hal_float_t *velocity_cmd2;       /* Commanded velocity for the second phase, in length units per second (see parameter position-scale). */
-            hal_float_t *acceleration_cmd1;   /* Commanded acceleration for the first phase, in length units per second squared (see parameter position-scale). */
-            hal_float_t *acceleration_cmd2;   /* Commanded acceleration for the second phase, in length units per second squared (see parameter position-scale). */
+            hal_float_t *velocity_cmd;        /* Commanded velocity, in length units per second (see parameter position-scale). */
+            hal_float_t *acceleration_cmd;    /* Commanded acceleration, in length units per second squared (see parameter position-scale). */
             hal_bit_t   *debug;               /* Flag indicating whether all positional data will be printed to the command line */
             hal_float_t *period_s;            /* The calculated period (averaged over 10 cycles) based on the FPGA wall clock */ 
             hal_float_t *period_s_recip;      /* The reciprocal of the calculated period. Calculated here once, to prevent slow division on multiple locations */ 
@@ -105,19 +103,13 @@ typedef struct {
         size_t pick_off_vel;
         size_t pick_off_acc;
         // The data being send to the FPGA (as calculated)
-        float acc1;
-        float speed1;
-        float time1;
-        float acc2;
-        float speed2;
-        float time2;
+        float flt_acc;
+        float flt_speed;
+        float flt_time;
         // The data being send to the FPGA (as sent)
-        uint32_t fpga_acc1;
-        uint32_t fpga_speed1;
-        uint32_t fpga_time1;
-        uint32_t fpga_acc2;
-        uint32_t fpga_speed2;
-        uint32_t fpga_time2;
+        uint32_t fpga_acc;
+        uint32_t fpga_speed;
+        uint32_t fpga_time;
         // Scales for converting from float to FPGA and vice versa
         float fpga_pos_scale_inv;
         float fpga_speed_scale;
@@ -154,7 +146,7 @@ typedef struct {
         float period_s;
         float period_s_recip;
         float cycles_per_period;
-        uint32_t steplen;
+        uint32_t steplen_cycles;
         uint32_t stepspace_cycles;
         uint64_t apply_time;
         uint64_t prev_wall_clock;
@@ -178,9 +170,7 @@ typedef struct {
 // - config
 #pragma pack(push, 4)
 typedef struct {
-    uint32_t steplen;
-    uint32_t dir_hold_time;
-    uint32_t dir_setup_time;
+    uint32_t stepdata;
 } litexcnc_stepgen_config_data_t;
 #pragma pack(pop)
 #define LITEXCNC_STEPGEN_CONFIG_DATA_SIZE sizeof(litexcnc_stepgen_config_data_t)
@@ -193,11 +183,8 @@ typedef struct {
 #define LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_general_write_data_t)
 #pragma pack(push,4)
 typedef struct {
-    uint32_t speed_target1;
-    uint32_t acceleration1;
-    uint32_t part1_cycles;
-    uint32_t speed_target2;
-    uint32_t acceleration2;
+    uint32_t speed_target;
+    uint32_t acceleration;
 } litexcnc_stepgen_instance_write_data_t;
 #pragma pack(pop)
 #define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_instance_write_data_t)
@@ -207,7 +194,6 @@ typedef struct {
 typedef struct {
     int64_t position;
     uint32_t speed;
-    int64_t apply_time2;
 } litexcnc_stepgen_instance_read_data_t;
 #pragma pack(pop)
 #define LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) litexcnc->stepgen.num_instances*sizeof(litexcnc_stepgen_instance_read_data_t)

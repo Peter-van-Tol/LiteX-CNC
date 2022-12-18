@@ -10,8 +10,8 @@ from .encoder import EncoderConfig
 from .etherbone import Etherbone, EthPhy
 from .gpio import GPIO, GPIO_Out, GPIO_In
 from .mmio import MMIO
-from .pwm import PWM, PwmPdmModule
-from .stepgen import StepgenConfig, StepgenModule #StepgenModuleFactory
+from .pwm import PWMConfig, PwmPdmModule
+from .stepgen import StepgenConfig, StepgenModule
 from .watchdog import WatchDogModule
 
 
@@ -36,24 +36,23 @@ class LitexCNC_Firmware(BaseModel):
     gpio_in: List[GPIO] = Field(
         [],
         item_type=GPIO,
-        max_items=32,
+        # max_items=32,
         unique_items=True
     )
     gpio_out: List[GPIO] = Field(
         [],
         item_type=GPIO,
-        max_items=32,
+        # max_items=32,
         unique_items=True
     )
-    pwm: List[PWM] = Field(
+    pwm: List[PWMConfig] = Field(
         [],
-        item_type=PWM,
-        max_items=32,
+        item_type=PWMConfig,
         unique_items=True
     )
     stepgen: List[StepgenConfig] = Field(
         [],
-        item_type=PWM,
+        item_type=StepgenConfig,
         max_items=32,
         unique_items=True
     )
@@ -109,33 +108,13 @@ class LitexCNC_Firmware(BaseModel):
                     # self.MMIO_inst.wall_clock.we.eq(True)
                 ]
 
-                # Create GPIO 
+                # Create modules
+                # - GPIO 
                 GPIO_In.create_from_config(self, config.gpio_in)
                 GPIO_Out.create_from_config(self, config.gpio_out)
-
-                # Create PWM
-                # - create the physical output pins
-                if config.pwm:
-                    self.platform.add_extension([
-                        ("pwm", index, Pins(pwm_instance.pin), IOStandard(pwm_instance.io_standard))
-                        for index, pwm_instance 
-                        in enumerate(config.pwm)
-                    ])
-                    self.pwm_outputs = [pad for pad in self.platform.request_all("pwm").l]
-                    # - create the generators
-                    for index, _ in enumerate(config.pwm):
-                        # Add the PWM-module to the platform
-                        _pwm = PwmPdmModule(self.pwm_outputs[index], with_csr=False)
-                        self.submodules += _pwm
-                        self.sync+=[
-                            _pwm.enable.eq(
-                                getattr(self.MMIO_inst, f'pwm_{index}_enable').storage
-                                & ~watchdog.has_bitten),
-                            _pwm.period.eq(getattr(self.MMIO_inst, f'pwm_{index}_period').storage),
-                            _pwm.width.eq(getattr(self.MMIO_inst, f'pwm_{index}_width').storage)
-                        ]
-
-                # Create StepGen
+                # - PWM/PDM
+                PwmPdmModule.create_from_config(self, watchdog,config.pwm)
+                # - StepGen
                 StepgenModule.create_from_config(self, watchdog, config.stepgen)
                 
         return _LitexCNC_SoC(

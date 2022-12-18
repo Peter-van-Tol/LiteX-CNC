@@ -41,6 +41,8 @@ class GPIO_Out(Module, AutoDoc):
         # AutoDoc implementation
         self.intro = ModuleDoc("Module for creating output signals.")
         
+        # for index, pad in enumerate(pads):
+        #     self.sync += pad.eq(register[index])
         # Implementation of GPIO_out, the output signal has the same width
         # as the number of GPIO out (they share the same register)
         pads = _to_signal(pads)

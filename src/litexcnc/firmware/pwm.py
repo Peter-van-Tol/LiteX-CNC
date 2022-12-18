@@ -1,12 +1,17 @@
+import math
+from typing import List
 # Imports for creating a json-definition
 from pydantic import BaseModel, Field
 # Imports for creating a LiteX/Migen module
+from litex.build.generic_platform import Pins, IOStandard
+from litex.soc.integration.soc import SoC
 from litex.soc.interconnect.csr import *
 from migen import *
 from migen.genlib.cdc import MultiReg
 
 
-class PWM(BaseModel):
+
+class PWMConfig(BaseModel):
     pin: str = Field(
         description="The pin on the FPGA-card."
     )
@@ -101,3 +106,91 @@ class PwmPdmModule(Module, AutoCSR):
             MultiReg(self._width.storage,  self.width,  n=n),
             MultiReg(self._period.storage, self.period, n=n),
         ]
+
+    @classmethod
+    def add_mmio_read_registers(cls, mmio, config: List[PWMConfig]):
+        """
+        Adds the status registers to the MMIO.
+        NOTE: Status registers are meant to be read by LinuxCNC and contain
+        the current status of the stepgen.
+        """
+        # Don't create the registers when the config is empty (no stepgens
+        # defined in this case)
+        if not config:
+            return
+
+        # PWM does not have any read registers
+        return
+
+    @classmethod
+    def add_mmio_write_registers(cls, mmio, config: List[PWMConfig]):
+        """
+        Adds the storage registers to the MMIO.
+        NOTE: Storage registers are meant to be written by LinuxCNC and contain
+        the flags and configuration for the module.
+        """
+        # Don't create the registers when the config is empty (no encoders
+        # defined in this case)
+        if not config:
+            return
+
+        mmio.pwm_enable = CSRStorage(
+            size=int(math.ceil(float(len(config))/32))*32,
+            name='gpio_out',
+            description="Register containing the bits to be written to the GPIO out pins.", 
+            write_from_dev=False
+        )
+
+        # Speed and acceleration settings for the next movement segment
+        for index, _ in enumerate(config):
+            setattr(
+                mmio,
+                f'pwm_{index}_period', 
+                CSRStorage(
+                    size=32, 
+                    description=f'pwm_{index}_period', 
+                    name=f'pwm_{index}_period', 
+                    write_from_dev=False
+                )
+            )
+            setattr(
+                mmio,
+                f'pwm_{index}_width', 
+                CSRStorage(
+                    size=32, 
+                    description=f'pwm_{index}_width',
+                    name=f'pwm_{index}_width',
+                    write_from_dev=False
+                )
+            )
+
+    @classmethod
+    def create_from_config(cls, soc: SoC, watchdog, config: List[PWMConfig]):
+        """
+        Adds the module as defined in the configuration to the SoC.
+        NOTE: the configuration must be a list and should contain all the module at
+        once. Otherwise naming conflicts will occur.
+        """
+        # Don't create the module when the config is empty (no stepgens 
+        # defined in this case)
+        if not config:
+            return
+
+        # Add module and create the pads
+        soc.platform.add_extension([
+            ("pwm", index, Pins(pwm_instance.pin), IOStandard(pwm_instance.io_standard))
+            for index, pwm_instance 
+            in enumerate(config)
+        ])
+        soc.pwm_outputs = [pad for pad in soc.platform.request_all("pwm").l]
+
+        # Create the generators
+        for index, _ in enumerate(config):
+            # Add the PWM-module to the platform
+            _pwm = PwmPdmModule(soc.pwm_outputs[index], with_csr=False)
+            soc.submodules += _pwm
+            soc.comb += [
+                _pwm.enable.eq(soc.MMIO_inst.pwm_enable.storage[index] & ~watchdog.has_bitten),
+                _pwm.period.eq(getattr(soc.MMIO_inst, f'pwm_{index}_period').storage),
+                _pwm.width.eq(getattr(soc.MMIO_inst, f'pwm_{index}_width').storage)
+            ]
