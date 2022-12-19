@@ -44,9 +44,13 @@ class LitexCncCLI(click.MultiCommand):
     def get_command(self, ctx, name):
         ns = {}
         fn = os.path.join(self.PLUGIN_FOLDER, name + '.py')
-        with open(fn) as f:
-            code = compile(f.read(), fn, 'exec')
-            eval(code, ns, ns)
+        try:
+            with open(fn) as f:
+                code = compile(f.read(), fn, 'exec')
+                eval(code, ns, ns)
+        except FileNotFoundError:
+            # Return nothing, click will display a nice message for us
+            return
         return ns['cli']
 
 cli = LitexCncCLI(help='Command-line tools for LitxCNC.')

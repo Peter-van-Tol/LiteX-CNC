@@ -73,7 +73,7 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, json_object *config) {
 
     // Create pins
     // - has_bitten
-    rtapi_snprintf(name, sizeof(name), "%s.watchdog.enable", litexcnc->fpga->name); 
+    rtapi_snprintf(name, sizeof(name), "%s.watchdog.has_bitten", litexcnc->fpga->name); 
     r = hal_pin_bit_new(name, HAL_IO, &(litexcnc->watchdog->hal.pin.has_bitten), litexcnc->fpga->comp_id);
     if (r < 0) {
         LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
@@ -139,7 +139,7 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
     // Check whether the watchdog did bite
     if (*(*data)) {
-        // LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten");
+        LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten.");
         *(litexcnc->watchdog->hal.pin.has_bitten) = 1;
     }
 

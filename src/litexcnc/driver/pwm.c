@@ -190,8 +190,25 @@ uint8_t litexcnc_pwm_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
     // - enable (Signal(): 1-bit unsigned integer / boolean, but stored in a 32-bit wide format)
     // - period (Signal(32): 32-bit unsigned integer)
     // - width  (Signal(32): 32-bit unsigned integer)
+    static double duty_cycle;
 
-    double duty_cycle;
+    // Process enable signal
+    static uint8_t mask;
+    mask = 0x80;
+    for (size_t i=LITEXCNC_PWM_ENABLE_DATA_WRITE_SIZE(litexcnc)*8; i>0; i--) {
+        // The counter i can have a value outside the range of possible pins. We only
+        // should add data from existing pins
+        if (i <= litexcnc->pwm.num_instances) {
+            *(*data) |= (*(litexcnc->pwm.instances[i-1].hal.pin.enable))?mask:0;
+        }
+        // Modify the mask for the next. When the mask is zero (happens in case of a 
+        // roll-over), we should proceed to the next byte and reset the mask.
+        mask >>= 1;
+        if (!mask) {
+            mask = 0x80;  // Reset the mask
+            (*data)++; // Proceed the buffer to the next element
+        }
+    }
 
     // Process all instances
     for (size_t i=0; i < litexcnc->pwm.num_instances; i++) {
@@ -288,7 +305,6 @@ uint8_t litexcnc_pwm_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 
         // Add the PWM generator to the data
         litexcnc_pwm_data_t output;
-        output.enable = htobe32(*(instance->hal.pin.enable));
         output.period = htobe32(*(instance->hal.pin.curr_period));
         output.width = htobe32(*(instance->hal.pin.curr_width));
 

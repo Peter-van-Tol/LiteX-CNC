@@ -1,9 +1,5 @@
-import binascii
-from os import major
-
 from random import setstate
 from typing import List
-import math
 from packaging.version import Version
 
 # Import from litex
@@ -15,6 +11,7 @@ from migen import *
 from . import __version__
 from .encoder import EncoderModule
 from .gpio import GPIO_Out, GPIO_In
+from .pwm import PwmPdmModule
 from .stepgen import StepgenModule
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -101,17 +98,10 @@ class MMIO(Module, AutoCSR):
             name='watchdog_data',
             write_from_dev=True
         )
-        # - GPIO
+        # - Modules
         GPIO_Out.add_mmio_write_registers(self, config.gpio_out)
-        # - PWM
-        if config.pwm:
-            for index, _ in enumerate(config.pwm):
-                setattr(self, f'pwm_{index}_enable', CSRStorage(size=32, description=f'pwm_{index}_enable', name=f'pwm_{index}_enable', write_from_dev=False))
-                setattr(self, f'pwm_{index}_period', CSRStorage(size=32, description=f'pwm_{index}_period', name=f'pwm_{index}_period', write_from_dev=False))
-                setattr(self, f'pwm_{index}_width', CSRStorage(size=32, description=f'pwm_{index}_width', name=f'pwm_{index}_width', write_from_dev=False))
-        # - Stepgen
+        PwmPdmModule.add_mmio_write_registers(self, config.pwm)
         StepgenModule.add_mmio_write_registers(self, config.stepgen)
-        # - Encoder (new style!)
         EncoderModule.add_mmio_write_registers(self, config.encoders)
 
         # INPUT (as seen from the PC!)
@@ -133,4 +123,5 @@ class MMIO(Module, AutoCSR):
         # Modules
         GPIO_In.add_mmio_read_registers(self, config.gpio_in)
         StepgenModule.add_mmio_read_registers(self, config.stepgen)
+        EncoderModule.add_mmio_read_registers(self, config.encoders)
         EncoderModule.add_mmio_read_registers(self, config.encoders)

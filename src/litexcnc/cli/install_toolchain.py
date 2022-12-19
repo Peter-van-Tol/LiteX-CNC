@@ -17,8 +17,9 @@ def cli(user):
         click.echo(click.style("INFO", fg="blue") + f": Downloading OSS-CAD-Suite ...")
         download = os.path.join(tempdirname, 'oss-cad-suite-linux-x64-20220227.tgz')
         response = requests.get(
-            'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-02-27/oss-cad-suite-linux-x64-20220227.tgz'
+            'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-07/oss-cad-suite-linux-x64-20221207.tgz'
         )
+        response.raise_for_status()
         open(download, 'wb').write(response.content)
 
         # Determine the folder to unpack the tar-ball to
@@ -49,7 +50,7 @@ def cli(user):
 
         # Source the file created to put OSS CAD Suite directly on path
         click.echo(click.style("INFO", fg="blue") + f": Sourcing environment variables ...")
-        os.environ["PATH"] += f'{target}/oss-cad-suite/bin'
+        os.environ["PATH"] += f':{target}/oss-cad-suite/bin'
 
         # Done!
         click.echo(click.style("INFO", fg="blue") + f": OSS-CAD-Suite successfully installed")
