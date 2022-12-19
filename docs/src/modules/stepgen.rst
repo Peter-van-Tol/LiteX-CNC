@@ -3,7 +3,7 @@ StepGen
 =======
 
 The module ``StepGen`` is used to control stepper motors. The maximum step rate is not limited by
-software or CPU, but rather by the speed of the FPGA. Based on a 50 MHz FPGA the maximum step frequency
+software or CPU, but rather by the speed of the FPGA. Based on the FPGA frequency the maximum step frequency
 is tuned to be approximately 400 kHz. The maximum step frequency scales linearly with the FPGA frequency
 
 In contrast to the `LinuxCNC stepgen component <https://linuxcnc.org/docs/html/man/man9/stepgen.9.html>`_, 
@@ -87,17 +87,11 @@ Input pins
 
 <board-name>.stepgen.<index/name>.enable (HAL_BIT)
     Enables output steps - when false, no steps are generated and is the hardware disabled.
-<board-name>.stepgen.<index/name>.velocity-cmd1 (HAL_FLOAT)
-    Commanded velocity for the first phase, in length units per second (see parameter
+<board-name>.stepgen.<index/name>.velocity-cmd (HAL_FLOAT)
+    Commanded velocity, in length units per second (see parameter
     position-scale).
-<board-name>.stepgen.<index/name>.velocity-cmd2 (HAL_FLOAT)
-    Commanded velocity for the second phase, in length units per second (see parameter
-    position-scale). When using the component ``pos2vel`` is used to convert the position
-    command to velocity command, this pin should be set to the same value as ``velocity-cmd1``
-<board-name>.stepgen.<index/name>.acceleration-cmd1 (HAL_FLOAT)
-    The acceleration used to accelarate from the current velocity to ``velocity-cmd1``.
-<board-name>.stepgen.<index/name>.acceleration-cmd2 (HAL_FLOAT)
-    The acceleration used to accelarate from ``velocity-cmd1`` to ``velocity-cmd2``.
+<board-name>.stepgen.<index/name>.acceleration-cmd (HAL_FLOAT)
+    The acceleration used to accelarate from the current velocity to ``velocity-cmd``.
 
 Output pins
 -----------
@@ -229,12 +223,9 @@ The code below gives an example for a single axis, using the ``step-dir`` step t
     setp [LITEXCNC](NAME).stepgen.00.max-acceleration [JOINT_2]STEPGEN_MAXACCEL
     # setp [LITEXCNC](NAME).stepgen.00.debug 1
     # - Connect velocity command
-    net xvel-cmd <= pos2vel.0.velocity-cmd
-    net xvel-cmd => [LITEXCNC](NAME).stepgen.00.velocity-cmd1
-    net xvel-cmd => [LITEXCNC](NAME).stepgen.00.velocity-cmd2
+    net  pos2vel.0.velocity-cmd => [LITEXCNC](NAME).stepgen.00.velocity-cmd
     # - Set the acceleration to be used (NOTE: pos2vel has fixed acceleration)
-    setp [LITEXCNC](NAME).stepgen.00.acceleration-cmd1 [JOINT_2]STEPGEN_MAXACCEL
-    setp [LITEXCNC](NAME).stepgen.00.acceleration-cmd2 [JOINT_2]STEPGEN_MAXACCEL
+    setp [LITEXCNC](NAME).stepgen.00.acceleration-cmd [JOINT_2]STEPGEN_MAXACCEL
     # - enable the drive
     net xenable joint.0.amp-enable-out => [LITEXCNC](NAME).stepgen.00.enable
 
