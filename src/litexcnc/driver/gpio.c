@@ -135,7 +135,8 @@ uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
     }
 
     // Process all the bytes
-    uint8_t mask = 0x80;
+    static uint8_t mask;
+    mask = 0x80;
     for (size_t i=LITEXCNC_BOARD_GPIO_DATA_WRITE_SIZE(litexcnc)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible pins. We only
         // should add data from existing pins
@@ -161,7 +162,8 @@ uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     }
 
     // Process all the bytes
-    uint8_t mask = 0x80;
+    static uint8_t mask;
+    mask = 0x80;
     for (size_t i=LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible pins. We only
         // should add data to existing pins
