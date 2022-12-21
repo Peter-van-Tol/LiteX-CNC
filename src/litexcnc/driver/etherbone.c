@@ -89,11 +89,13 @@ void eb_wait_for_tx_buffer_empty(struct eb_connection *conn) {
     
 }
 
+
 int eb_send(struct eb_connection *conn, const void *bytes, size_t len) {
     if (conn->is_direct)
         return sendto(conn->fd, bytes, len, 0, conn->addr->ai_addr, conn->addr->ai_addrlen);
     return write(conn->fd, bytes, len);
 }
+
 
 int eb_recv(struct eb_connection *conn, void *bytes, size_t max_len) {
     if (conn->is_direct)
@@ -101,57 +103,34 @@ int eb_recv(struct eb_connection *conn, void *bytes, size_t max_len) {
     return read(conn->fd, bytes, max_len);
 }
 
-int eb_create_packet(uint8_t* eth_pkt, uint32_t address, const uint8_t* data, size_t size, int is_read) {
-    // Etherbone header
-    eth_pkt[0] = 0x4e;	     // Magic byte 0
-    eth_pkt[1] = 0x6f;	     // Magic byte 1
-    eth_pkt[2] = 0x10;	     // Version 1, all other flags 0
-    eth_pkt[3] = 0x44;	     // Address is 32-bits, port is 32-bits
-    eth_pkt[4] = 0;		     // Padding
-    eth_pkt[5] = 0;		     // Padding
-    eth_pkt[6] = 0;	 	     // Padding
-    eth_pkt[7] = 0;	 	     // Padding
-    // Record
-    eth_pkt[8] = 0;		     // No Wishbone flags are set (cyc, wca, wff, etc.)
-    eth_pkt[9] = 0x0f;	     // Byte enable
-    
-    if (is_read) {
-        // Indicate a read action
-        eth_pkt[10] = 0;         // Write count 
-        eth_pkt[11] = size >> 2; // Read count (in WORD-count, bitshift to divide by 4)
-        // Copy the data
-        memcpy(&eth_pkt[16], data, size);
-    } else {
-        // Indicate a write action
-        eth_pkt[10] = size >> 2; // Write count (in WORD-count, bitshift to divide by 4)
-        eth_pkt[11] = 0;	     // Read count
-        // Store the address
-        address = htobe32(address);
-        memcpy(&eth_pkt[12], &address, sizeof(address));
-        // Copy the data
-        memcpy(&eth_pkt[16], data, size);
-    }
-}
 
 int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t size, bool debug) {
-    // Create a buffer for the header (16 bytes) + payload (<size> bytes) and
-    // copy the header + data to it
+    // Create a buffer for the header (16 bytes) + maximum payload size (255). The header of the etherbone
+    // package consist of the following fields:
+    // 0x00 = 0x4e;	     // Magic byte 0
+    // 0x01 = 0x6f;	     // Magic byte 1
+    // 0x02 = 0x10;	     // Version 1, all other flags 0
+    // 0x03 = 0x44;   	 // Address is 32-bits, port is 32-bits
+    // 0x04 = 0;		 // Padding
+    // 0x05 = 0;		 // Padding
+    // 0x06 = 0;	 	 // Padding
+    // 0x07 = 0;	 	 // Padding
+    // 0x08 = 0;		 // No Wishbone flags are set (cyc, wca, wff, etc.)
+    // 0x09 = 0x0f;	     // Byte enable
+    static uint8_t eth_pkt[16+255] = { 0x4e, 0x6f, 0x10, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f };
+    static uint8_t response[16+255];
 
-#ifdef TIME_ETHERBONE  
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
-#endif
-
-    // Allocate space for the packet and initialize it to all zeros
-    uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
-    memset((void*) eth_pkt, 0, sizeof(eth_pkt));
-
-    // Convert the addresses to a list and set it to the device
-    for (size_t i=0; i<size; i+=4) {
-        uint32_t temp;
-        temp = htobe32(address + i);
-        memcpy(&data[i], &temp, 4);
+     // Clear data and write data to package
+    memset((void*) &eth_pkt[16], 0, 255);
+    // - size
+    size_t words = size >> 2;
+    eth_pkt[11] = words; // Write count (in WORD-count, bitshift to divide by 4)
+    // - addresses to read
+    uint32_t addresses[words];
+    for (size_t i=0; i<words; i++) {
+        addresses[i] = htobe32(address + (i << 2));
     }
-    eb_create_packet(eth_pkt, address, data, size, 1);
+    memcpy(&eth_pkt[16], addresses, size);
 
     if (debug) {
         LITEXCNC_PRINT_NO_DEVICE("Read addresses:\n");
@@ -164,42 +143,16 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
         }
     }
 
-#ifdef TIME_ETHERBONE
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    create_packet += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-#endif
-
-#ifdef TIME_ETHERBONE  
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
-#endif
-
     // Send the data to the device
     eb_send(conn, eth_pkt, 16+size);
 
-#ifdef TIME_ETHERBONE
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    send_adresses += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-#endif
-
     // Check response
-    uint8_t response[16+size];
-
-#ifdef TIME_ETHERBONE  
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
-#endif
+    memset((void*) response, 0, 16+255);
     int count = eb_recv(conn, response, 16+size);
-#ifdef TIME_ETHERBONE
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    receive_data += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-#endif
-    if (count != sizeof(response)) {
-        fprintf(stderr, "Unexpected read length: %d, expected %d\n", count, sizeof(response));
+    if (count != (16+size)) {
+        fprintf(stderr, "Unexpected read length: %d, expected %d\n", count, (16+size));
         return -1;
     }
-
-#ifdef TIME_ETHERBONE  
-    clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
-#endif
 
     // Unpack results
     memcpy(data, &response[16], size);
@@ -214,42 +167,33 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
                 (unsigned char)data[i+3]);
         }
     }
-
-#ifdef TIME_ETHERBONE
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    unpack_data += (end.tv_nsec - begin.tv_nsec) + 1e9 * (end.tv_sec  - begin.tv_sec);
-#endif
-
-#ifdef TIME_ETHERBONE
-    // Increase the counter
-    loops_read++;
-    // When 1000 loops occurred, print out the statistics
-    if (loops_read >= 1000) {
-        // Reset the counter
-        loops_read = 0;
-        // Print statistics
-        LITEXCNC_PRINT_NO_DEVICE("Etherbone read statistics (1000 cycles)\n - create packet: %u ns\n - send adresses: %u ns\n - receive_data: %u ns\n - unpack data: %u ns\n",
-            create_packet,
-            send_adresses,
-            receive_data,
-            unpack_data
-        );
-        // Reset counters
-        create_packet = 0;
-        send_adresses = 0;
-        receive_data = 0;
-        unpack_data = 0;
-    }
-#endif
 }
 
 
 void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data, size_t size, bool debug) {
-    // Create a buffer for the header (16 bytes) + payload (<size> bytes) and
-    // copy the header + data to it
-    uint8_t *eth_pkt = malloc((16+size) * sizeof(*eth_pkt));
-    memset((void*) eth_pkt, 0, sizeof(eth_pkt));
-    eb_create_packet(eth_pkt, address, data, size, 0);
+    // Create a buffer for the header (16 bytes) + maximum payload size (255). The header of the etherbone
+    // package consist of the following fields:
+    // 0x00 = 0x4e;	     // Magic byte 0
+    // 0x01 = 0x6f;	     // Magic byte 1
+    // 0x02 = 0x10;	     // Version 1, all other flags 0
+    // 0x03 = 0x44;   	 // Address is 32-bits, port is 32-bits
+    // 0x04 = 0;		 // Padding
+    // 0x05 = 0;		 // Padding
+    // 0x06 = 0;	 	 // Padding
+    // 0x07 = 0;	 	 // Padding
+    // 0x08 = 0;		 // No Wishbone flags are set (cyc, wca, wff, etc.)
+    // 0x09 = 0x0f;	     // Byte enable
+    static uint8_t eth_pkt[16+255] = { 0x4e, 0x6f, 0x10, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f };
+    
+    // Clear data and write data to package
+    memset((void*) &eth_pkt[16], 0, 255);
+    // - size
+    eth_pkt[10] = size >> 2; // Write count (in WORD-count, bitshift to divide by 4)
+    // - address
+    address = htobe32(address);
+    memcpy(eth_pkt + 12, &address, 4);
+    // - data
+    memcpy(eth_pkt + 16, data, size);
 
     if (debug) {
         LITEXCNC_PRINT_NO_DEVICE("Write:\n");
@@ -298,77 +242,6 @@ void eb_discard_pending_packet(struct eb_connection *conn, size_t size)
     }
 }
 
-
-int eb_unfill_read32(uint8_t wb_buffer[20]) {
-    int buffer;
-    uint32_t intermediate;
-    memcpy(&intermediate, &wb_buffer[16], sizeof(intermediate));
-    intermediate = be32toh(intermediate);
-    memcpy(&buffer, &intermediate, sizeof(intermediate));
-    return buffer;
-}
-
-int eb_fill_readwrite32(uint8_t wb_buffer[20], uint32_t data, uint32_t address, int is_read) {
-    memset(wb_buffer, 0, 20);
-    wb_buffer[0] = 0x4e;	// Magic byte 0
-    wb_buffer[1] = 0x6f;	// Magic byte 1
-    wb_buffer[2] = 0x10;	// Version 1, all other flags 0
-    wb_buffer[3] = 0x44;	// Address is 32-bits, port is 32-bits
-    wb_buffer[4] = 0;		// Padding
-    wb_buffer[5] = 0;		// Padding
-    wb_buffer[6] = 0;		// Padding
-    wb_buffer[7] = 0;		// Padding
-
-    // Record
-    wb_buffer[8] = 0;		// No Wishbone flags are set (cyc, wca, wff, etc.)
-    wb_buffer[9] = 0x0f;	// Byte enable
-
-    if (is_read) {
-        wb_buffer[10] = 0;  // Write count
-        wb_buffer[11] = 1;	// Read count
-        data = htobe32(address);
-        memcpy(&wb_buffer[16], &data, sizeof(data));
-    } else {
-        wb_buffer[10] = 1;	// Write count
-        wb_buffer[11] = 0;  // Read count
-        address = htobe32(address);
-        memcpy(&wb_buffer[12], &address, sizeof(address));
-
-        data = htobe32(data);
-        memcpy(&wb_buffer[16], &data, sizeof(data));
-    }
-    return 20;
-}
-
-int eb_fill_write32(uint8_t wb_buffer[20], uint32_t data, uint32_t address) {
-    return eb_fill_readwrite32(wb_buffer, data, address, 0);
-}
-
-int eb_fill_read32(uint8_t wb_buffer[20], uint32_t address) {
-    return eb_fill_readwrite32(wb_buffer, 0, address, 1);
-}
-
-
-
-void eb_write32(struct eb_connection *conn, uint32_t val, uint32_t addr) {
-    uint8_t raw_pkt[20];
-    eb_fill_write32(raw_pkt, val, addr);
-    eb_send(conn, raw_pkt, sizeof(raw_pkt));
-}
-
-uint32_t eb_read32(struct eb_connection *conn, uint32_t addr) {
-    uint8_t raw_pkt[20];
-    eb_fill_read32(raw_pkt, addr);
-
-    eb_send(conn, raw_pkt, sizeof(raw_pkt));
-
-    int count = eb_recv(conn, raw_pkt, sizeof(raw_pkt));
-    if (count != sizeof(raw_pkt)) {
-        fprintf(stderr, "unexpected read length: %d\n", count);
-        return -1;
-    }
-    return eb_unfill_read32(raw_pkt);
-}
 
 struct eb_connection *eb_connect(const char *addr, const char *port, int is_direct) {
 
