@@ -93,7 +93,7 @@ class EncoderModule(Module, AutoDoc):
     """Hardware counting of quadrature encoder signals."""
     pads_layout = [("pin_A", 1), ("pin_B", 1), ("pin_Z", 1)]
 
-    COUNTER_SIZE = 64
+    COUNTER_SIZE = 32
 
     def __init__(self, encoder_config: EncoderConfig, pads=None) -> None:
 
@@ -144,12 +144,12 @@ class EncoderModule(Module, AutoDoc):
         # Program
         # - Create the connections to the pads
         self.comb += [
-            pin_A.eq(pads.pin_A),
-            pin_B.eq(pads.pin_B),
+            pin_A.eq(pads.Encoder_A),
+            pin_B.eq(pads.Encoder_B),
         ]
         # - Add support for Z-index if pin is defined. If not, the Signal is set to be constant
-        if hasattr(pads, 'pin_Z'):
-            self.comb += pin_Z.eq(pads.pin_Z)
+        if hasattr(pads, 'Encoder_Z'):
+            self.comb += pin_Z.eq(pads.Encoder_Z)
         else:
             self.comb += pin_Z.eq(Constant(0))
         # - In most cases, the "quadX" signals are not synchronous to the FPGA clock. The
@@ -249,7 +249,7 @@ class EncoderModule(Module, AutoDoc):
                 mmio,
                 f'encoder_{index}_counter',
                 CSRStatus(
-                    size=64,
+                    size=cls.COUNTER_SIZE,
                     name=f'encoder_{index}_counter',
                     description="Encoder counter\n"
                     f"Register containing the count for register {index}."
@@ -290,7 +290,7 @@ class EncoderModule(Module, AutoDoc):
         )
 
     @classmethod
-    def add_to_soc(cls, soc: SoC, config: List[EncoderConfig]):
+    def create_from_config(cls, soc: SoC, config: List[EncoderConfig]):
         """
         Adds the encoders as defined in the configuration to the SoC.
 
@@ -307,25 +307,26 @@ class EncoderModule(Module, AutoDoc):
         #   outside the mainloop in a Cat-statement.
         index_pulse = []
         # - main loop for creating the encoders
-        for index, encoder_config in config:
+        for index, encoder_config in enumerate(config):
             # Add the io to the FPGA
-            if config.pin_Z is not None:
+            if encoder_config.pin_Z is not None:
                 soc.platform.add_extension([
                     ("encoder", index,
-                        Subsignal(Pins(encoder_config.pin_A), IOStandard(encoder_config.io_standard)),
-                        Subsignal(Pins(encoder_config.pin_B), IOStandard(encoder_config.io_standard)),
-                        Subsignal(Pins(encoder_config.pin_Z), IOStandard(encoder_config.io_standard))
+                        Subsignal("Encoder_A", Pins(encoder_config.pin_A), IOStandard(encoder_config.io_standard)),
+                        Subsignal("Encoder_B", Pins(encoder_config.pin_B), IOStandard(encoder_config.io_standard)),
+                        Subsignal("Encoder_Z", Pins(encoder_config.pin_Z), IOStandard(encoder_config.io_standard))
                     )
                 ])
             else:
                 soc.platform.add_extension([
                     ("encoder", index,
-                        Subsignal(Pins(encoder_config.pin_A), IOStandard(encoder_config.io_standard)),
-                        Subsignal(Pins(encoder_config.pin_B), IOStandard(encoder_config.io_standard))
+                        Subsignal("Encoder_A", Pins(encoder_config.pin_A), IOStandard(encoder_config.io_standard)),
+                        Subsignal("Encoder_B", Pins(encoder_config.pin_B), IOStandard(encoder_config.io_standard)),
                     )
                 ])
             # Create the encoder
-            encoder = cls(encoder_config=encoder_config, pads=soc.platform.request("encoder", index))
+            pads = soc.platform.request("encoder", index)
+            encoder = cls(encoder_config=encoder_config, pads=pads)
             # Add the encoder to the soc
             soc.submodules += encoder
             # Hookup the ynchronous logic for transferring the data from the CPU to FPGA
@@ -344,7 +345,7 @@ class EncoderModule(Module, AutoDoc):
             soc.sync += getattr(soc.MMIO_inst, f"encoder_{index}_counter").status.eq(encoder.counter)
             # Add the index pulse flag to the output (if pin_Z is defined). Last step is to Cat this
             # list to a single output
-            index_pulse.append(encoder.index_pulse if config[index].pin_Z is not None else Constant(0))
+            index_pulse.append(encoder.index_pulse if encoder_config.pin_Z is not None else Constant(0))
 
         # Add combination logic for getting the  `index pulse`-flag. We have to use Cat here
         # so it is not possible to do this in the main loop.
