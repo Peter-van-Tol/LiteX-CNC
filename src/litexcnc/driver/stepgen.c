@@ -263,6 +263,13 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
     static litexcnc_stepgen_pin_t *instance;
     static litexcnc_stepgen_instance_write_data_t instance_data;
 
+    // Check whether there are stepgen instances. If no instances, no need to write any
+    // data (NOTE: when this guard is not in place, the apply_time would be written out
+    // to the FPGA, which leads to a mismatch in data alignment)
+    if (!(litexcnc->stepgen.num_instances)) {
+        return 0;
+    }
+
     // STEP 1: Timing
     // ==============
     // Put the data on the data-stream and advance the pointer

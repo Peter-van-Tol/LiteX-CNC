@@ -60,10 +60,10 @@ The same type of record is returned, so your data is at offset 16.
 #define SEND_TIMEOUT_US 10
 
 struct eb_connection;
+static const uint8_t etherbone_header[16] = { 0x4e, 0x6f, 0x10, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f };
 
-int eb_unfill_read32(uint8_t wb_buffer[20]);
-int eb_fill_write32(uint8_t wb_buffer[20], uint32_t data, uint32_t address);
-int eb_fill_read32(uint8_t wb_buffer[20], uint32_t address);
+int eb_send(struct eb_connection *conn, const void *bytes, size_t len);
+int eb_recv(struct eb_connection *conn, void *bytes, size_t max_len);
 
 int eb_create_packet(uint8_t* eth_buffer, uint32_t address, const uint8_t* data, size_t size, int is_read);
 void eb_write8(struct eb_connection *conn, uint32_t address, const uint8_t* data, size_t size, bool debug);
@@ -75,8 +75,6 @@ void eb_discard_pending_packet(struct eb_connection *conn, size_t size);
 
 struct eb_connection *eb_connect(const char *addr, const char *port, int is_direct);
 void eb_disconnect(struct eb_connection **conn);
-uint32_t eb_read32(struct eb_connection *conn, uint32_t addr);
-void eb_write32(struct eb_connection *conn, uint32_t val, uint32_t addr);
 
 #ifdef __cplusplus
 };

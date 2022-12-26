@@ -35,6 +35,12 @@ typedef struct {
 
     // Connection by etherbone, required for sending/receiving data.
     struct eb_connection* connection;
+
+    // Buffer for requesting a read from the device
+    uint8_t *read_request_buffer;
+    size_t read_request_header_size;
+    size_t read_request_buffer_size;
+
     // Definition of the FPGA (containing pins, steppers, PWM, ec.)
     litexcnc_fpga_t fpga;
 } litexcnc_eth_t;
@@ -43,6 +49,6 @@ typedef struct {
 #define LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(fpga)   LITEXCNC_ETH_INIT_DATA_BASE_ADDRESS(fpga) + LITEXCNC_HEADER_DATA_READ_SIZE
 #define LITEXCNC_ETH_CONFIG_DATA_BASE_ADDRESS(fpga)  LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(fpga) + LITEXCNC_RESET_HEADER_SIZE
 #define LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(fpga)   LITEXCNC_ETH_CONFIG_DATA_BASE_ADDRESS(fpga) + LITEXCNC_CONFIG_HEADER_SIZE
-#define LITEXCNC_ETH_READ_DATA_BASE_ADDRESS(fpga)    LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(fpga) + fpga->write_buffer_size
+#define LITEXCNC_ETH_READ_DATA_BASE_ADDRESS(fpga)    LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(fpga) + fpga.write_buffer_size - fpga.write_header_size
 
 #endif

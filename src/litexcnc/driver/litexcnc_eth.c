@@ -235,15 +235,22 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
 	// Also turn of mDNS request from linux to the colorlight card. (avahi-daemon)
 	eb_wait_for_tx_buffer_empty(board->connection);
 
-    // Read the data (etherbone.h), the address is based now on a fixed number in order
-    // to read the GPIO out, as the board is not suitable for input yet.
-    eb_read8(
+    // Read the data (etherbone.h)
+    // - send request
+    eb_send(
+        board->connection,
+        board->read_request_buffer,
+        this->read_buffer_size);
+    // - get response
+    int count = eb_recv(
         board->connection, 
-        LITEXCNC_ETH_READ_DATA_BASE_ADDRESS(this), 
-        this->read_buffer, 
-        this->read_buffer_size,
-        board->hal.param.debug
-    );
+        this->read_buffer,
+        this->read_buffer_size);
+    // - check size is expexted size
+    if (count != this->read_buffer_size) {
+        fprintf(stderr, "Unexpected read length: %d, expected %d\n", count, this->read_buffer_size);
+        return -1;
+    }
 }
 
 static int litexcnc_eth_write(litexcnc_fpga_t *this) {
@@ -255,13 +262,10 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
 	eb_wait_for_tx_buffer_empty(board->connection);
 
     // Write the data (etberbone.h)
-    eb_write8(
-        board->connection, 
-        LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(this), 
-        this->write_buffer, 
-        this->write_buffer_size,
-        board->hal.param.debug
-    );
+    eb_send(
+        board->connection,
+        this->write_buffer,
+        this->write_buffer_size);
 
     // If we missed a paket earlier with timeout AND this packet arrives later, there 
     // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
@@ -325,15 +329,27 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     // Free up memory
     json_object_put(config);
 
+    goto success_continue;
+
+fail_disconnect:
+	eb_disconnect(&board->connection);
+fail_freememory:
+	json_object_put(config);
+fail_without_disconnect:
+    return -1;
+
+success_continue:
     // Connect the functions for reading and writing the data to the device
-    board->fpga.comp_id       = comp_id;
-    board->fpga.verify_config = litexcnc_eth_verify_config;
-    board->fpga.reset         = litexcnc_eth_reset;
-    board->fpga.write_config  = litexcnc_eth_write_config;
-    board->fpga.read          = litexcnc_eth_read;
-    board->fpga.write         = litexcnc_eth_write;
-    board->fpga.post_register = litexcnc_post_register;
-    board->fpga.private       = board;
+    board->fpga.comp_id           = comp_id;
+    board->fpga.verify_config     = litexcnc_eth_verify_config;
+    board->fpga.reset             = litexcnc_eth_reset;
+    board->fpga.write_config      = litexcnc_eth_write_config;
+    board->fpga.read              = litexcnc_eth_read;
+    board->fpga.read_header_size  = 16;
+    board->fpga.write             = litexcnc_eth_write;
+    board->fpga.write_header_size = 16;
+    board->fpga.post_register     = litexcnc_post_register;
+    board->fpga.private           = board;
 
     // Register the board with the main function
     size_t ret = litexcnc_register(&board->fpga, config_file);
@@ -343,14 +359,30 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     }
     boards_count++;
 
+    // Set the header of the read and write buffer
+    // WRITE BUFFER
+    memcpy(board->fpga.write_buffer, etherbone_header, sizeof(etherbone_header));
+    // - size
+    board->fpga.write_buffer[10] = (board->fpga.write_buffer_size - 16) >> 2; // Write count (in WORD-count, bitshift to divide by 4)
+    // - address
+    uint32_t address = htobe32(LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(board->fpga));
+    memcpy(&board->fpga.write_buffer[12], &address, sizeof(address));
+    // READ REQUEST BUFFER 
+    uint8_t *read_request_buffer = rtapi_kmalloc(board->fpga.read_buffer_size, RTAPI_GFP_KERNEL);
+    memcpy(read_request_buffer, etherbone_header, sizeof(etherbone_header));
+    // - size
+    size_t words = (board->fpga.read_buffer_size - 16) >> 2;
+    read_request_buffer[11] = words; // Write count (in WORD-count, bitshift to divide by 4)
+    // - addresses
+    uint32_t addresses[words];
+    for (size_t i=0; i<words; i++) {
+        addresses[i] = htobe32(LITEXCNC_ETH_READ_DATA_BASE_ADDRESS(board->fpga) + (i << 2));
+    }
+    memcpy(&read_request_buffer[16], addresses, words * 4);
+    // Store the created buffer
+    board->read_request_buffer = read_request_buffer;
+    
     return 0;
-
-fail_disconnect:
-	eb_disconnect(&board->connection);
-fail_freememory:
-	json_object_put(config);
-fail_without_disconnect:
-    return -1;
 }
 
 

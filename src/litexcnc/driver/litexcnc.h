@@ -86,8 +86,10 @@ struct litexcnc_fpga_struct {
 
     // Buffers for reading and writing data
     uint8_t *write_buffer;
+    size_t write_header_size;
     size_t write_buffer_size;
     uint8_t *read_buffer;
+    size_t read_header_size;
     size_t read_buffer_size;
     
     // For the low-level driver to hang their struct on
