@@ -234,7 +234,7 @@ uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long
             (*data)++; // Proceed the buffer to the next element
         }
     }
-
+    
     // Process all instances:
     // - read data
     // - calculate derived data
@@ -259,14 +259,15 @@ uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         int32_t counts_old = *(instance->hal.pin.counts);
         // - convert received data to struct
         litexcnc_encoder_instance_read_data_t instance_data;
-        memcpy(&instance_data, *data, sizeof instance_data);
-        data += sizeof instance_data;
+        memcpy(&instance_data, *data, sizeof(litexcnc_encoder_instance_read_data_t));
+        *data += sizeof(litexcnc_encoder_instance_read_data_t);
+
         // - store the counts from the FPGA to the driver (keep in mind the endianess). Also
         //   take into account whether we are in x4_mode or not.
         if (instance->hal.param.x4_mode) {
-            *(instance->hal.pin.counts) = be32toh(instance_data.counts);
+            *(instance->hal.pin.counts) = (int32_t)be32toh((uint32_t)instance_data.counts);
         } else {
-            *(instance->hal.pin.counts) = be32toh(instance_data.counts) >> 2;
+            *(instance->hal.pin.counts) = ((int32_t)be32toh((uint32_t)instance_data.counts)) / 4;
         }
 
         // Calculate the new position based on the counts
@@ -316,7 +317,7 @@ uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long
             instance->memo.velocity[velocity_pointer] = (*(instance->hal.pin.position) - position_old) * litexcnc->encoder.data.recip_dt;
             // Sum the array and divide by the size of the array
             float average = 0.0;
-            for (size_t j=0; i < sizeof(instance->memo.velocity); i++) {average += instance->memo.velocity[j];};
+            for (size_t j=0; j < LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE; j++) {average += instance->memo.velocity[j];};
             *(instance->hal.pin.velocity) = average * 0.125;
             *(instance->hal.pin.velocity_rpm) = *(instance->hal.pin.velocity) * 60.0;
             // Increase the pointer to the next element, revert to the beginning of
