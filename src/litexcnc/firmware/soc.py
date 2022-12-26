@@ -6,7 +6,7 @@ from typing import List, Type
 from pydantic import BaseModel, Field, validator
 
 # Local imports
-from .encoder import EncoderConfig
+from .encoder import EncoderConfig, EncoderModule
 from .etherbone import Etherbone, EthPhy
 from .gpio import GPIO, GPIO_Out, GPIO_In
 from .mmio import MMIO
@@ -109,13 +109,11 @@ class LitexCNC_Firmware(BaseModel):
                 ]
 
                 # Create modules
-                # - GPIO 
                 GPIO_In.create_from_config(self, config.gpio_in)
                 GPIO_Out.create_from_config(self, config.gpio_out)
-                # - PWM/PDM
                 PwmPdmModule.create_from_config(self, watchdog,config.pwm)
-                # - StepGen
                 StepgenModule.create_from_config(self, watchdog, config.stepgen)
+                EncoderModule.create_from_config(self, config.encoders)
                 
         return _LitexCNC_SoC(
             config=self)
