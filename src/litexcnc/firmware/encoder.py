@@ -51,6 +51,8 @@ class EncoderConfig(BaseModel):
         description="The value to which the counter will be resetted. This is also the initial value "
         "at which the counter is instantiated. The reset value should be between the minimum value "
         "and maximum value if these are defined. Default value: 0."
+        "NOTE: when the encoder has X4 set to False, the value reported in HAL will be this value "
+        "divided by 4."
     )
     io_standard: str = Field(
         "LVCMOS33",
