@@ -134,6 +134,7 @@ class EncoderModule(Module, AutoDoc):
         self.counter = Signal((self.COUNTER_SIZE, True), reset=encoder_config.reset_value)
         self.index_pulse = Signal()
         self.reset_index_pulse = Signal()
+        self.reset = Signal()
 
         # Internal fields
         pin_A_delayed = Signal(3)
@@ -179,8 +180,8 @@ class EncoderModule(Module, AutoDoc):
             # When the `index-enable` flag is set, detext a raising flank and
             # reset the counter in that case
             If(
-                self.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2],
-                self.counter.eq(0),
+                self.reset | (self.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
+                self.counter.eq(encoder_config.reset_value),
                 self.index_enable.eq(0)
             ),
             # Counting implementation. Counting occurs when movement occcurs, but
@@ -333,6 +334,8 @@ class EncoderModule(Module, AutoDoc):
             soc.submodules += encoder
             # Hookup the ynchronous logic for transferring the data from the CPU to FPGA
             soc.sync += [
+                # Reset the counter when LinuxCNC is started
+                encoder.reset.eq(soc.MMIO_inst.reset.storage),
                 # `index enable`-flag
                 encoder.index_enable.eq(
                     soc.MMIO_inst.encoder_index_enable.storage[index]
