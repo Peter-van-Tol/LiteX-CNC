@@ -32,21 +32,30 @@ This project would not be possible without:
 Installation
 ============
 
-LitexCNC can be installed using pip:
+LitexCNC can be installed using pip (the pre-release is only available on https:/test.pypi.org):
 
 .. code-block:: shell
 
-    pip install litexcnc[cli]
+    pip install --extra-index-url https://test.pypi.org/simple/ litexcnc[cli]
 
+.. note::
+    The suffix [cli] is required to install the command-line interface. Without this suffix the scripts
+    referenced in this documentation will not work.
 
-After installation of LitexCNC, one can setup building environment for the firmware using the included
-scripts:
+After installation of LitexCNC, one can setup building environment for the firmware and install the
+drivers the included scripts:
 
 .. code-block:: shell
 
+    litexcnc install_driver
     litexcnc install_litex
     litexcnc install_toolchain
 
+.. note::
+    In case the scripts ``litexcnc <command>`` cannot be found, the cause can be that the scripts are
+    not on the system path. In this case the commands should be called with ``python -m litexcnc <command>``. 
+    It might be necessary to replace ``python`` with the name of the python executable in which 
+    litexcnc is installed (for example ``python3``)
 
 Both Litex and the toolchain (OSS-CAD-suite) will be installed by default be installed in the ``/opt``
 folder. Optionally the flag ``--user`` can be supplied to both commands, in which case the building
