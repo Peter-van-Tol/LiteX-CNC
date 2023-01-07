@@ -25,7 +25,7 @@ LitexCNC can be installed using pip (the pre-release is only available on https:
 pip install --extra-index-url https://test.pypi.org/simple/ litexcnc[cli]
 ```
 
-> NOTE: Suffix `[cli]` required! <br>
+> **NOTE: Suffix `[cli]` required!** <br>
 > The suffix `[cli]` is required to install the command-line interface. Without this suffix the scripts referenced below will not work.
 
 After installation of LitexCNC, one can setup building environment for the firmware and its driver using the included scripts:
@@ -35,7 +35,7 @@ litexcnc install_litex
 litexcnc install_toolchain
 ```
 
-> NOTE: Python script not on path <br>
+> **NOTE: Python script not on path** <br>
 > In some cases the scripts cannot be found, one of the causes might be that the scripts folder is not on the system path or in case multiple Python installations are present on the system. In these case the scripts can be used with `python -m litexcnc <command>`. It might be necessary to replace `python` with `python3` or the name of the python executable in which litexcnc is installed.
 
 Both Litex and the toolchain (OSS-CAD-suite) will be installed by default be installed in the `/opt` folder. Optionally the flag `--user` can be supplied to both commands, in which case the building environment is installed in `HOME`-directory.
