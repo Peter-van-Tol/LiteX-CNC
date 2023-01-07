@@ -5,8 +5,9 @@ This project aims to make a generic CNC firmware and driver for FPGA cards which
 > **RV901T** <br>
 > Although the RV901T is also supported by Litex, the firmware cannot be automatically build with LitexCNC, as it requires the Xilinx-software to compile the Verilog to a bit-stream. LitexCNC can be used to create the Verilog and the driver will work when the bit-stream is loaded on the board. However, there is a gap in the toolchain not covered. There are known issues with the compantibility of Litex with Xilinx.
 
-> **Broke my FPGA** <br>
-> Whilst replacing the buffers on my FPGA, the card was damaged in the process. The JTAG has become unresponsive, so the card is dead with no lead how to fix the error. So after one year of developing with this card, death do us part. The new one will be in somewhere around 15th of January. Until then it will be unlikely I can put tested commits in this repository.
+> **Broke my FPGA - update** <br>
+> The new card has arrived!
+> Whilst replacing the buffers on my FPGA, the card was damaged in the process. The JTAG has become unresponsive, so the card is dead with no lead how to fix the error. So after one year of developing with this card, death do us part. With the new card I'm now replacing the buffers to have half of the connectors configured as inputs. I'll document the steps to replace these buffers. At this moment I have three buffers left and waiting for more to arrive as I need in total 6 74LVC245 buffers.
 
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty to obtain a MESA card.
 
@@ -18,17 +19,24 @@ This project would not be possible without:
 - ColorCNC by *romanetz* [link](https://forum.linuxcnc.org/27-driver-boards/44422-colorcnc?start=0);
 - HostMot2 (MESA card driver) as the structure of the driver has been adopted.
 
-## Installation
-LitexCNC can be installed using pip:
+## Quick start
+LitexCNC can be installed using pip (the pre-release is only available on https:/test.pypi.org):
 ```shell
-pip install litexcnc[cli]
+pip install --extra-index-url https://test.pypi.org/simple/ litexcnc[cli]
 ```
 
-After installation of LitexCNC, one can setup building environment for the firmware using the included scripts:
+> NOTE: Suffix `[cli]` required! <br>
+> The suffix `[cli]` is required to install the command-line interface. Without this suffix the scripts referenced below will not work.
+
+After installation of LitexCNC, one can setup building environment for the firmware and its driver using the included scripts:
 ```shell
+litexcnc install_driver
 litexcnc install_litex
 litexcnc install_toolchain
 ```
+
+> NOTE: Python script not on path <br>
+> In some cases the scripts cannot be found, one of the causes might be that the scripts folder is not on the system path or in case multiple Python installations are present on the system. In these case the scripts can be used with `python -m litexcnc <command>`. It might be necessary to replace `python` with `python3` or the name of the python executable in which litexcnc is installed.
 
 Both Litex and the toolchain (OSS-CAD-suite) will be installed by default be installed in the `/opt` folder. Optionally the flag `--user` can be supplied to both commands, in which case the building environment is installed in `HOME`-directory.
 
@@ -55,8 +63,6 @@ litexcnc install_driver
 This script will run `apt-get` to install the following packages:
 - `libjson-c-dev`, which is required to read the configuration files. 
 - `linuxcnc-dev`, which is required for running `halcompile`.
-
-
 
 After this, the driver is installed using `halcompile`.
 
