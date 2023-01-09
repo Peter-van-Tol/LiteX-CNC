@@ -223,7 +223,7 @@ The code below gives an example for a single axis, using the ``step-dir`` step t
     setp [LITEXCNC](NAME).stepgen.00.max-acceleration [JOINT_2]STEPGEN_MAXACCEL
     # setp [LITEXCNC](NAME).stepgen.00.debug 1
     # - Connect velocity command
-    net  pos2vel.0.velocity-cmd => [LITEXCNC](NAME).stepgen.00.velocity-cmd
+    net xvel_cmd pos2vel.0.velocity-cmd => [LITEXCNC](NAME).stepgen.00.velocity-cmd
     # - Set the acceleration to be used (NOTE: pos2vel has fixed acceleration)
     setp [LITEXCNC](NAME).stepgen.00.acceleration-cmd [JOINT_2]STEPGEN_MAXACCEL
     # - enable the drive
