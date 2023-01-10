@@ -158,7 +158,7 @@ int rtapi_app_main(void) {
     retval = hal_export_funct("pos2vel.convert", convert, pos2vel, 1, 0, comp_id);
 
     // Report ready
-    rtapi_print_msg(RTAPI_MSG_INFO, "PID: installed %d pos2vel converters\n", pos2vel->data.num_instances);
+    rtapi_print_msg(RTAPI_MSG_INFO, "PID: installed %zu pos2vel converters\n", pos2vel->data.num_instances);
     hal_ready(comp_id);
     return 0;
 }
@@ -168,8 +168,7 @@ void rtapi_app_exit(void) {
 }
 
 static int export_converter_instance(hal_pos2vel_instance_t *instance, char *prefix) {
-    int retval, msg;
-    char buf[HAL_NAME_LEN + 1];
+    int retval;
 
     // - hal pins
     retval = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.position_feedback), comp_id, "%s.position-feedback", prefix);

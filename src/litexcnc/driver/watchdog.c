@@ -100,6 +100,8 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, json_object *config) {
         return r;
     }
 
+    // Success
+    return 0;
 }
 
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
@@ -112,6 +114,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
         if (litexcnc->watchdog->hal.param.timeout_ns < (1.5 * period)) {
             LITEXCNC_PRINT(
                 "Watchdog timeout (%u ns) is dangerously short compared to litexcnc_write() period (%ld ns)\n",
+                litexcnc->fpga->name,
                 litexcnc->watchdog->hal.param.timeout_ns,
                 period
             );
@@ -133,6 +136,9 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
     // Copy the data to the output and advance the pointer  
     memcpy(*data, &output, LITEXCNC_WATCHDOG_DATA_WRITE_SIZE);
     *data += LITEXCNC_WATCHDOG_DATA_WRITE_SIZE;
+    
+    // Success
+    return 0;
 }
 
 uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
@@ -145,4 +151,8 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
     // Proceed the buffer to the next element (note: 4-byte Words!)
     (*data)+=4; 
+
+    
+    // Success
+    return 0;
 }

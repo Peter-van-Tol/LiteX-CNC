@@ -150,7 +150,7 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
     memset((void*) response, 0, 16+255);
     int count = eb_recv(conn, response, 16+size);
     if (count != (16+size)) {
-        fprintf(stderr, "Unexpected read length: %d, expected %d\n", count, (16+size));
+        fprintf(stderr, "Unexpected read length: %d, expected %zu\n", count, (16+size));
         return -1;
     }
 
@@ -167,6 +167,9 @@ int eb_read8(struct eb_connection *conn, uint32_t address, uint8_t* data, size_t
                 (unsigned char)data[i+3]);
         }
     }
+
+    // Successfull read
+    return 0;
 }
 
 

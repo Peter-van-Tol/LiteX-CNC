@@ -77,7 +77,7 @@ int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config) {
             if (json_object_object_get_ex(pwm_instance, "name", &pwm_instance_pin_name)) {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%s", litexcnc->fpga->name, json_object_get_string(pwm_instance_pin_name));
             } else {
-                rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%02d", litexcnc->fpga->name, i);
+                rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%02zu", litexcnc->fpga->name, i);
             }
 
             // Create the pins
@@ -174,10 +174,10 @@ int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config) {
             *(instance->hal.pin.pwm_freq) = 100000.0;
             *(instance->hal.pin.min_dc) = 0.0;
             *(instance->hal.pin.max_dc) = 1.0;
+            // Free up the memory
+            json_object_put(pwm_instance);
         }
         // Free up the memory
-        json_object_put(pwm_instance_pin_name);
-        json_object_put(pwm_instance);
         json_object_put(pwm);
     }
 
@@ -319,4 +319,5 @@ uint8_t litexcnc_pwm_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 uint8_t litexcnc_pwm_process_read(litexcnc_t *litexcnc, uint8_t **data) {
     // This function is deliberately empty as no data is read back from the board
     // to the HAL component.
+    return 0;
 }

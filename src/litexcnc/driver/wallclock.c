@@ -74,6 +74,7 @@ int litexcnc_wallclock_init(litexcnc_t *litexcnc, json_object *config) {
 
 uint8_t litexcnc_wallclock_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
     // This function is deliberately empty, as the wall clock is not written.
+    return 0;
 }
 
 uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data) {
@@ -93,6 +94,8 @@ uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     memcpy(&lsb, *data, sizeof lsb);
     *(litexcnc->wallclock->hal.pin.wallclock_ticks_lsb) = be32toh(lsb);
     (*data)+=4;
+
+    return 0;
 }
 
 

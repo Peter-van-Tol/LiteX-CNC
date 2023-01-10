@@ -33,6 +33,8 @@
 
     This code was written as part of the LiteX-CNC project.
 */
+#include <inttypes.h>
+
 #include "litexcnc.h"
 #include "stepgen.h"
 
@@ -92,7 +94,7 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             if (json_object_object_get_ex(instance_config, "name", &instance_config_name_field)) {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen.%s", litexcnc->fpga->name, json_object_get_string(instance_config_name_field));
             } else {
-                rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen.%02d", litexcnc->fpga->name, i);
+                rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen.%02zu", litexcnc->fpga->name, i);
             }
 
             // Create the params
@@ -156,19 +158,16 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             // if (r != 0) { goto fail_pins; }
         }
     }
+
     return r;
 
 fail_params:
-    if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding stepgen params, aborting\n");
-        return r;
-    }
+    LITEXCNC_ERR_NO_DEVICE("Error adding stepgen params, aborting\n");
+    return r;
 
 fail_pins:
-    if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding stepgen pins, aborting\n");
-        return r;
-    }
+    LITEXCNC_ERR_NO_DEVICE("Error adding stepgen pins, aborting\n");
+    return r;
 
 }
 
@@ -247,12 +246,13 @@ uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long perio
         dirsetup_cycles = (1 << 13) - 1;
     }
     // - convert the timings to the data to be sent to the FPGA
-    config_data.stepdata = htobe32(steplen_cycles << 22 + dirhold_cycles << 12+ dirsetup_cycles << 0);
+    config_data.stepdata = htobe32((steplen_cycles << 22) + (dirhold_cycles << 12) + (dirsetup_cycles << 0));
 
     // Put the data on the data-stream and advance the pointer
     memcpy(*data, &config_data, LITEXCNC_STEPGEN_CONFIG_DATA_SIZE);
     *data += LITEXCNC_STEPGEN_CONFIG_DATA_SIZE;
 
+    return 0;
 }
 
 
@@ -356,7 +356,7 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
         *data += LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE;
 
         if (*(instance->hal.pin.debug)) {
-            LITEXCNC_PRINT_NO_DEVICE("Stepgen: data sent to FPGA %llu, %llu, %lu, %lu, %lu \n", 
+            LITEXCNC_PRINT_NO_DEVICE("Stepgen: data sent to FPGA %" PRIu64 ", %" PRIu64 ", %" PRIu32 ", %" PRIu32 ", %" PRIu32 "\n", 
                 litexcnc->wallclock->memo.wallclock_ticks,
                 litexcnc->stepgen.memo.apply_time,
                 instance->data.fpga_speed,
@@ -365,6 +365,8 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             );
         }
     }
+
+    return 0;
 }
 
 float movingAvg(float *ptrArrNumbers, float *ptrSum, size_t pos, size_t len, float nextNum)
@@ -386,7 +388,6 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
     //  - parameters for retrieving data from FPGA
     static int64_t pos;
     static uint32_t speed;
-    static int64_t tmp_apply_time;
     // - parameters for determining the position end start of next loop
     static uint64_t min_time;
     static uint64_t max_time;
@@ -425,13 +426,12 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
     // Check whether the nex_apply_time is within the expected range. When outside of the range, 
     // the value is clipped and a warning is shown to the user. The warning is only shown once.
     if (next_apply_time < litexcnc->wallclock->memo.wallclock_ticks + 0.81 * litexcnc->stepgen.memo.cycles_per_period) {
-        rtapi_print("Apply time exceeding limits (too short): %llu, %llu, %llu \n",
+        rtapi_print("Apply time exceeding limits (too short): %" PRIu64 ", %" PRIu64 ", %" PRIu64 "\n",
             litexcnc->wallclock->memo.wallclock_ticks,
             litexcnc->stepgen.memo.apply_time,
             next_apply_time
         );  
         next_apply_time = litexcnc->wallclock->memo.wallclock_ticks + 0.85 * litexcnc->stepgen.memo.cycles_per_period;
-        rtapi_print("%llu \n", next_apply_time);
         // Show warning
         if (!litexcnc->stepgen.data.warning_apply_time_exceeded_shown) {
             LITEXCNC_ERR_NO_DEVICE("Apply time exceeded limits.");
@@ -439,7 +439,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         }
     }
     if (next_apply_time > litexcnc->wallclock->memo.wallclock_ticks + 0.99 * litexcnc->stepgen.memo.cycles_per_period){
-        rtapi_print("Apply time exceeding limits (too long): %llu, %llu, %llu \n",
+        rtapi_print("Apply time exceeding limits (too long): %" PRIu64 ", %" PRIu64 ", %" PRIu64 "\n",
             litexcnc->wallclock->memo.wallclock_ticks,
             litexcnc->stepgen.memo.apply_time,
             next_apply_time
@@ -525,7 +525,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         
         // Add the different phases to the speed and position prediction
         if (*(instance->hal.pin.debug)) {
-            rtapi_print("Timings: %.6f, %llu, %llu, %lu, %llu \n",
+            rtapi_print("Timings: %.6f, %" PRIu64 ", %" PRIu64 ", %" PRIu32 ", %" PRIu64 "\n",
                 *(litexcnc->stepgen.hal->pin.period_s),
                 litexcnc->wallclock->memo.wallclock_ticks,
                 litexcnc->stepgen.memo.apply_time,
@@ -557,7 +557,7 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
             *(instance->hal.pin.position_prediction) += instance->data.flt_speed * (next_apply_time - (litexcnc->stepgen.memo.apply_time + instance->data.fpga_time)) * litexcnc->clock_frequency_recip;
         }
         if (*(instance->hal.pin.debug)) {
-            rtapi_print("Stepgen speed feedback result: %llu, %llu, %.6f, %.6f, %.6f, %.6f \n",
+            rtapi_print("Stepgen speed feedback result: %" PRIu64 ", %" PRIu64 ", %.6f, %.6f, %.6f, %.6f \n",
                 litexcnc->wallclock->memo.wallclock_ticks,
                 next_apply_time,
                 *(instance->hal.pin.speed_fb),
@@ -570,4 +570,6 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
 
     // Push the apply for the write loop
     litexcnc->stepgen.memo.apply_time = next_apply_time;
+
+    return 0;
 }

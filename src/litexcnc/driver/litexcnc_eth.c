@@ -52,6 +52,10 @@ struct dict {
     int value;
 };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+// This function has been created for a complete dictionary lookup. Not used at this moment,
+// but might be handy in future to retrieve certain FPGA's by their name.
 static int *dict_lookup(struct rtapi_list_head *head, const char *name) {
     struct rtapi_list_head *ptr;
     rtapi_list_for_each(ptr, head) {
@@ -63,6 +67,7 @@ static int *dict_lookup(struct rtapi_list_head *head, const char *name) {
     rtapi_list_add(&ent->list, head);
     return &ent->value;
 }
+#pragma GCC diagnostic pop
 
 static void dict_free(struct rtapi_list_head *head) {
     struct rtapi_list_head *orig_head = head;
@@ -144,6 +149,7 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
     // Write reset bit to the card.
     i = 1;
     reset_flag = htobe32(0x01);
+    reset_status = htobe32(0x00); // Make sure the loop below is run at least once
     while (reset_flag != reset_status) {
         // Check whether we didn't try too many times
         if (i > MAX_RESET_RETRIES) {
@@ -209,7 +215,6 @@ static int litexcnc_eth_reset(litexcnc_fpga_t *this) {
 
     // Card has been reset
     return 0;
-
 }
 
 static int litexcnc_eth_write_config(litexcnc_fpga_t *this, uint8_t *data, size_t size) {
@@ -225,10 +230,15 @@ static int litexcnc_eth_write_config(litexcnc_fpga_t *this, uint8_t *data, size_
         LITEXCNC_CONFIG_HEADER_SIZE,
         board->hal.param.debug
     );
+
+    // It is not (yet) implemented to read back the configuration from the device
+    // in order to check whether the write has been successful.
+    return 0;
 }
 
 static int litexcnc_eth_read(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
+    static int r;
     
     // This is essential as the colorlight card crashes when two packets come close to each other.
 	// This prevents crashes in the litex eth core. 
@@ -237,10 +247,14 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
 
     // Read the data (etherbone.h)
     // - send request
-    eb_send(
+    r = eb_send(
         board->connection,
         board->read_request_buffer,
         this->read_buffer_size);
+    if (r != 0) {
+        fprintf(stderr, "Could not write to device `%s`", this->name);
+        return -1;
+    }
     // - get response
     int count = eb_recv(
         board->connection, 
@@ -248,13 +262,17 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
         this->read_buffer_size);
     // - check size is expexted size
     if (count != this->read_buffer_size) {
-        fprintf(stderr, "Unexpected read length: %d, expected %d\n", count, this->read_buffer_size);
+        fprintf(stderr, "Unexpected read length: %d, expected %zu\n", count, this->read_buffer_size);
         return -1;
     }
+
+    // Successful read
+    return 0;
 }
 
 static int litexcnc_eth_write(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
+    static int r;
     
     // This is essential as the colorlight card crashes when two packets come close
     // to each other. This prevents crashes in the litex eth core. 
@@ -262,7 +280,7 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
 	eb_wait_for_tx_buffer_empty(board->connection);
 
     // Write the data (etberbone.h)
-    eb_send(
+    r = eb_send(
         board->connection,
         this->write_buffer,
         this->write_buffer_size);
@@ -271,23 +289,24 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
     // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
     // discard that packet to avoid such a queue.
 	//eb_discard_pending_packet(board->connection, this->write_buffer_size);
+
+    return r;
 }
-
-
 
 
 static int litexcnc_post_register(litexcnc_fpga_t *this) {
     litexcnc_eth_t *board = this->private;
 
-    LITEXCNC_ERR_NO_DEVICE("Hello world\n");
-
     // Create a pin to show debug messages
     int r = hal_param_bit_newf(HAL_RW, &(board->hal.param.debug), this->comp_id, "%s.debug", this->name);
-    
+    if (r < 0) {
+        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", this->name);
+        return r;
+    }
     
     return 0;
-
 }
+
 
 static int init_board(litexcnc_eth_t *board, const char *config_file) {
   
@@ -320,7 +339,7 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     LITEXCNC_PRINT_NO_DEVICE("Connecting to board at address: %s:1234 \n", json_object_get_string(ip_address));
     board->connection = eb_connect(json_object_get_string(ip_address), "1234", 1);
     if (!board->connection) {
-        rtapi_print_msg(RTAPI_MSG_ERR,"colorcnc: ERROR: failed to connect to board on ip-address '%s'\n", ip_address);
+        rtapi_print_msg(RTAPI_MSG_ERR,"colorcnc: ERROR: failed to connect to board on ip-address '%s:1234'\n", json_object_get_string(ip_address));
         goto fail_disconnect;
     }
     json_object_put(ip_address);
@@ -402,15 +421,16 @@ int rtapi_app_main(void) {
 
     // STEP 1: Initialize component
     ret = hal_init(LITEXCNC_ETH_NAME);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) {
+        goto error;
+    }
     comp_id = ret;
 
     // STEP 2: Initialize the board(s)
     for(i = 0, ret = 0; ret == 0 && i<MAX_ETH_BOARDS && config_file[i] && *config_file[i]; i++) {
         boards[i] = (litexcnc_eth_t *)hal_malloc(sizeof(litexcnc_eth_t));
         ret = init_board(boards[i], config_file[i]);
-        if(ret < 0) return ret;
+        if(ret < 0) goto error;
     }
 
     // Report the board as ready
@@ -431,8 +451,6 @@ error:
 
 
 void rtapi_app_exit(void) {
-    // Declaration of variables
-    int i;
     // Close all the boards
     for(int i = 0; i<MAX_ETH_BOARDS && config_file[i] && config_file[i][0]; i++)
         close_board(boards[i]);
