@@ -71,7 +71,7 @@ int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config) {
             if (json_object_object_get_ex(encoder_config, "name", &encoder_instance_name)) {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.encoder.%s", litexcnc->fpga->name, json_object_get_string(encoder_instance_name));
             } else {
-                rtapi_snprintf(base_name, sizeof(base_name), "%s.encoder.%02d", litexcnc->fpga->name, i);
+                rtapi_snprintf(base_name, sizeof(base_name), "%s.encoder.%02zu", litexcnc->fpga->name, i);
             }
             // Create the pins
             // - counts
@@ -115,10 +115,10 @@ int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config) {
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "x4_mode"); 
             r = hal_param_bit_new(name, HAL_RW, &(instance->hal.param.x4_mode), litexcnc->fpga->comp_id);
             if (r < 0) { goto fail_params; }
+            // Free up the memory
+            json_object_put(encoder_config);
         }
         // Free up the memory
-        json_object_put(encoder_instance_name);
-        json_object_put(encoder_config);
         json_object_put(encoder);
     }
 
@@ -188,6 +188,8 @@ uint8_t litexcnc_encoder_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             (*data)++; // Proceed the buffer to the next element
         }
     }
+
+    return 0;
 }
 
 
@@ -325,4 +327,6 @@ uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long
             if (velocity_pointer++ >= sizeof(instance->memo.velocity)) {velocity_pointer=0;};
         }
     }
+
+    return 0;
 }

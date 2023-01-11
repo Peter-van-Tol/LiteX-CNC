@@ -1114,6 +1114,7 @@ def build_rt(tempdir, filename, mode, origfilename):
     print("include %s" % find_modinc(), file=f)
     print("EXTRA_CFLAGS += -I%s" % os.path.abspath(os.path.dirname(origfilename)), file=f)
     print("EXTRA_CFLAGS += -I%s" % os.path.abspath('.'), file=f)
+    print("EXTRA_CFLAGS += -Wall", file=f)
     print("LDFLAGS += -ljson-c", file=f)
     f.close()
     if mode == INSTALL:

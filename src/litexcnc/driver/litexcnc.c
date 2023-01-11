@@ -319,7 +319,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     LITEXCNC_PRINT_NO_DEVICE("Creating read and write buffers...\n");
     // - write buffer
     litexcnc->fpga->write_buffer_size = litexcnc->fpga->write_header_size + LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc);
-    LITEXCNC_PRINT_NO_DEVICE(" - Write buffer: %d bytes)\n", LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc));
+    LITEXCNC_PRINT_NO_DEVICE(" - Write buffer: %zu bytes)\n", LITEXCNC_BOARD_DATA_WRITE_SIZE(litexcnc));
     uint8_t *write_buffer = rtapi_kmalloc(litexcnc->fpga->write_buffer_size, RTAPI_GFP_KERNEL);
     if (litexcnc == NULL) {
         LITEXCNC_PRINT_NO_DEVICE("out of memory!\n");
@@ -329,7 +329,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     memset(write_buffer, 0, litexcnc->fpga->write_buffer_size);
     litexcnc->fpga->write_buffer = write_buffer;
     // - read buffer
-    LITEXCNC_PRINT_NO_DEVICE(" - Read buffer: %d bytes)\n", LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc));
+    LITEXCNC_PRINT_NO_DEVICE(" - Read buffer: %zu bytes)\n", LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc));
     litexcnc->fpga->read_buffer_size = litexcnc->fpga->read_header_size + LITEXCNC_BOARD_DATA_READ_SIZE(litexcnc);
     uint8_t *read_buffer = rtapi_kmalloc(litexcnc->fpga->read_buffer_size, RTAPI_GFP_KERNEL);
     if (litexcnc == NULL) {
@@ -356,7 +356,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     rtapi_snprintf(name, sizeof(name), "%s.read", litexcnc->fpga->name);
     r = hal_export_funct(name, litexcnc_read, litexcnc, 1, 0, litexcnc->fpga->comp_id);
     if (r != 0) {
-        LITEXCNC_ERR("error %d exporting read function %s\n", r, name);
+        LITEXCNC_ERR("error %d exporting read function %s\n", litexcnc->fpga->name, r, name);
         r = -EINVAL;
         goto fail1;
     }
@@ -364,7 +364,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     rtapi_snprintf(name, sizeof(name), "%s.write", litexcnc->fpga->name);
     r = hal_export_funct(name, litexcnc_write, litexcnc, 1, 0, litexcnc->fpga->comp_id);
     if (r != 0) {
-        LITEXCNC_ERR("error %d exporting read function %s\n", r, name);
+        LITEXCNC_ERR("error %d exporting read function %s\n", litexcnc->fpga->name, r, name);
         r = -EINVAL;
         goto fail1;
     }

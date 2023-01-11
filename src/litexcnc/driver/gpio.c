@@ -34,7 +34,7 @@ static int litexcnc_gpio_out_init(litexcnc_t *litexcnc, json_object *config) {
             if (json_object_object_get_ex(gpio_pin, "name", &gpio_pin_name)) {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%s.out", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
             } else {
-                rtapi_snprintf(name, sizeof(name), "%s.gpio.%02d.out", litexcnc->fpga->name, i);
+                rtapi_snprintf(name, sizeof(name), "%s.gpio.%02zu.out", litexcnc->fpga->name, i);
             }
             r = hal_pin_bit_new(name, HAL_IN, &(litexcnc->gpio.output_pins[i].hal.pin.out), litexcnc->fpga->comp_id);
             if (r < 0) {
@@ -45,17 +45,17 @@ static int litexcnc_gpio_out_init(litexcnc_t *litexcnc, json_object *config) {
             if (json_object_object_get_ex(gpio_pin, "name", &gpio_pin_name)) {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%s.invert_output", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
             } else {
-                rtapi_snprintf(name, sizeof(name), "%s.gpio.%02d.invert_output", litexcnc->fpga->name, i);
+                rtapi_snprintf(name, sizeof(name), "%s.gpio.%02zu.invert_output", litexcnc->fpga->name, i);
             }
             r = hal_param_bit_new(name, HAL_RW, &(litexcnc->gpio.output_pins[i].hal.param.invert_output), litexcnc->fpga->comp_id);
             if (r < 0) {
                 LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
                 return r;
             }
+            // Free up the memory
+            json_object_put(gpio_pin);
         }
         // Free up the memory
-        json_object_put(gpio_pin_name);
-        json_object_put(gpio_pin);
         json_object_put(gpio);
     }
 
@@ -89,8 +89,8 @@ static int litexcnc_gpio_in_init(litexcnc_t *litexcnc, json_object *config) {
                 rtapi_snprintf(name, sizeof(name), "%s.gpio.%s.in", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
                 rtapi_snprintf(name_inverted, sizeof(name_inverted), "%s.gpio.%s.in-not", litexcnc->fpga->name, json_object_get_string(gpio_pin_name));
             } else {
-                rtapi_snprintf(name, sizeof(name), "%s.gpio.%02d.in", litexcnc->fpga->name, i);
-                rtapi_snprintf(name_inverted, sizeof(name_inverted), "%s.gpio.%02d.in-not", litexcnc->fpga->name, i);
+                rtapi_snprintf(name, sizeof(name), "%s.gpio.%02zu.in", litexcnc->fpga->name, i);
+                rtapi_snprintf(name_inverted, sizeof(name_inverted), "%s.gpio.%02zu.in-not", litexcnc->fpga->name, i);
             }
             r = hal_pin_bit_new(name, HAL_OUT, &(litexcnc->gpio.input_pins[i].hal.pin.in), litexcnc->fpga->comp_id);
             if (r < 0) {
@@ -102,10 +102,10 @@ static int litexcnc_gpio_in_init(litexcnc_t *litexcnc, json_object *config) {
                 LITEXCNC_ERR_NO_DEVICE("error adding pin '%s', aborting\n", name);
                 return r;
             }
+            // Free up the memory
+            json_object_put(gpio_pin);
         }
         // Free up the memory
-        json_object_put(gpio_pin_name);
-        json_object_put(gpio_pin);
         json_object_put(gpio);
     }
 
@@ -131,7 +131,7 @@ int litexcnc_gpio_init(litexcnc_t *litexcnc, json_object *config) {
 uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
 
     if (litexcnc->gpio.num_output_pins == 0) {
-        return 1;
+        return 0;
     }
 
     // Process all the bytes
@@ -152,13 +152,14 @@ uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data) {
         }
     }
 
+    return 0;
 }
 
 
 uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
     if (litexcnc->gpio.num_input_pins == 0) {
-        return 1;
+        return 0;
     }
 
     // Process all the bytes
@@ -186,4 +187,6 @@ uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t** data) {
             (*data)++; // Proceed the buffer to the next element
         }
     }
+
+    return 0;
 }
