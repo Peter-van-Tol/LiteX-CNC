@@ -36,25 +36,32 @@
 */
 #include <stdio.h>
 #include <limits.h>
+
+#include "rtapi.h"
+#include "rtapi_app.h"
 #include "litexcnc.h"
+
 #include "encoder.h"
 
 
-int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config) {
+int litexcnc_encoder_init(litexcnc_t *litexcnc, cJSON *config) {
 
     // Declarations
     int r;
-    struct json_object *encoder;
-    struct json_object *encoder_config;
-    struct json_object *encoder_instance_name;
+    size_t i;
+    const cJSON *encoder_config = NULL;
+    const cJSON *encoder_instance_config = NULL;
+    const cJSON *encoder_instance_name = NULL;
     char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.pwm.<pwm_name>
     char name[HAL_NAME_LEN + 1];        // i.e. <base_name>.<pin_name>
 
     // Parse the contents of the config-json
-    if (json_object_object_get_ex(config, "encoders", &encoder)) {
+    encoder_config = cJSON_GetObjectItemCaseSensitive(config, "encoders");
+    if (cJSON_IsArray(encoder_config)) {
         // Store the amount of encoder instances on this board
-        litexcnc->encoder.num_instances = json_object_array_length(encoder);
+        litexcnc->encoder.num_instances = cJSON_GetArraySize(encoder_config);
         litexcnc->config.num_encoder_instances = litexcnc->encoder.num_instances;
+        
         // Allocate the module-global HAL shared memory
         litexcnc->encoder.instances = (litexcnc_encoder_instance_t *)hal_malloc(litexcnc->encoder.num_instances * sizeof(litexcnc_encoder_instance_t));
         if (litexcnc->encoder.instances == NULL) {
@@ -62,17 +69,21 @@ int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config) {
             r = -ENOMEM;
             return r;
         }
+
         // Create the pins and params in the HAL
-        for (size_t i=0; i<litexcnc->encoder.num_instances; i++) {
-            encoder_config = json_object_array_get_idx(encoder, i);
+        i = 0;
+        cJSON_ArrayForEach(encoder_instance_config, encoder_config) {
             // Get pointer to the encoder instance
             litexcnc_encoder_instance_t *instance = &(litexcnc->encoder.instances[i]);
+            
             // Create the basename
-            if (json_object_object_get_ex(encoder_config, "name", &encoder_instance_name)) {
-                rtapi_snprintf(base_name, sizeof(base_name), "%s.encoder.%s", litexcnc->fpga->name, json_object_get_string(encoder_instance_name));
+            encoder_instance_name = cJSON_GetObjectItemCaseSensitive(encoder_instance_config, "name");
+            if (cJSON_IsString(encoder_instance_name) && (encoder_instance_name->valuestring != NULL)) {
+                rtapi_snprintf(base_name, sizeof(base_name), "%s.encoder.%s", litexcnc->fpga->name, encoder_instance_name->valuestring);
             } else {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.encoder.%02zu", litexcnc->fpga->name, i);
             }
+
             // Create the pins
             // - counts
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "counts"); 
@@ -115,11 +126,10 @@ int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config) {
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "x4_mode"); 
             r = hal_param_bit_new(name, HAL_RW, &(instance->hal.param.x4_mode), litexcnc->fpga->comp_id);
             if (r < 0) { goto fail_params; }
-            // Free up the memory
-            json_object_put(encoder_config);
+            
+            // Increase counter to proceed to the next encoder
+            i++;
         }
-        // Free up the memory
-        json_object_put(encoder);
     }
 
     return 0;
@@ -314,7 +324,7 @@ uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         // means there is a large jump in position and thus to a large theoretical 
         // speed.
         size_t velocity_pointer = 0;
-        if (~(*(instance->hal.pin.index_pulse))) {
+        if (!(*(instance->hal.pin.index_pulse))) {
             // Replace the element in the array
             instance->memo.velocity[velocity_pointer] = (*(instance->hal.pin.position) - position_old) * litexcnc->encoder.data.recip_dt;
             // Sum the array and divide by the size of the array

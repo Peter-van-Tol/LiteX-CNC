@@ -16,7 +16,6 @@
 //    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 //
 #include <stdio.h>
-#include <json-c/json.h>
 #include <time.h>
 
 #include <rtapi_slab.h>
@@ -31,7 +30,6 @@
 #include "hal.h"
 
 #include "litexcnc.h"
-#include "gpio.h"
 #include "crc.h"
 
 
@@ -160,9 +158,48 @@ static void litexcnc_cleanup(litexcnc_t *litexcnc) {
     // TODO
 }
 
+EXPORT_SYMBOL_GPL(litexcnc_load_config);
+int litexcnc_load_config(const char *config_file, cJSON **config, uint32_t *fingerprint) {
+    
+    int res = 0;
+
+    // Open the file containing the file
+    FILE *fileptr;
+    unsigned char *buffer;
+    long filelen;
+    // - open file get the length of the file
+    fileptr = fopen(config_file, "r");  // Open the file in binary mode
+    fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
+    filelen = ftell(fileptr);             // Get the current byte offset in the file
+    rewind(fileptr);                      // Jump back to the beginning of the file
+    // - create buffer, read contents and close file
+    buffer = (unsigned char *) calloc(1, filelen * sizeof(unsigned char)); // Enough memory for the file
+    fread(buffer, filelen, 1, fileptr);   // Read in the entire file
+    fclose(fileptr);                      // Close the file
+
+    // Calculate the fingerprint
+    *fingerprint = crc32(buffer, filelen, 0);
+
+    // Parse the JSON and check whether it is valid
+    *config = cJSON_Parse((char *) buffer);
+    if (config == NULL) {
+        const char *error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL) {
+            LITEXCNC_ERR_NO_DEVICE("Error in '%s' before: %s\n", config_file, error_ptr);
+        } else {
+            LITEXCNC_ERR_NO_DEVICE("Undefined error in '%s'\n", config_file);
+        }
+        res = -1;
+    }
+
+    // Free up the memory 
+    free(buffer);
+    return res;
+}
+
 
 EXPORT_SYMBOL_GPL(litexcnc_register);
-int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
+int litexcnc_register(litexcnc_fpga_t *fpga, cJSON *config, uint32_t fingerprint) {
     int r;
     litexcnc_t *litexcnc;
 
@@ -184,24 +221,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     // Add it to the list
     rtapi_list_add_tail(&litexcnc->list, &litexcnc_list);
 
-    // Calculate the CRC-fingerprint of the board
-    // - init properties
-    FILE *fileptr;
-    unsigned char *buffer;
-    long filelen;
-    // - open file get the length of the file
-    fileptr = fopen(config_file, "rb");  // Open the file in binary mode
-    fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
-    filelen = ftell(fileptr);             // Get the current byte offset in the file
-    rewind(fileptr);                      // Jump back to the beginning of the file
-    // - create buffer, read contents and close file
-    buffer = (unsigned char *)malloc(filelen * sizeof(unsigned char)); // Enough memory for the file
-    fread(buffer, filelen, 1, fileptr);   // Read in the entire file
-    fclose(fileptr);                      // Close the file
-    // - calculate the CRC-value and store it on the config
-    litexcnc->config_fingerprint = crc32(buffer, filelen, 0);
-
-    // Verify the fingerprint of the FPGA
+    // Verify the configuration of the FPGA, does it work with this version of LitexCNC?
     r = litexcnc->fpga->verify_config(litexcnc->fpga);
     if (r == 0) {
         // Check version of firmware of driver and firmware
@@ -220,6 +240,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
                 LITEXCNC_VERSION_MAJOR, LITEXCNC_VERSION_MINOR, LITEXCNC_VERSION_PATCH);
         }
         // Check fingerprint
+        litexcnc->config_fingerprint = fingerprint;
         if (litexcnc->config_fingerprint != litexcnc->fpga->fingerprint) {
             LITEXCNC_ERR_NO_DEVICE(
                 "Fingerprint incorrect (driver: %08d, FPGA: %08d)\n", 
@@ -233,22 +254,16 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         goto fail0;
     }
 
-    // Initialize the functions
-    struct json_object *config = json_object_from_file(config_file);
-    if (!config) {
-        LITEXCNC_ERR_NO_DEVICE("Could not load configuration file '%s'\n", config_file);
-        goto fail0;
+    // Store the name of the board
+    const cJSON *board_name = NULL;
+    board_name = cJSON_GetObjectItemCaseSensitive(config, "board_name");
+    if (cJSON_IsString(board_name) && (board_name->valuestring != NULL)) {
+        rtapi_snprintf(fpga->name, sizeof(fpga->name), board_name->valuestring);
+    } else {
+        LITEXCNC_WARN_NO_DEVICE("Missing optional JSON key: '%s'\n", "board_name");
+        rtapi_snprintf(fpga->name, sizeof(fpga->name), "litexcnc.0"); //TODO: add counter
     }
 
-    // Store the name of the board
-    struct json_object *board_name;
-    if (!json_object_object_get_ex(config, "board_name", &board_name)) {
-        LITEXCNC_WARN_NO_DEVICE("Missing optional JSON key: '%s'\n", "board_name");
-        json_object_put(board_name);
-        rtapi_snprintf(fpga->name, sizeof(fpga->name), "litexcnc.0"); //TODO: add counter
-    } else {
-        rtapi_snprintf(fpga->name, sizeof(fpga->name), json_object_get_string(board_name));
-    }
     // Check the name of the board for validity
     size_t i;
     for (i = 0; i < HAL_NAME_LEN+1; i ++) {
@@ -271,16 +286,15 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
     }    
 
     // Store the clock-frequency from the file
-    struct json_object *clock_frequency;
-    if (!json_object_object_get_ex(config, "clock_frequency", &clock_frequency)) {
+    const cJSON *clock_frequency = NULL;
+    clock_frequency = cJSON_GetObjectItemCaseSensitive(config, "clock_frequency");
+    if (!(cJSON_IsNumber(clock_frequency))) {
         LITEXCNC_ERR_NO_DEVICE("Missing required JSON key: '%s'\n", "clock_frequency");
-        json_object_put(clock_frequency);
-        json_object_put(config);
         goto fail1;
-    }
-    litexcnc->clock_frequency = json_object_get_int(clock_frequency);
+    } 
+    litexcnc->clock_frequency = clock_frequency->valueint;
     litexcnc->clock_frequency_recip = 1.0f / litexcnc->clock_frequency;
-    json_object_put(clock_frequency);
+
     // Initialize modules
     LITEXCNC_PRINT_NO_DEVICE("Setting up modules...\n");
     LITEXCNC_PRINT_NO_DEVICE(" - Watchdog\n");
@@ -313,7 +327,6 @@ int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file) {
         LITEXCNC_ERR_NO_DEVICE("Encoder init failed\n");
         goto fail0;
     }
-
 
     // Create the buffers for reading and writing data
     LITEXCNC_PRINT_NO_DEVICE("Creating read and write buffers...\n");
@@ -417,6 +430,7 @@ void rtapi_app_exit(void) {
 // Include all other files. This makes separation in different files possible,
 // while still compiling a single file. NOTE: the #include directive just copies
 // the whole contents of that file into this source-file.
+#include "cJSON/cJSON.c"
 #include "crc.c"
 #include "watchdog.c"
 #include "wallclock.c"

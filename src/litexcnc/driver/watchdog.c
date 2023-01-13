@@ -34,33 +34,30 @@
     This code was written as part of the LiteX-CNC project.
 */
 #include <stdio.h>
-#include <json-c/json.h>
 
 #include "rtapi.h"
 #include "rtapi_app.h"
-
 #include "litexcnc.h"
+
 #include "watchdog.h"
 
-int litexcnc_watchdog_init(litexcnc_t *litexcnc, json_object *config) {
+int litexcnc_watchdog_init(litexcnc_t *litexcnc, cJSON *config) {
     
     // Declarations
     int r = 0;
-    uint32_t default_timeout_ns = 0;  // 5 ms default time out 
-    struct json_object *watchdog;
-    struct json_object *default_timeout_obj;\
+    uint32_t default_timeout_ns = 0;
     char name[HAL_NAME_LEN + 1];
 
     // Parse the contents of the config-json
-    if (json_object_object_get_ex(config, "watchdog", &watchdog)) {
-        // Get the default timeout as defined in the json
-        if (json_object_object_get_ex(config, "default_timeout_ns", &default_timeout_obj)) {
-            json_object_put(default_timeout_obj);
-            default_timeout_ns = json_object_get_int(default_timeout_obj);
+    const cJSON *watchdog_config = NULL;
+    const cJSON *watchdog_default_timeout = NULL;
+    watchdog_config = cJSON_GetObjectItemCaseSensitive(config, "watchdog");
+    if (cJSON_IsObject(watchdog_config)) {
+        watchdog_default_timeout = cJSON_GetObjectItemCaseSensitive(watchdog_config, "default_timeout_ns");
+        if (cJSON_IsNumber(watchdog_default_timeout)) {
+            default_timeout_ns = watchdog_default_timeout->valueint;
         }
-        json_object_put(default_timeout_obj);
     }
-    json_object_put(watchdog);
 
     // Warn user that we use the default time out
     if (!default_timeout_ns) {
@@ -75,33 +72,30 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, json_object *config) {
     // - has_bitten
     rtapi_snprintf(name, sizeof(name), "%s.watchdog.has_bitten", litexcnc->fpga->name); 
     r = hal_pin_bit_new(name, HAL_IO, &(litexcnc->watchdog->hal.pin.has_bitten), litexcnc->fpga->comp_id);
-    if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-        r = -EINVAL;
-        return r;
-    }
+    if (r < 0) { goto fail_pins; }
 
     // Create params
     // - time-out in nano-seconds (including setting the default value)
     rtapi_snprintf(name, sizeof(name), "%s.watchdog.timeout_ns", litexcnc->fpga->name); 
     r = hal_param_u32_new(name, HAL_RW, &(litexcnc->watchdog->hal.param.timeout_ns), litexcnc->fpga->comp_id);
-    if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
-        r = -EINVAL;
-        return r;
-    }
+    if (r < 0) { goto fail_pins; }
     litexcnc->watchdog->hal.param.timeout_ns = default_timeout_ns;
     // - time-out in cycles (read-only)
     rtapi_snprintf(name, sizeof(name), "%s.watchdog.timeout_cycles", litexcnc->fpga->name); 
     r = hal_param_u32_new(name, HAL_RO, &(litexcnc->watchdog->hal.param.timeout_cycles), litexcnc->fpga->comp_id);
-    if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
-        r = -EINVAL;
-        return r;
-    }
+    if (r < 0) { goto fail_pins; }
 
     // Success
     return 0;
+
+fail_pins:
+    LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
+    return r;
+
+// NOTE: Include the code below in case params areadded to the watchdog
+// fail_params:
+//     LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
+//     return r;
 }
 
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {

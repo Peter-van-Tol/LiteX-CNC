@@ -35,17 +35,22 @@
 */
 #include <inttypes.h>
 
+#include "rtapi.h"
+#include "rtapi_app.h"
 #include "litexcnc.h"
+
 #include "stepgen.h"
 
-int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
+int litexcnc_stepgen_init(litexcnc_t *litexcnc, cJSON *config) {
 
     // Declarations
     int r = 0;
-    struct json_object *stepgen_config;
-    struct json_object *instance_config;
-    struct json_object *instance_config_name_field;
+    size_t i;
+    const cJSON *stepgen_config = NULL;
+    const cJSON *stepgen_instance_config = NULL;
+    const cJSON *stepgen_instance_name = NULL;
     char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.stepgen.<stepgen_name>
+    char name[HAL_NAME_LEN + 1];        // i.e. <base_name>.<pin_name>
 
     // Allocate the module-global HAL shared memory
     litexcnc->stepgen.hal = (litexcnc_stepgen_hal_t*)hal_malloc(sizeof(litexcnc_stepgen_hal_t));
@@ -55,16 +60,22 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
         r = -ENOMEM;
         return r;
     }
-    // - period and reciprocal
-    r = hal_pin_float_newf(HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s), litexcnc->fpga->comp_id, "%s.stepgen.period-s", litexcnc->fpga->name);
+
+    // Create shared HAL pins
+    // - period
+    rtapi_snprintf(name, sizeof(name), "%s.stepgen.period-s", litexcnc->fpga->name); 
+    r = hal_pin_float_new(name, HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s), litexcnc->fpga->comp_id);
     if (r != 0) { goto fail_pins; }
-    r = hal_pin_float_newf(HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s_recip), litexcnc->fpga->comp_id, "%s.stepgen.period-s-recip", litexcnc->fpga->name);
+    // - reciprocal of period
+    rtapi_snprintf(name, sizeof(name), "%s.stepgen.period-s-recip", litexcnc->fpga->name);
+    r = hal_pin_float_new(name, HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s_recip), litexcnc->fpga->comp_id);
     if (r != 0) { goto fail_pins; }
     
     // Parse the contents of the config-json
-    if (json_object_object_get_ex(config, "stepgen", &stepgen_config)) {
-        // Store the amount of stepgen instances on this board
-        litexcnc->stepgen.num_instances = json_object_array_length(stepgen_config);
+    stepgen_config = cJSON_GetObjectItemCaseSensitive(config, "stepgen");
+    if (cJSON_IsArray(stepgen_config)) {
+        // Store the amount of pwm instances on this board
+        litexcnc->stepgen.num_instances = cJSON_GetArraySize(stepgen_config);
         litexcnc->config.num_stepgen_instances = litexcnc->stepgen.num_instances;
         
         // Allocate the module-global HAL shared memory
@@ -76,9 +87,8 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
         }
 
         // Create the pins and params in the HAL
-        for (size_t i=0; i<litexcnc->stepgen.num_instances; i++) {
-            instance_config = json_object_array_get_idx(stepgen_config, i);
-            
+        i = 0;
+        cJSON_ArrayForEach(stepgen_instance_config, stepgen_config) {
             // Get pointer to the stepgen instance
             litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
 
@@ -91,84 +101,99 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config) {
             instance->data.pick_off_acc = instance->data.pick_off_vel + 8;
 
             // Create the basename
-            if (json_object_object_get_ex(instance_config, "name", &instance_config_name_field)) {
-                rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen.%s", litexcnc->fpga->name, json_object_get_string(instance_config_name_field));
+            stepgen_instance_name = cJSON_GetObjectItemCaseSensitive(stepgen_instance_config, "name");
+            if (cJSON_IsString(stepgen_instance_name) && (stepgen_instance_name->valuestring != NULL)) {
+                rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen.%s", litexcnc->fpga->name, stepgen_instance_name->valuestring);
             } else {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen.%02zu", litexcnc->fpga->name, i);
             }
 
             // Create the params
             // - Frequency
-            r = hal_param_float_newf(HAL_RO, &(instance->hal.param.frequency), litexcnc->fpga->comp_id, "%s.frequency", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.frequency", base_name); 
+            r = hal_param_float_new(name, HAL_RO, &(instance->hal.param.frequency), litexcnc->fpga->comp_id);
             if (r < 0) { goto fail_params; }
             // - Maximum acceleration
-            r = hal_param_float_newf(HAL_RW, &(instance->hal.param.max_acceleration), litexcnc->fpga->comp_id, "%s.max-acceleration", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.max-acceleration", base_name); 
+            r = hal_param_float_new(name, HAL_RW, &(instance->hal.param.max_acceleration), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
             // - Maximum velocity
-            r = hal_param_float_newf(HAL_RW, &(instance->hal.param.max_velocity), litexcnc->fpga->comp_id, "%s.max-velocity", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.max-velocity", base_name);
+            r = hal_param_float_new(name, HAL_RW, &(instance->hal.param.max_velocity), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
             // - Scale of position
-            r = hal_param_float_newf(HAL_RW, &(instance->hal.param.position_scale), litexcnc->fpga->comp_id, "%s.position-scale", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.position-scale", base_name);
+            r = hal_param_float_new(name, HAL_RW, &(instance->hal.param.position_scale), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
             // - Timing - steplen
-            r = hal_param_u32_newf(HAL_RW, &(instance->hal.param.steplen), litexcnc->fpga->comp_id, "%s.steplen", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.steplen", base_name);
+            r = hal_param_u32_new(name, HAL_RW, &(instance->hal.param.steplen), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
             // - Timing - stepspace
-            r = hal_param_u32_newf(HAL_RW, &(instance->hal.param.stepspace), litexcnc->fpga->comp_id, "%s.stepspace", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.stepspace", base_name);
+            r = hal_param_u32_new(name, HAL_RW, &(instance->hal.param.stepspace), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
             // - Timing - dirsetup
-            r = hal_param_u32_newf(HAL_RW, &(instance->hal.param.dir_setup_time), litexcnc->fpga->comp_id, "%s.dir-setup-time", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.dir-setup-time", base_name);
+            r = hal_param_u32_new(name, HAL_RW, &(instance->hal.param.dir_setup_time), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
             // - Timing - dirhold
-            r = hal_param_u32_newf(HAL_RW, &(instance->hal.param.dir_hold_time), litexcnc->fpga->comp_id, "%s.dir-hold-time", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.dir-hold-time", base_name);
+            r = hal_param_u32_new(name, HAL_RW, &(instance->hal.param.dir_hold_time), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
             // - Flag setting whether debug is active
-            r = hal_pin_bit_newf(HAL_IN, &(instance->hal.pin.debug), litexcnc->fpga->comp_id, "%s.debug", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.debug", base_name);
+            r = hal_pin_bit_new(name, HAL_IN, &(instance->hal.pin.debug), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_params; }
 
             // Create the pins
             // - counts
-            r = hal_pin_u32_newf(HAL_OUT, &(instance->hal.pin.counts), litexcnc->fpga->comp_id, "%s.counts", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.counts", base_name);
+            r = hal_pin_u32_new(name, HAL_OUT, &(instance->hal.pin.counts), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
             // - position_fb
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.position_fb), litexcnc->fpga->comp_id, "%s.position-feedback", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.position-feedback", base_name);
+            r = hal_pin_float_new(name, HAL_OUT, &(instance->hal.pin.position_fb), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
             // - position_prediction
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.position_prediction), litexcnc->fpga->comp_id, "%s.position_prediction", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.position_prediction", base_name);
+            r = hal_pin_float_new(name, HAL_OUT, &(instance->hal.pin.position_prediction), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
             // - speed_fb
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.speed_fb), litexcnc->fpga->comp_id, "%s.velocity-feedback", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.velocity-feedback", base_name);
+            r = hal_pin_float_new(name, HAL_OUT, &(instance->hal.pin.speed_fb), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
             // - speed_prediction
-            r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.speed_prediction), litexcnc->fpga->comp_id, "%s.velocity-prediction", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.velocity-prediction", base_name);
+            r = hal_pin_float_new(name, HAL_OUT, &(instance->hal.pin.speed_prediction), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
             // - enable
-            r = hal_pin_bit_newf(HAL_IN, &(instance->hal.pin.enable), litexcnc->fpga->comp_id, "%s.enable", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.enable", base_name);
+            r = hal_pin_bit_new(name, HAL_IN, &(instance->hal.pin.enable), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
             // - velocity_cmd
-            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.velocity_cmd), litexcnc->fpga->comp_id, "%s.velocity-cmd", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.velocity-cmd", base_name);
+            r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.velocity_cmd), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
             // - acceleration_cmd
-            r = hal_pin_float_newf(HAL_IN, &(instance->hal.pin.acceleration_cmd), litexcnc->fpga->comp_id, "%s.acceleration-cmd", base_name);
+            rtapi_snprintf(name, sizeof(name), "%s.acceleration-cmd", base_name);
+            r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.acceleration_cmd), litexcnc->fpga->comp_id);
             if (r != 0) { goto fail_pins; }
-            // // - period and reciprocal
-            // r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s), litexcnc->fpga->comp_id, "%s.period-s", base_name);
-            // if (r != 0) { goto fail_pins; }
-            // r = hal_pin_float_newf(HAL_OUT, &(instance->hal.pin.period_s_recip), litexcnc->fpga->comp_id, "%s.period-s-recip", base_name);
-            // if (r != 0) { goto fail_pins; }
+            
+            // Increase counter to proceed to the next pwm instance
+            i++;
         }
     }
 
+    return 0;
+    
+fail_pins:
+    LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
     return r;
 
 fail_params:
-    LITEXCNC_ERR_NO_DEVICE("Error adding stepgen params, aborting\n");
+    LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
     return r;
-
-fail_pins:
-    LITEXCNC_ERR_NO_DEVICE("Error adding stepgen pins, aborting\n");
-    return r;
-
 }
 
 

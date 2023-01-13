@@ -37,6 +37,8 @@
 #ifndef __INCLUDE_LITEXCNC_WALLCLOCK_H__
 #define __INCLUDE_LITEXCNC_WALLCLOCK_H__
 
+#include "cJSON/cJSON.h"
+
 // Defines the Watchdog. In contrast to the other components, the watchdog is
 // a singleton: exactly one exist on each FPGA-card
 typedef struct {
@@ -73,7 +75,7 @@ typedef struct {
 #define LITEXCNC_WALLCLOCK_DATA_READ_SIZE sizeof(litexcnc_wallclock_data_read_t)
 
 // Functions for creating, reading and writing wall-clock pins
-int litexcnc_wallclock_init(litexcnc_t *litexcnc, json_object *config);
+int litexcnc_wallclock_init(litexcnc_t *litexcnc, cJSON *config);
 uint8_t litexcnc_wallclock_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_wallclock_prepare_write(litexcnc_t *litexcnc, uint8_t **data);
 uint8_t litexcnc_wallclock_process_read(litexcnc_t *litexcnc, uint8_t** data);

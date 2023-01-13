@@ -37,7 +37,7 @@
 #ifndef __INCLUDE_LITEXCNC_PWM_H__
 #define __INCLUDE_LITEXCNC_PWM_H__
 
-#include "litexcnc.h"
+#include "cJSON/cJSON.h"
 
 // Defines the structure of the PWM instance
 typedef struct {
@@ -100,7 +100,7 @@ typedef struct {
 #define LITEXCNC_BOARD_PWM_DATA_READ_SIZE(litexcnc) 0 // PWM does not send data back
 
 // Functions for creating, reading and writing PWM pins
-int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config);
+int litexcnc_pwm_init(litexcnc_t *litexcnc, cJSON *config);
 uint8_t litexcnc_pwm_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_pwm_prepare_write(litexcnc_t *litexcnc, uint8_t **data);
 uint8_t litexcnc_pwm_process_read(litexcnc_t *litexcnc, uint8_t** data);

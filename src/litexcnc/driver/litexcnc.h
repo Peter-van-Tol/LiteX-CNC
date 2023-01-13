@@ -23,6 +23,7 @@ typedef struct litexcnc_struct litexcnc_t;
 
 #include "rtapi.h"
 
+#include "cJSON/cJSON.h"
 #include "gpio.h"
 #include "pwm.h"
 #include "stepgen.h"
@@ -160,7 +161,8 @@ typedef struct {
 #pragma pack(pop)
 #define LITEXCNC_CONFIG_HEADER_SIZE sizeof(litexcnc_config_header_t) + LITEXCNC_STEPGEN_CONFIG_DATA_SIZE
 
-int litexcnc_register(litexcnc_fpga_t *fpga, const char *config_file);
+int litexcnc_load_config(const char *config_file, cJSON **config, uint32_t *fingerprint) ;
+int litexcnc_register(litexcnc_fpga_t *fpga, cJSON *config, uint32_t fingerprint);
 void litexcnc_unregister(litexcnc_fpga_t *fpga);
 
 #endif

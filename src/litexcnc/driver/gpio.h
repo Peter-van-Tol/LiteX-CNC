@@ -18,7 +18,7 @@
 #ifndef __INCLUDE_LITEXCNC_GPIO_H__
 #define __INCLUDE_LITEXCNC_GPIO_H__
 
-#include "litexcnc.h"
+#include "cJSON/cJSON.h"
 
 // Defines the structure of the gpio
 typedef struct {
@@ -69,7 +69,7 @@ typedef struct {
 #define LITEXCNC_BOARD_GPIO_DATA_READ_SIZE(litexcnc) (((litexcnc->gpio.num_input_pins)>>5) + ((litexcnc->gpio.num_input_pins & 0x1F)?1:0)) * 4
 
 // Functions for creating, reading and writing GPIO pins
-int litexcnc_gpio_init(litexcnc_t *litexcnc, json_object *config);
+int litexcnc_gpio_init(litexcnc_t *litexcnc, cJSON *config);
 uint8_t litexcnc_gpio_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_gpio_prepare_write(litexcnc_t *litexcnc, uint8_t **data);
 uint8_t litexcnc_gpio_process_read(litexcnc_t *litexcnc, uint8_t** data);

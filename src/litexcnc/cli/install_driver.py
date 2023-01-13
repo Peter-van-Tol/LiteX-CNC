@@ -13,15 +13,6 @@ from litexcnc import driver
 @click.command()
 def cli():
     
-    # apt-get update and install libjson-c-dev
-    click.echo(click.style("INFO", fg="blue") + ": Installing libjson-c-dev...")
-    ret = subprocess.call(
-        'apt-get update && apt-get install -y libjson-c-dev', 
-        shell=True
-    )
-    if ret:
-        click.echo(click.style("Error", fg="red") + ": Installation of libjson-c-dev failed.")
-
     # compile the driver
     click.echo(click.style("INFO", fg="blue") + ": Compiling LitexCNC driver...")
     ret = subprocess.call(
