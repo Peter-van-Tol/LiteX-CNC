@@ -318,9 +318,6 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     uint32_t fingerprint;
     cJSON *config = NULL;
     litexcnc_load_config(config_file, &config, &fingerprint);
-    LITEXCNC_ERR_NO_DEVICE("Test\n");
-    LITEXCNC_ERR_NO_DEVICE("%s\n", cJSON_Print(config));
-    LITEXCNC_ERR_NO_DEVICE("%ul\n", fingerprint);
 
     // Create a connection with the board
     const cJSON *etherbone = NULL;
