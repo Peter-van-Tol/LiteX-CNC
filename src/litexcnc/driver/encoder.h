@@ -38,7 +38,7 @@
 #ifndef __INCLUDE_LITEXCNC_ENCODER_H__
 #define __INCLUDE_LITEXCNC_ENCODER_H__
 
-#include "litexcnc.h"
+#include "cJSON/cJSON.h"
 
 #define LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE 8
 
@@ -145,7 +145,7 @@ typedef struct {
 
 
 // Functions for creating, reading and writing stepgen pins
-int litexcnc_encoder_init(litexcnc_t *litexcnc, json_object *config);
+int litexcnc_encoder_init(litexcnc_t *litexcnc, cJSON *config);
 uint8_t litexcnc_encoder_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_encoder_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_encoder_process_read(litexcnc_t *litexcnc, uint8_t** data, long period);

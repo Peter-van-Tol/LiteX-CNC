@@ -33,32 +33,33 @@
 
     This code was written as part of the LiteX-CNC project.
 */
-
 #include <stdio.h>
-#include <json-c/json.h>
 
 #include "rtapi.h"
 #include "rtapi_app.h"
-
 #include "litexcnc.h"
+
 #include "pwm.h"
 
 
-int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config) {
+int litexcnc_pwm_init(litexcnc_t *litexcnc, cJSON *config) {
     
     // Declarations
     int r;
-    struct json_object *pwm;
-    struct json_object *pwm_instance;
-    struct json_object *pwm_instance_pin_name;
+    size_t i;
+    const cJSON *pwm_config = NULL;
+    const cJSON *pwm_instance_config = NULL;
+    const cJSON *pwm_instance_name = NULL;
     char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.pwm.<pwm_name>
     char name[HAL_NAME_LEN + 1];        // i.e. <base_name>.<pin_name>
     
     // Parse the contents of the config-json
-    if (json_object_object_get_ex(config, "pwm", &pwm)) {
-        // Store the amount of PWM instances on this board
-        litexcnc->pwm.num_instances = json_object_array_length(pwm);
+    pwm_config = cJSON_GetObjectItemCaseSensitive(config, "pwm");
+    if (cJSON_IsArray(pwm_config)) {
+        // Store the amount of pwm instances on this board
+        litexcnc->pwm.num_instances = cJSON_GetArraySize(pwm_config);
         litexcnc->config.num_pwm_instances = litexcnc->pwm.num_instances;
+
         // Allocate the module-global HAL shared memory
         litexcnc->pwm.instances = (litexcnc_pwm_pin_t *)hal_malloc(litexcnc->pwm.num_instances * sizeof(litexcnc_pwm_pin_t));
         if (litexcnc->pwm.instances == NULL) {
@@ -66,107 +67,72 @@ int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config) {
             r = -ENOMEM;
             return r;
         }
+        
         // Create the pins and params in the HAL
-        for (size_t i=0; i<litexcnc->pwm.num_instances; i++) {
-            pwm_instance = json_object_array_get_idx(pwm, i);
-            
+        i = 0;
+        cJSON_ArrayForEach(pwm_instance_config, pwm_config) {
             // Get pointer to the pwmgen instance
             litexcnc_pwm_pin_t *instance = &(litexcnc->pwm.instances[i]);
             
             // Create the basename
-            if (json_object_object_get_ex(pwm_instance, "name", &pwm_instance_pin_name)) {
-                rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%s", litexcnc->fpga->name, json_object_get_string(pwm_instance_pin_name));
+            pwm_instance_name = cJSON_GetObjectItemCaseSensitive(pwm_instance_config, "name");
+            if (cJSON_IsString(pwm_instance_name) && (pwm_instance_name->valuestring != NULL)) {
+                rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%s", litexcnc->fpga->name, pwm_instance_name->valuestring);
             } else {
                 rtapi_snprintf(base_name, sizeof(base_name), "%s.pwm.%02zu", litexcnc->fpga->name, i);
             }
-
+            
             // Create the pins
             // - enable
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "enable"); 
             r = hal_pin_bit_new(name, HAL_IN, &(instance->hal.pin.enable), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - value
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "value"); 
             r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.value), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - scale
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "scale"); 
             r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.scale), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - offset
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "offset"); 
             r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.offset), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - dither_pwm
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "dither_pwm"); 
             r = hal_pin_bit_new(name, HAL_IN, &(instance->hal.pin.dither_pwm), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - pwm_freq
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "pwm_freq"); 
             r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.pwm_freq), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - min_dc
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "min_dc"); 
             r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.min_dc), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - max_dc
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "max_dc"); 
             r = hal_pin_float_new(name, HAL_IN, &(instance->hal.pin.max_dc), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - curr_dc
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "curr_dc"); 
             r = hal_pin_float_new(name, HAL_OUT, &(instance->hal.pin.curr_dc), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - curr_pwm_freq
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "curr_pwm_freq"); 
             r = hal_pin_float_new(name, HAL_OUT, &(instance->hal.pin.curr_pwm_freq), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - curr_period
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "curr_period"); 
             r = hal_pin_u32_new(name, HAL_OUT, &(instance->hal.pin.curr_period), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
             // - curr_width
             rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, "curr_width"); 
             r = hal_pin_u32_new(name, HAL_OUT, &(instance->hal.pin.curr_width), litexcnc->fpga->comp_id);
-            if (r < 0) {
-                LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
-                return r;
-            }
+            if (r < 0) { goto fail_pins; }
 
-            // // Set default values for the instance (PWM is disabled by default: SAFETY!)
+            // Set default values for the instance (PWM is disabled by default: SAFETY!)
             *(instance->hal.pin.enable) = 0;
             *(instance->hal.pin.scale) = 1.0;
             *(instance->hal.pin.offset) = 0.0;
@@ -174,14 +140,22 @@ int litexcnc_pwm_init(litexcnc_t *litexcnc, json_object *config) {
             *(instance->hal.pin.pwm_freq) = 100000.0;
             *(instance->hal.pin.min_dc) = 0.0;
             *(instance->hal.pin.max_dc) = 1.0;
-            // Free up the memory
-            json_object_put(pwm_instance);
+            
+            // Increase counter to proceed to the next pwm instance
+            i++;
         }
-        // Free up the memory
-        json_object_put(pwm);
     }
 
     return 0;
+    
+fail_pins:
+    LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
+    return r;
+
+// NOTE: Include the code below in case params areadded to the PWM
+// fail_params:
+//     LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
+//     return r;
 }
 
 

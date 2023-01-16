@@ -16,7 +16,6 @@
 //    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 //
 #include <stdio.h>
-#include <json-c/json.h>
 
 #include <rtapi_slab.h>
 #include <rtapi_list.h>
@@ -26,7 +25,7 @@
 #include "rtapi_app.h"
 #include "rtapi_string.h"
 
-
+#include "cJSON/cJSON.h"
 #include "etherbone.h"
 #include "litexcnc.h"
 #include "litexcnc_eth.h"
@@ -316,45 +315,38 @@ static int init_board(litexcnc_eth_t *board, const char *config_file) {
     }
 
     // Open the json-file for the configuration
-    struct json_object *config = json_object_from_file(config_file);
-    if (!config) {
-        LITEXCNC_ERR_NO_DEVICE("Could not load configuration file '%s'\n", config_file);
-        goto fail_without_disconnect;
-    }
+    uint32_t fingerprint;
+    cJSON *config = NULL;
+    litexcnc_load_config(config_file, &config, &fingerprint);
 
     // Create a connection with the board
-    struct json_object *etherbone;
-    if (!json_object_object_get_ex(config, "etherbone", &etherbone)) {
+    const cJSON *etherbone = NULL;
+    etherbone = cJSON_GetObjectItemCaseSensitive(config, "etherbone");
+    if (!(cJSON_IsObject(etherbone))) {
         LITEXCNC_ERR_NO_DEVICE("Missing required JSON key: '%s'\n", "etherbone");
-        json_object_put(etherbone);
-        goto fail_freememory;
+        goto fail_without_disconnect;
     }
-    struct json_object *ip_address;
-    if (!json_object_object_get_ex(etherbone, "ip_address", &ip_address)) {
+    const cJSON *ip_address = NULL;
+    ip_address = cJSON_GetObjectItemCaseSensitive(etherbone, "ip_address");
+    if (!(cJSON_IsString(ip_address)) || (ip_address->valuestring == NULL)) {
         LITEXCNC_ERR_NO_DEVICE("Missing required JSON key: '%s'\n", "ip_address");
-        json_object_put(ip_address);
-        json_object_put(etherbone);
-        goto fail_freememory;
+        goto fail_without_disconnect;
     }
-    LITEXCNC_PRINT_NO_DEVICE("Connecting to board at address: %s:1234 \n", json_object_get_string(ip_address));
-    board->connection = eb_connect(json_object_get_string(ip_address), "1234", 1);
+    LITEXCNC_PRINT_NO_DEVICE("Connecting to board at address: %s:1234 \n", ip_address->valuestring);
+    board->connection = eb_connect(ip_address->valuestring, "1234", 1);
     if (!board->connection) {
-        rtapi_print_msg(RTAPI_MSG_ERR,"colorcnc: ERROR: failed to connect to board on ip-address '%s:1234'\n", json_object_get_string(ip_address));
+        rtapi_print_msg(RTAPI_MSG_ERR,"colorcnc: ERROR: failed to connect to board on ip-address '%s:1234'\n", ip_address->valuestring);
         goto fail_disconnect;
     }
-    json_object_put(ip_address);
-    json_object_put(etherbone);
 
-    // Free up memory
-    json_object_put(config);
-
+    // Continue process
     goto success_continue;
 
 fail_disconnect:
 	eb_disconnect(&board->connection);
-fail_freememory:
-	json_object_put(config);
 fail_without_disconnect:
+    // Free memory
+    cJSON_Delete(config);
     return -1;
 
 success_continue:
@@ -371,12 +363,15 @@ success_continue:
     board->fpga.private           = board;
 
     // Register the board with the main function
-    size_t ret = litexcnc_register(&board->fpga, config_file);
+    size_t ret = litexcnc_register(&board->fpga, config, fingerprint);
     if (ret != 0) {
         rtapi_print("board fails LitexCNC registration\n");
         return ret;
     }
     boards_count++;
+
+    // Free memory (no need to read more data from the config file)
+    cJSON_Delete(config);
 
     // Set the header of the read and write buffer
     // WRITE BUFFER
@@ -465,3 +460,4 @@ void rtapi_app_exit(void) {
 
 // Include other c-files, because LinuxCNC Makefile cannot handle loose files
 #include "etherbone.c"
+#include "cJSON/cJSON.c"

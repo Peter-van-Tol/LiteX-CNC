@@ -36,7 +36,7 @@
 #ifndef __INCLUDE_LITEXCNC_STEPGEN_H__
 #define __INCLUDE_LITEXCNC_STEPGEN_H__
 
-#include "litexcnc.h"
+#include "cJSON/cJSON.h"
 
 #define STEPGEN_WALLCLOCK_BUFFER 10
 #define STEPGEN_WALLCLOCK_BUFFER_RECIP 1.0 / STEPGEN_WALLCLOCK_BUFFER
@@ -200,7 +200,7 @@ typedef struct {
 
 
 // Functions for creating, reading and writing stepgen pins
-int litexcnc_stepgen_init(litexcnc_t *litexcnc, json_object *config);
+int litexcnc_stepgen_init(litexcnc_t *litexcnc, cJSON *config);
 uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long period);

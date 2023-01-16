@@ -1,5 +1,10 @@
 # Imports for creating a json-definition
-from typing import Iterable, List, Literal, Union
+try:
+    from typing import Iterable, List, Literal, Union
+except ImportError:
+    # Imports for Python <3.8
+    from typing import Iterable, List, Union
+    from typing_extensions import Literal
 from pydantic import BaseModel, Field
 
 # Imports for creating a LiteX/Migen module
