@@ -67,10 +67,13 @@ void eb_wait_for_tx_buffer_empty(struct eb_connection *conn) {
     int tx_queue_len = 0, first = 1;
     int tx_queue_max_len = 0;
     int peekCount = 0;
-    long time1 = timestampUsec();
+    // long time1 = timestampUsec();
     
     while ( first || tx_queue_len > 0) {
-	    if (tx_queue_len > 0) usecSleep(10);
+	    if (tx_queue_len > 0) {
+            usecSleep(10);
+            // fprintf(stderr, "Queue length: %d \n", tx_queue_len);
+        }
 	    int rc = ioctl(conn->fd, TIOCOUTQ, &tx_queue_len);
 	    if ( rc < 0) {
 		    perror("colorcnc: cannot ioctl?");
@@ -81,11 +84,11 @@ void eb_wait_for_tx_buffer_empty(struct eb_connection *conn) {
 	    ++peekCount;
     }
     
-    long time2 = timestampUsec();
-    long dura = time2 - time1;
-    if (dura > 300) {
-	    //fprintf(stderr, "colorcnc debug: waited for socket tx_queue to clear for %ld usec, %d samples, max len %d\n", dura, peekCount, tx_queue_max_len);
-    }
+    // long time2 = timestampUsec();
+    // long dura = time2 - time1;
+    // if (dura > 300) {
+	//     fprintf(stderr, "colorcnc debug: waited for socket tx_queue to clear for %ld usec, %d samples, max len %d\n", dura, peekCount, tx_queue_max_len);
+    // }
     
 }
 
