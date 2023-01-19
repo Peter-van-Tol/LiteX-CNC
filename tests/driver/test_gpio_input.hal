@@ -1,0 +1,87 @@
+# This file assumes that the firmware located in ../firmware/5a-75e-hello-gpio/ is loaded 
+# to the FPGA. The corresponding json-configuration is located in the ../../examples 
+# folder. Modify paths as required for your setup!
+#
+# As soon as an input HIGH is detected on one of the connections, the output on the
+# corresponding output connector on the otherside of the board will be pulled HIGH.
+# 
+# USAGE:
+#    halrun -I test_gpio_input.hal
+
+# LOAD LITEXCNC AND THREADS
+# =========================
+loadrt litexcnc
+loadrt litexcnc_eth config_file="/home/litexcnc/5a-75e_v6.0_i48o56.json"
+loadrt threads name1=test-thread period1=10000000
+
+# SETUP WATCHDOG
+# ==============
+setp test_PWM_GPIO.watchdog.timeout_ns 15000000
+
+# ADD FUNCTIONS TO THREAD
+# =======================
+addf test_PWM_GPIO.read test-thread
+addf test_PWM_GPIO.write test-thread
+
+# CONNECT THE INPUT TO OUTPUT
+# ===========================
+# - Connector J8-J9
+net test1_j08_j09 test_PWM_GPIO.gpio.j8:1.in => test_PWM_GPIO.gpio.j9:1.out
+net test2_j08_j09 test_PWM_GPIO.gpio.j8:2.in => test_PWM_GPIO.gpio.j9:2.out
+net test3_j08_j09 test_PWM_GPIO.gpio.j8:3.in => test_PWM_GPIO.gpio.j9:3.out
+net test5_j08_j09 test_PWM_GPIO.gpio.j8:5.in => test_PWM_GPIO.gpio.j9:5.out
+net test6_j08_j09 test_PWM_GPIO.gpio.j8:6.in => test_PWM_GPIO.gpio.j9:6.out
+net test7_j08_j09 test_PWM_GPIO.gpio.j8:7.in => test_PWM_GPIO.gpio.j9:7.out
+# - Connector J7-J10
+net test1_j07_j10 test_PWM_GPIO.gpio.j7:1.in => test_PWM_GPIO.gpio.j10:1.out
+net test2_j07_j10 test_PWM_GPIO.gpio.j7:2.in => test_PWM_GPIO.gpio.j10:2.out
+net test3_j07_j10 test_PWM_GPIO.gpio.j7:3.in => test_PWM_GPIO.gpio.j10:3.out
+net test5_j07_j10 test_PWM_GPIO.gpio.j7:5.in => test_PWM_GPIO.gpio.j10:5.out
+net test6_j07_j10 test_PWM_GPIO.gpio.j7:6.in => test_PWM_GPIO.gpio.j10:6.out
+net test7_j07_j10 test_PWM_GPIO.gpio.j7:7.in => test_PWM_GPIO.gpio.j10:7.out
+# - Connector J6-J11
+net test1_j06_j11 test_PWM_GPIO.gpio.j6:1.in => test_PWM_GPIO.gpio.j11:1.out
+net test2_j06_j11 test_PWM_GPIO.gpio.j6:2.in => test_PWM_GPIO.gpio.j11:2.out
+net test3_j06_j11 test_PWM_GPIO.gpio.j6:3.in => test_PWM_GPIO.gpio.j11:3.out
+net test5_j06_j11 test_PWM_GPIO.gpio.j6:5.in => test_PWM_GPIO.gpio.j11:5.out
+net test6_j06_j11 test_PWM_GPIO.gpio.j6:6.in => test_PWM_GPIO.gpio.j11:6.out
+net test7_j06_j11 test_PWM_GPIO.gpio.j6:7.in => test_PWM_GPIO.gpio.j11:7.out
+# - Connector J5-J12
+net test1_j05_j12 test_PWM_GPIO.gpio.j5:1.in => test_PWM_GPIO.gpio.j12:1.out
+net test2_j05_j12 test_PWM_GPIO.gpio.j5:2.in => test_PWM_GPIO.gpio.j12:2.out
+net test3_j05_j12 test_PWM_GPIO.gpio.j5:3.in => test_PWM_GPIO.gpio.j12:3.out
+net test5_j05_j12 test_PWM_GPIO.gpio.j5:5.in => test_PWM_GPIO.gpio.j12:5.out
+net test6_j05_j12 test_PWM_GPIO.gpio.j5:6.in => test_PWM_GPIO.gpio.j12:6.out
+net test7_j05_j12 test_PWM_GPIO.gpio.j5:7.in => test_PWM_GPIO.gpio.j12:7.out
+# - Connector J4-J13
+net test1_j04_j13 test_PWM_GPIO.gpio.j4:1.in => test_PWM_GPIO.gpio.j13:1.out
+net test2_j04_j13 test_PWM_GPIO.gpio.j4:2.in => test_PWM_GPIO.gpio.j13:2.out
+net test3_j04_j13 test_PWM_GPIO.gpio.j4:3.in => test_PWM_GPIO.gpio.j13:3.out
+net test5_j04_j13 test_PWM_GPIO.gpio.j4:5.in => test_PWM_GPIO.gpio.j13:5.out
+net test6_j04_j13 test_PWM_GPIO.gpio.j4:6.in => test_PWM_GPIO.gpio.j13:6.out
+net test7_j04_j13 test_PWM_GPIO.gpio.j4:7.in => test_PWM_GPIO.gpio.j13:7.out
+# - Connector J3-J14
+net test1_j03_j14 test_PWM_GPIO.gpio.j3:1.in => test_PWM_GPIO.gpio.j14:1.out
+net test2_j03_j14 test_PWM_GPIO.gpio.j3:2.in => test_PWM_GPIO.gpio.j14:2.out
+net test3_j03_j14 test_PWM_GPIO.gpio.j3:3.in => test_PWM_GPIO.gpio.j14:3.out
+net test5_j03_j14 test_PWM_GPIO.gpio.j3:5.in => test_PWM_GPIO.gpio.j14:5.out
+net test6_j03_j14 test_PWM_GPIO.gpio.j3:6.in => test_PWM_GPIO.gpio.j14:6.out
+net test7_j03_j14 test_PWM_GPIO.gpio.j3:7.in => test_PWM_GPIO.gpio.j14:7.out
+# - Connector J2-J15
+net test1_j02_j15 test_PWM_GPIO.gpio.j2:1.in => test_PWM_GPIO.gpio.j15:1.out
+net test2_j02_j15 test_PWM_GPIO.gpio.j2:2.in => test_PWM_GPIO.gpio.j15:2.out
+net test3_j02_j15 test_PWM_GPIO.gpio.j2:3.in => test_PWM_GPIO.gpio.j15:3.out
+net test5_j02_j15 test_PWM_GPIO.gpio.j2:5.in => test_PWM_GPIO.gpio.j15:5.out
+net test6_j02_j15 test_PWM_GPIO.gpio.j2:6.in => test_PWM_GPIO.gpio.j15:6.out
+net test7_j02_j15 test_PWM_GPIO.gpio.j2:7.in => test_PWM_GPIO.gpio.j15:7.out
+# - Connector J1-J16
+net test1_j01_j16 test_PWM_GPIO.gpio.j1:1.in => test_PWM_GPIO.gpio.j16:1.out
+net test2_j01_j16 test_PWM_GPIO.gpio.j1:2.in => test_PWM_GPIO.gpio.j16:2.out
+net test3_j01_j16 test_PWM_GPIO.gpio.j1:3.in => test_PWM_GPIO.gpio.j16:3.out
+net test5_j01_j16 test_PWM_GPIO.gpio.j1:5.in => test_PWM_GPIO.gpio.j16:5.out
+net test6_j01_j16 test_PWM_GPIO.gpio.j1:6.in => test_PWM_GPIO.gpio.j16:6.out
+net test7_j01_j16 test_PWM_GPIO.gpio.j1:7.in => test_PWM_GPIO.gpio.j16:7.out
+
+# FINISHED, STARTING HAL
+# ======================
+start
