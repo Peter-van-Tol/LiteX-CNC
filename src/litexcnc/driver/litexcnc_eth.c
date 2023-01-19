@@ -229,6 +229,10 @@ static int litexcnc_eth_write_config(litexcnc_fpga_t *this, uint8_t *data, size_
         LITEXCNC_CONFIG_HEADER_SIZE,
         board->hal.param.debug
     );
+    // if (r < 0) {
+    //     fprintf(stderr, "Could not write config to device `%s`, error code %d", this->name, r);
+    //     return -1;
+    // }
 
     // It is not (yet) implemented to read back the configuration from the device
     // in order to check whether the write has been successful.
@@ -250,8 +254,8 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
         board->connection,
         board->read_request_buffer,
         this->read_buffer_size);
-    if (r != 0) {
-        fprintf(stderr, "Could not write to device `%s`", this->name);
+    if (r < 0) {
+        fprintf(stderr, "Could not write addresses to read to device `%s`, error code %d", this->name, r);
         return -1;
     }
     // - get response
@@ -264,7 +268,7 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
         fprintf(stderr, "Unexpected read length: %d, expected %zu\n", count, this->read_buffer_size);
         return -1;
     }
-
+    
     // Successful read
     return 0;
 }
@@ -283,6 +287,10 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
         board->connection,
         this->write_buffer,
         this->write_buffer_size);
+    if (r < 0) {
+        fprintf(stderr, "Could not write data to device `%s`, error code %d", this->name, r);
+        return -1;
+    }
 
     // If we missed a paket earlier with timeout AND this packet arrives later, there 
     // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
