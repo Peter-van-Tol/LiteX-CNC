@@ -16,11 +16,6 @@ boards 5A-75B and 5A-75E, as these are fully supported with the open source tool
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty
 to obtain a MESA card.
 
-.. warning::
-    At this moment this code is experimental and requires expansion. A test card has been received and a 
-    test setup has been created. The modules GPIO, PWM, Stepgen are tested and are working. Expansion of
-    the project with encoders, I2C, RS489, etc. is still required.
-
 Acknowledgements
 ================
 
@@ -48,7 +43,7 @@ drivers the included scripts:
 .. code-block:: shell
 
     litexcnc install_driver
-    litexcnc install_litex
+    litexcnc install_litex 
     litexcnc install_toolchain
 
 .. note::
@@ -116,6 +111,7 @@ The firmare can be created based with the following command:
 
     litexcnc build_firmware "<path-to-your-configuration>" --build 
 
+Type ``litexcnc build_firmware --help`` for more options. 
 
 Compiling the driver
 --------------------
@@ -135,11 +131,13 @@ The firmare can be created based with the following command:
 
     litexcnc install_driver
 
-This script will run ``apt-get`` to install the following packages:
+.. info::
+    When ``sudo`` is required to install the driver, it might be required to pass the environment variables
+    to the command:
 
-- ``libjson-c-dev``, which is required to read the configuration files. 
+    .. code-block:: shell
 
-After this, the driver is installed using ``halcompile``.
+        sudo -E env PATH=$PATH litexcnc install_driver
 
 Usage in HAL
 ============
@@ -151,15 +149,13 @@ Typically main litexcnc driver is loaded first:
 
 After loading the main driver, the board-driver can be loaded. At this moment only ethernet cards 
 are supported using the ``litexcnc_eth`` board-driver. All the board-driver modules accept a load-time 
-modparam of type string array, named ``config_file``. This array has one config_file string for each 
-board the driver should use. Each json-file is passed to and parsed by the litexcnc driver when the 
-board-driver registers the board. The paths can contain spaces, so it is usually a good idea to wrap 
-the whole thing in double-quotes (the " character). The comma character (,) separates members of the 
-config array from each other.
+modparam of type string array, named ``connection_string``. This array has one ip-addreess string for each 
+board the driver should use. The default port the driver will connect to is ``1234``. When another port
+should be used, the port can be supplied in the ``connection_string``, i.e. ``10.0.0.10:456``.
 
 .. code-block:: shell
 
-    loadrt litexcnc_eth config_file="/workspace/examples/5a-75e.json"
+    loadrt litexcnc_eth connection_string="10.0.0.10"
 
 The driver exposes two functions to the HAL:
 
