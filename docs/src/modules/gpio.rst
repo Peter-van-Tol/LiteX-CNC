@@ -8,10 +8,10 @@ the GPIO as input requires to modify the buffers on the supported FPGA-cards.
 
 Possible usages are:
 
-* Limit switches.
-* Push buttons for user panel.
-* Control relays for Mist and Flood cooling.
-* Control spindle direction.
+  * Limit switches.
+  * Push buttons for user panel.
+  * Control relays for Mist and Flood cooling.
+  * Control spindle direction.
 
 There is no upper limit for the amount of GPIO a single board supports, other then the number of
 pins on the board. Communication to and from the board is done using 32-bit wide words, which can
@@ -146,14 +146,23 @@ For the GPIO there are separate break-out boards available for input and output
 Break-out board with `12 channel sinking input <https://github.com/Peter-van-Tol/HUB-75-boards/tree/main/HUB75-Sinking_input>`_. 
 The FPGA is galvanically separated from field power using opto-couplers.
 
-![PCB front](images/hub75_sinking_input_front.png)
+.. image:: images/hub75_sinking_input_front.png
+   :width: 600
+   :alt: HUB-75 sinking input PCB - front
 
-![PCB back](images/hub75_sinking_input_back.png)
+.. image:: images/hub75_sinking_input_back.png
+   :width: 600
+   :alt: HUB-75 sinking input PCB - back
+
 
 **output**
 Break-out board with `12 channel sourcing output <https://github.com/Peter-van-Tol/HUB-75-boards/tree/main/HUB75-Sourcing_output>`_. 
 The FPGA is galvanically separated from field power using opto-couplers. To enhance the power each channel can deliver, the loads are being switched with a MOSfet (`AO3401A`). 
 
-![PCB front](images/hub75_sourcing_output_front.png)
+.. image:: images/hub75_sourcing_output_front.png
+   :width: 600
+   :alt: HUB-75 Sourcing output PCB - front
 
-![PCB back](images/hub75_sourcing_output_back.png)
+.. image:: images/hub75_sourcing_output_back.png
+   :width: 600
+   :alt: HUB-75 Sourcing output PCB - back
