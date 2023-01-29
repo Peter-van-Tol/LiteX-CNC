@@ -1,31 +1,26 @@
+
+
+# Default imports
 import math
-from typing import List
-# Imports for creating a json-definition
+from typing import ClassVar, List, Literal
+
+# Imports for the configuration
 from pydantic import BaseModel, Field
-# Imports for creating a LiteX/Migen module
-from litex.build.generic_platform import Pins, IOStandard
-from litex.soc.integration.soc import SoC
-from litex.soc.interconnect.csr import *
+
+# Imports for Migen
 from migen import *
 from migen.genlib.cdc import MultiReg
+from litex.build.generic_platform import Pins, IOStandard
+from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
+from litex.soc.integration.doc import AutoDoc, ModuleDoc
+from litex.soc.integration.soc import SoC
 
 
-
-class PWMConfig(BaseModel):
-    pin: str = Field(
-        description="The pin on the FPGA-card."
-    )
-    name: str = Field(
-        None,
-        description="The name of the pin as used in LinuxCNC HAL-file (optional). "
-    )
-    io_standard: str = Field(
-        "LVCMOS33",
-        description="The IO Standard (voltage) to use for the pin."
-    )
+# Import of the basemodel, required to register this module
+from . import ModuleBaseModel, ModuleInstanceBaseModel
 
 
-class PwmPdmModule(Module, AutoCSR):
+class PwmPdmModule(Module, AutoDoc, AutoCSR):
     """Pulse Width Modulation
 
     Provides the minimal hardware to do Pulse Width Modulation.
@@ -37,6 +32,10 @@ class PwmPdmModule(Module, AutoCSR):
         default_enable = 0,
         default_width  = 0,
         default_period = 0):
+
+        # AutoDoc implementation
+        self.intro = ModuleDoc(self.__class__.__doc__)
+
         if pwm is None:
             self.pwm = pwm = Signal()
         self.enable = Signal(reset=default_enable)
@@ -108,22 +107,7 @@ class PwmPdmModule(Module, AutoCSR):
         ]
 
     @classmethod
-    def add_mmio_read_registers(cls, mmio, config: List[PWMConfig]):
-        """
-        Adds the status registers to the MMIO.
-        NOTE: Status registers are meant to be read by LinuxCNC and contain
-        the current status of the stepgen.
-        """
-        # Don't create the registers when the config is empty (no stepgens
-        # defined in this case)
-        if not config:
-            return
-
-        # PWM does not have any read registers
-        return
-
-    @classmethod
-    def add_mmio_write_registers(cls, mmio, config: List[PWMConfig]):
+    def add_mmio_write_registers(cls, mmio, pwm_config: 'PWM_ModuleConfig'):
         """
         Adds the storage registers to the MMIO.
         NOTE: Storage registers are meant to be written by LinuxCNC and contain
@@ -131,18 +115,18 @@ class PwmPdmModule(Module, AutoCSR):
         """
         # Don't create the registers when the config is empty (no encoders
         # defined in this case)
-        if not config:
+        if not pwm_config:
             return
 
         mmio.pwm_enable = CSRStorage(
-            size=int(math.ceil(float(len(config))/32))*32,
+            size=int(math.ceil(float(len(pwm_config.instances))/32))*32,
             name='gpio_out',
             description="Register containing the bits to be written to the GPIO out pins.", 
             write_from_dev=False
         )
 
         # Speed and acceleration settings for the next movement segment
-        for index, _ in enumerate(config):
+        for index in range(len(pwm_config.instances)):
             setattr(
                 mmio,
                 f'pwm_{index}_period', 
@@ -165,7 +149,7 @@ class PwmPdmModule(Module, AutoCSR):
             )
 
     @classmethod
-    def create_from_config(cls, soc: SoC, watchdog, config: List[PWMConfig]):
+    def create_from_config(cls, soc: SoC, watchdog, pwm_config: 'PWM_ModuleConfig'):
         """
         Adds the module as defined in the configuration to the SoC.
         NOTE: the configuration must be a list and should contain all the module at
@@ -173,19 +157,19 @@ class PwmPdmModule(Module, AutoCSR):
         """
         # Don't create the module when the config is empty (no stepgens 
         # defined in this case)
-        if not config:
+        if not pwm_config:
             return
 
         # Add module and create the pads
         soc.platform.add_extension([
             ("pwm", index, Pins(pwm_instance.pin), IOStandard(pwm_instance.io_standard))
             for index, pwm_instance 
-            in enumerate(config)
+            in enumerate(pwm_config.instances)
         ])
         soc.pwm_outputs = [pad for pad in soc.platform.request_all("pwm").l]
 
         # Create the generators
-        for index, _ in enumerate(config):
+        for index in range(len(pwm_config.instances)):
             # Add the PWM-module to the platform
             _pwm = PwmPdmModule(soc.pwm_outputs[index], with_csr=False)
             soc.submodules += _pwm
@@ -194,3 +178,75 @@ class PwmPdmModule(Module, AutoCSR):
                 _pwm.period.eq(getattr(soc.MMIO_inst, f'pwm_{index}_period').storage),
                 _pwm.width.eq(getattr(soc.MMIO_inst, f'pwm_{index}_width').storage)
             ]
+
+
+class PWM_Instance(ModuleInstanceBaseModel):
+    """
+    Model describing a pin of the GPIO.
+    """
+    pin: str = Field(
+        description="The pin on the FPGA-card."
+    )
+    name: str = Field(
+        None,
+        description="The name of the pin as used in LinuxCNC HAL-file (optional). "
+        "When not specified, the standard pins like litexcnc.pwm.x will be created."
+    )
+    io_standard: str = Field(
+        "LVCMOS33",
+        description="The IO Standard (voltage) to use for the pin."
+    )
+    pins: ClassVar[List[str]] = [
+        'curr_dc',
+        'curr_period',
+        'curr_pwm_freq',
+        'curr_width',
+        'dither_pwm',
+        'enable',
+        'max_dc',
+        'min_dc',
+        'offset',
+        'pwm_freq',
+        'scale',
+        'value'
+    ]
+
+
+class PWM_ModuleConfig(ModuleBaseModel):
+    """
+    Module describing the PWM module
+    """
+    module_type: Literal['pwm'] = 'pwm'
+    module_id: ClassVar[int] = 0x70776d5f  # The string `pwm_` in hex, must be equal to litexcnc_pwm.h
+    instances: List[PWM_Instance] = Field(
+        [],
+        item_type=PWM_Instance,
+        unique_items=True
+    )
+
+    def create_from_config(self, soc, watchdog):
+        PwmPdmModule.create_from_config(soc, watchdog, self)
+    
+    def add_mmio_config_registers(self, mmio):
+        # The PWM does not require any config, so this function is
+        # not implemented.
+        return
+
+    def add_mmio_write_registers(self, mmio):
+        PwmPdmModule.add_mmio_write_registers(mmio, self)
+
+    def add_mmio_read_registers(self, mmio):
+        # The PWM does not require any read, so this function is
+        # not implemented.
+        return
+
+    @property
+    def config_size(self):
+        return 4
+
+    def store_config(self, mmio):
+        mmio.pwm_config_data =  CSRStatus(
+            size=self.config_size*8,
+            reset=len(self.instances),
+            description=f"The config of the GPIO module."
+        )

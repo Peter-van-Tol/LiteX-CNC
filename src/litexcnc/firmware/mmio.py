@@ -4,15 +4,11 @@ from packaging.version import Version
 
 # Import from litex
 from migen.fhdl.module import Module
-from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage, CSRConstant
+from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage, CSRField
 from migen import *
 
 # Local imports
 from . import __version__
-from .encoder import EncoderModule
-from .gpio import GPIO_Out, GPIO_In
-from .pwm import PwmPdmModule
-from .stepgen import StepgenModule
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .soc import LitexCNC_Firmware
@@ -23,7 +19,7 @@ version = Version(__version__)
 
 class MMIO(Module, AutoCSR):
 
-    def __init__(self, config: 'LitexCNC_Firmware', fingerprint):
+    def __init__(self, config: 'LitexCNC_Firmware'):
         """
         Initializes the memory registers.
 
@@ -55,20 +51,62 @@ class MMIO(Module, AutoCSR):
             "This date is for me very important to me, in rememberance of my greatest support."
         )
         self.version = CSRStatus(
-            size=32,
-            reset= (version.major << 16) + (version.minor << 8) + version.micro,
+            fields=[
+                CSRField("patch", size=8, offset=0 , reset=version.micro, description="Version number - patch"),
+                CSRField("minor", size=8, offset=8 , reset=version.minor, description="Version number - minor"),
+                CSRField("major", size=8, offset=16, reset=version.major, description="Version number - major")
+            ],
             description="Version of the firmware. The major and minor parts of the version must "
             "be equal between firmware and driver. If there is a difference, the user must update "
             "either the driver or firmware. A difference in patch is allowable, as the data protocol "
             "in this case is not altered. A difference in patch can happen for example when a small "
             "bug has been fixed in the driver or firmware." 
         )
-        self.fingerprint = CSRStatus(
+        self.clock_frequency = CSRStatus(
             size=32,
-            reset=fingerprint,
-            description="The CRC of the configuration file used to create this firmware. Used to "
-            "ensure the driver uses the same configuration file for initiating the communication."
+            reset=config.clock_frequency,
+            description="Reporting the clock frequency of the FPGA."
         )
+        self.module_config = CSRStatus(
+            fields=[
+                CSRField("module_data_size", size=16, offset=0 , reset=len(config.modules)*4+sum([module.config_size for module in config.modules]), description="Number of bytes to read for config."),
+                CSRField("num_modules", size=8, offset=16 , reset=len(config.modules), description="Number of modules"),
+            ],
+            description="Stores information on the module (such as number)." 
+        )
+        self.name1 = CSRStatus(
+            size=32,
+            reset=int.from_bytes(config.board_name.ljust(16, '\0')[0:4].encode("ascii"), byteorder='big'),
+            description="Name of the FPGA (bytes 0-3)"
+        )
+        self.name2 = CSRStatus(
+            size=32,
+            reset=int.from_bytes(config.board_name.ljust(16, '\0')[4:8].encode("ascii"), byteorder='big'),
+            description="Name of the FPGA (bytes 4-7)"
+        )
+        self.name3 = CSRStatus(
+            size=32,
+            reset=int.from_bytes(config.board_name.ljust(16, '\0')[8:12].encode("ascii"), byteorder='big'),
+            description="Name of the FPGA (bytes 8-11)"
+        )
+        self.name4 = CSRStatus(
+            size=32,
+            reset=int.from_bytes(config.board_name.ljust(16, '\0')[12:16].encode("ascii"), byteorder='big'),
+            description="Name of the FPGA (bytes 12-15)"
+        )
+        # Write the configuration of the modules
+        for index, module in enumerate(config.modules):
+            setattr(self, f'module_{index}',
+                CSRStatus(
+                    name=f'module_{index}',
+                    size=32,
+                    reset=module.module_id,
+                    description=f"The identification of {index}th module."
+                )
+            )
+            module.store_config(self)
+
+        # After regitering modules the board can be reset
         self.reset = CSRStorage(
             size=1, 
             description="Reset.\nWhile True (set to 1) the card is being forced in reset-mode. In "
@@ -78,15 +116,17 @@ class MMIO(Module, AutoCSR):
             name='reset'
         )
 
-        # INIT - for stepgen
-        self.loop_cycles = CSRStatus(
-            size=32,
-            description="The number of clock cycles within the FPGA is normally updated. Due to jitter "
-            "the actual number of cycles can be more or less then this value, but it is expected to be "
-            "close. This parameter is used by the stepgen module to start the (expected) motion for the next "
-            "segement."
-        )
-        StepgenModule.add_mmio_config_registers(self, config.stepgen)
+        # Config of modules
+        # self.loop_cycles = CSRStatus(
+        #     size=32,
+        #     description="The number of clock cycles within the FPGA is normally updated. Due to jitter "
+        #     "the actual number of cycles can be more or less then this value, but it is expected to be "
+        #     "close. This parameter is used by the stepgen module to start the (expected) motion for the next "
+        #     "segement."
+        # )
+        for module in config.modules:
+            module.add_mmio_config_registers(self)
+        # StepgenModule.add_mmio_config_registers(self, config.stepgen)
 
 
         # OUTPUT (as seen from the PC!)
@@ -99,11 +139,11 @@ class MMIO(Module, AutoCSR):
             write_from_dev=True
         )
         # - Modules
-        GPIO_Out.add_mmio_write_registers(self, config.gpio_out)
-        PwmPdmModule.add_mmio_write_registers(self, config.pwm)
-        StepgenModule.add_mmio_write_registers(self, config.stepgen)
-        EncoderModule.add_mmio_write_registers(self, config.encoders)
-
+        for module in config.modules:
+            module.add_mmio_write_registers(self)
+        # StepgenModule.add_mmio_write_registers(self, config.stepgen)
+        # EncoderModule.add_mmio_write_registers(self, config.encoders)
+ 
         # INPUT (as seen from the PC!)
         # - Watchdog
         self.watchdog_has_bitten = CSRStatus(
@@ -121,7 +161,7 @@ class MMIO(Module, AutoCSR):
             name='wall_clock'
         )
         # Modules
-        GPIO_In.add_mmio_read_registers(self, config.gpio_in)
-        StepgenModule.add_mmio_read_registers(self, config.stepgen)
-        EncoderModule.add_mmio_read_registers(self, config.encoders)
-        EncoderModule.add_mmio_read_registers(self, config.encoders)
+        for module in config.modules:
+            module.add_mmio_read_registers(self)
+        # EncoderModule.add_mmio_read_registers(self, config.encoders)
+        # EncoderModule.add_mmio_read_registers(self, config.encoders)

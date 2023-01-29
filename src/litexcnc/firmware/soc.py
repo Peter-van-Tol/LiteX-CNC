@@ -6,19 +6,17 @@ from typing import List, Type
 from pydantic import BaseModel, Field, validator
 
 # Local imports
-from .encoder import EncoderConfig, EncoderModule
 from .etherbone import Etherbone, EthPhy
-from .gpio import GPIO, GPIO_Out, GPIO_In
-from .mmio import MMIO
-from .pwm import PWMConfig, PwmPdmModule
-from .stepgen import StepgenConfig, StepgenModule
 from .watchdog import WatchDogModule
+from .mmio import MMIO
+from .modules import ModuleBaseModel, module_registry
 
 
 class LitexCNC_Firmware(BaseModel):
     board_name: str = Field(
         ...,
-        description="The name of the board, required for identification purposes."
+        description="The name of the board, required for identification purposes.",
+        max_length=16
     )
     baseclass: Type = Field(
         ...,
@@ -33,47 +31,39 @@ class LitexCNC_Firmware(BaseModel):
     etherbone: Etherbone = Field(
         ...,
     )
-    gpio_in: List[GPIO] = Field(
+    modules: List[ModuleBaseModel] = Field(
         [],
-        item_type=GPIO,
-        # max_items=32,
+        item_type=ModuleBaseModel,
         unique_items=True
     )
-    gpio_out: List[GPIO] = Field(
-        [],
-        item_type=GPIO,
-        # max_items=32,
-        unique_items=True
-    )
-    pwm: List[PWMConfig] = Field(
-        [],
-        item_type=PWMConfig,
-        unique_items=True
-    )
-    stepgen: List[StepgenConfig] = Field(
-        [],
-        item_type=StepgenConfig,
-        max_items=32,
-        unique_items=True
-    )
-    encoders: List[EncoderConfig] = Field(
-        [],
-        item_type=EncoderConfig,
-        max_items=32,
-        unique_items=True
-    )
+
+    def __init__(self, **kwargs):
+        for index in range(len(kwargs['modules'])):
+            current_module = kwargs['modules'][index]
+            if isinstance(current_module, dict):
+                item_module_type = current_module['module_type']
+                for name, subclass in module_registry.items():
+                    registery_module_type = subclass.__fields__['module_type'].default
+                    if item_module_type == registery_module_type:
+                        current_module = subclass(**current_module) 
+                        break
+                kwargs['modules'][index] = current_module
+        super().__init__(**kwargs)
 
     @validator('baseclass', pre=True)
     def import_baseclass(cls, value):
         components = value.split('.')
         mod = __import__(components[0])
-        print(mod)
         for comp in components[1:]:
             mod = getattr(mod, comp)
         return mod
 
+    @validator('board_name')
+    def ascii_boardname(cls, value):
+        assert value.isascii(), 'Must be ASCII string'
+        return value
 
-    def generate(self, fingerprint):
+    def generate(self):
         """
         Function which generates the firmware
         """
@@ -88,7 +78,7 @@ class LitexCNC_Firmware(BaseModel):
                 super().__init__(config)
 
                 # Create memory mapping for IO
-                self.submodules.MMIO_inst = MMIO(config=config, fingerprint=fingerprint)
+                self.submodules.MMIO_inst = MMIO(config=config)
 
                 # Create watchdog
                 watchdog = WatchDogModule(timeout=self.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
@@ -109,11 +99,8 @@ class LitexCNC_Firmware(BaseModel):
                 ]
 
                 # Create modules
-                GPIO_In.create_from_config(self, config.gpio_in)
-                GPIO_Out.create_from_config(self, config.gpio_out)
-                PwmPdmModule.create_from_config(self, watchdog,config.pwm)
-                StepgenModule.create_from_config(self, watchdog, config.stepgen)
-                EncoderModule.create_from_config(self, config.encoders)
+                for module in config.modules:
+                    module.create_from_config(self, watchdog)
                 
         return _LitexCNC_SoC(
             config=self)

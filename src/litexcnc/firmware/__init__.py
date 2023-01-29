@@ -19,8 +19,6 @@ __version__ = "1.1.0"
 try:
     from . import boards
     from .soc import LitexCNC_Firmware
-    from .gpio import GPIO
-    from .pwm import PWM
 except ImportError as e:
     print("Litex is not installed, please run 'python -m litexcnc_firmware install_litex'")
 
@@ -28,6 +26,4 @@ except ImportError as e:
 __all__ = [
     'boards',
     'LitexCNC_Firmware',
-    'GPIO',
-    'PWM'
 ]
