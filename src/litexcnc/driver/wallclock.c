@@ -43,7 +43,7 @@
 #include "wallclock.h"
 
 
-int litexcnc_wallclock_init(litexcnc_t *litexcnc, cJSON *config) {
+int litexcnc_wallclock_init(litexcnc_t *litexcnc) {
     
     // Declarations
     int r = 0;
