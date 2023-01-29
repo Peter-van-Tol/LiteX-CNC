@@ -19,11 +19,11 @@
 #define __INCLUDE_LITEXCNC_ETH_H__
 
 #define LITEXCNC_ETH_NAME    "litexcnc_eth"
-#define LITEXCNC_ETH_VERSION "0.02"
+#define LITEXCNC_ETH_VERSION "1.0.0"
 #define MAX_ETH_BOARDS 4
-#define MAX_RESET_RETRIES 5
 
 #include "etherbone.h"
+#include <litexcnc.h>
 
 typedef struct {
 
@@ -44,11 +44,5 @@ typedef struct {
     // Definition of the FPGA (containing pins, steppers, PWM, ec.)
     litexcnc_fpga_t fpga;
 } litexcnc_eth_t;
-
-#define LITEXCNC_ETH_INIT_DATA_BASE_ADDRESS(fpga)    0x0
-#define LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(fpga)   LITEXCNC_ETH_INIT_DATA_BASE_ADDRESS(fpga) + LITEXCNC_HEADER_DATA_READ_SIZE
-#define LITEXCNC_ETH_CONFIG_DATA_BASE_ADDRESS(fpga)  LITEXCNC_ETH_RESET_DATA_BASE_ADDRESS(fpga) + LITEXCNC_RESET_HEADER_SIZE
-#define LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(fpga)   LITEXCNC_ETH_CONFIG_DATA_BASE_ADDRESS(fpga) + LITEXCNC_CONFIG_HEADER_SIZE
-#define LITEXCNC_ETH_READ_DATA_BASE_ADDRESS(fpga)    LITEXCNC_ETH_WRITE_DATA_BASE_ADDRESS(fpga) + fpga.write_buffer_size - fpga.write_header_size
 
 #endif

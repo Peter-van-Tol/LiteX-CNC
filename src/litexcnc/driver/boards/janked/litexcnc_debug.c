@@ -26,7 +26,7 @@
 #include "rtapi_app.h"
 #include "rtapi_string.h"
 
-#include "litexcnc.h"
+#include "<litexcnc.h>"
 #include "litexcnc_debug.h"
 
 
