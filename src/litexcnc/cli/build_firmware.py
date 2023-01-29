@@ -1,7 +1,6 @@
 """
 This file contains the command to build the firmware based on a JSON-configuration.
 """
-import binascii
 import os
 import click
 
@@ -36,13 +35,8 @@ def cli(config, output_directory, build):
     # Load configuration
     firmware_config = LitexCNC_Firmware.parse_raw(' '.join(config.readlines()))
 
-    # Generate the fingerprint
-    with open(config.name, 'rb') as config_binary:
-        fingerprint = binascii.crc32(config_binary.read())
-        print("Generated fingerprint (CRC): ", fingerprint)
-
     # Generate the firmware
-    soc = firmware_config.generate(fingerprint)
+    soc = firmware_config.generate()
     
     # Build the SOC
     builder = Builder(
