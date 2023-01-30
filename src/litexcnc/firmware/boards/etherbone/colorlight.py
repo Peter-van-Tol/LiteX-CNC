@@ -11,7 +11,7 @@ from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
 from pydantic import Field
 
 # Local imports
-from .etherbone_config import Etherbone, EthPhy
+from . import Etherbone, EthPhy
 from ...soc import LitexCNC_Firmware
 
 

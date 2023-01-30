@@ -16,7 +16,8 @@ from litex.soc.integration.soc_core import *
 from litex.soc.cores.clock import S6PLL
 from migen import ClockDomain, Module
 
-from ..soc import LitexCNC_Firmware
+from . import Etherbone, EthPhy
+from ...soc import LitexCNC_Firmware
 
 # IOs ---------------------------------------------------------------
 _io = [
