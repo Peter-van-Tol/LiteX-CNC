@@ -1,10 +1,18 @@
+
+from typing import Literal
+
 # Imports for defining the board
 from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 from litex.soc.integration.soc_core import *
 from litex_boards.targets.colorlight_5a_75x import _CRG
 from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
 
-from ..soc import LitexCNC_Firmware
+# Imports from Pydantic to create the config
+from pydantic import Field
+
+# Local imports
+from .etherbone_config import Etherbone, EthPhy
+from ...soc import LitexCNC_Firmware
 
 
 class ColorLightBase(SoCMini):
@@ -49,26 +57,33 @@ class ColorLightBase(SoCMini):
         )
 
 
-class ColorLight_5A_75B_V6_1(ColorLightBase):
-    def __init__(self, config: 'LitexCNC_Firmware'):
-        super().__init__("5a-75b", "6.1", config)
+class ColorLight_5A_75X(LitexCNC_Firmware):
+    """
+    Configuration for Colorlight 5A-75B and 5A-75E cards:
 
+    """
+    board_type: Literal[
+        '5A-75B v6.1',
+        '5A-75B v7.0',
+        '5A-75B v8.0',
+        '5A-75E v6.0',
+        '5A-75E v7.1'
+    ]
+    ethphy: EthPhy = Field(
+        ...
+    )
+    etherbone: Etherbone = Field(
+        ...,
+    )
 
-class ColorLight_5A_75B_V7_0(ColorLightBase):
-    def __init__(self, config: 'LitexCNC_Firmware'):
-        super().__init__("5a-75b", "7.0", config)
-
-
-class ColorLight_5A_75B_V8_0(ColorLightBase):
-    def __init__(self, config: 'LitexCNC_Firmware'):
-        super().__init__("5a-75b", "8.0", config)
-
-
-class ColorLight_5A_75E_V6_0(ColorLightBase):
-    def __init__(self, config: 'LitexCNC_Firmware'):
-        super().__init__("5a-75e", "6.0", config)
-
-
-class ColorLight_5A_75E_V7_1(ColorLightBase):
-    def __init__(self, config: 'LitexCNC_Firmware', sys_clk_freq=int(50e6)):
-        super().__init__("5a-75e", "7.1", config, sys_clk_freq)
+    def _generate_soc(self):
+        """Returns the board on which LitexCNC firmware is designed for.
+        """
+        # Split the board and the revision from the board type and create the SoC
+        # based on the board type.
+        board, revision = self.board_type.split('v')
+        return ColorLightBase(
+            board=board.strip().lower(),
+            revision=revision.strip().lower(),
+            config=self
+        )
