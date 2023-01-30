@@ -6,13 +6,6 @@ This project aims to make a generic CNC firmware and driver for FPGA cards which
 Configuration of the board and driver is done using json-files. The supported boards are the Colorlight
 boards 5A-75B and 5A-75E, as these are fully supported with the open source toolchain.
 
-.. note::
-    Although the RV901T is also supported by Litex, the firmware cannot be automatically build with
-    LitexCNC, as it requires the Xilinx-software to compile the Verilog to a bit-stream. LitexCNC can
-    be used to create the Verilog and the driver will work when the bit-stream is loaded on the board.
-    However, there is a gap in the toolchain not covered. There are known issues with the compantibility
-    of Litex with Xilinx.
-
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty
 to obtain a MESA card.
 
@@ -83,14 +76,15 @@ The definitions of the entries are:
 
 board_name
     The name of the board. This name will be used in the HAL.
-base_class
+board_type
     The type of FPGA board. Available types are (case-sensistive!):
     
-    * ``litexcnc.firmware.boards.ColorLight_5A_75B_V6_1`` 
-    * ``litexcnc.firmware.boards.ColorLight_5A_75B_V7_0`` 
-    * ``litexcnc.firmware.boards.ColorLight_5A_75B_V8_0`` 
-    * ``litexcnc.firmware.boards.ColorLight_5A_75E_V6_0`` 
-    * ``litexcnc.firmware.boards.ColorLight_5A_75E_V7_1`` 
+    * ``5A-75B v6.1``
+    * ``5A-75B v7.0``
+    * ``5A-75B v8.0``
+    * ``5A-75E v6.0``
+    * ``5A-75E v7.1``
+    * ``RV901T`` 
 
 clock_frequency
     The clock-frequency of the board. Recommended value is 40 MHz.
@@ -101,6 +95,12 @@ etherbone
 
 Some example configuration are given in the :doc:`examples sections </examples/index>`.
 
+.. note::
+    Although the RV901T is also supported by Litex, the firmware cannot be automatically build with
+    LitexCNC, as it requires the Xilinx-software to compile the Verilog to a bit-stream. LitexCNC can
+    be used to create the Verilog and the driver will work when the bit-stream is loaded on the board.
+    However, there is a gap in the toolchain not covered. There are known issues with the compantibility
+    of Litex with Xilinx.
 
 Building the firmware (bit-file)
 --------------------------------
