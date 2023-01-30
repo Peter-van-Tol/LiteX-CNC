@@ -51,7 +51,7 @@
                 {"pin":"j6:6", "name":"j6:7"}
             ]
         }, {
-            "module_type": "encoders",
+            "module_type": "encoder",
             "instances": [
                 {"pin_A":"j3:0", "pin_B":"j3:1"},
                 {"pin_A":"j3:2", "pin_B":"j3:4"},
@@ -61,7 +61,7 @@
                 {"pin_A":"j4:5", "pin_B":"j4:6"}
             ]
         }, {
-            "module_type": "encoders",
+            "module_type": "stepgen",
             "instances": [
                 {
                     "pins" : {
