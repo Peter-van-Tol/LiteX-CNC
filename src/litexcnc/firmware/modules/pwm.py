@@ -5,7 +5,7 @@ import math
 from typing import ClassVar, List, Literal
 
 # Imports for the configuration
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 # Imports for Migen
 from migen import *
@@ -14,7 +14,6 @@ from litex.build.generic_platform import Pins, IOStandard
 from litex.soc.interconnect.csr import AutoCSR, CSRStatus, CSRStorage
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.soc.integration.soc import SoC
-
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
