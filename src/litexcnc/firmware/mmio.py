@@ -126,7 +126,6 @@ class MMIO(Module, AutoCSR):
         # )
         for module in config.modules:
             module.add_mmio_config_registers(self)
-        # StepgenModule.add_mmio_config_registers(self, config.stepgen)
 
 
         # OUTPUT (as seen from the PC!)
@@ -141,8 +140,6 @@ class MMIO(Module, AutoCSR):
         # - Modules
         for module in config.modules:
             module.add_mmio_write_registers(self)
-        # StepgenModule.add_mmio_write_registers(self, config.stepgen)
-        # EncoderModule.add_mmio_write_registers(self, config.encoders)
  
         # INPUT (as seen from the PC!)
         # - Watchdog
@@ -163,5 +160,3 @@ class MMIO(Module, AutoCSR):
         # Modules
         for module in config.modules:
             module.add_mmio_read_registers(self)
-        # EncoderModule.add_mmio_read_registers(self, config.encoders)
-        # EncoderModule.add_mmio_read_registers(self, config.encoders)
