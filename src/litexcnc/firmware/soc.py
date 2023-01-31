@@ -53,7 +53,7 @@ class LitexCNC_Firmware(BaseModel):
                         current_module = subclass(**current_module) 
                         break
                 else:
-                    raise TypeError(f"Unknown module type `{current_module['module_type']}`. Supported board types: {' '.join([module.__fields__['module_type'].default for module in module_registry.keys()])}")
+                    raise TypeError(f"Unknown module type `{current_module['module_type']}`. Supported module types: {' '.join([module.__fields__['module_type'].default for module in module_registry.values()])}")
                 kwargs['modules'][index] = current_module
         super().__init__(**kwargs)
 
@@ -91,9 +91,9 @@ class LitexCNC_Firmware(BaseModel):
         soc.submodules += watchdog
         soc.sync+=[
             # Watchdog input (fixed values)
-            watchdog.enable.eq(self.MMIO_inst.watchdog_data.storage[31]),
+            watchdog.enable.eq(soc.MMIO_inst.watchdog_data.storage[31]),
             # Watchdog output (status whether the dog has bitten)
-            self.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
+            soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
             # self.MMIO_inst.watchdog_has_bitten.we.eq(True)
         ]
 
