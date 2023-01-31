@@ -82,4 +82,4 @@ class ModuleBaseModel(BaseModel):
         
 
 # Import default modules (otherwise they are not recognized)
-from . import gpio, pwm, encoder
+from . import gpio, pwm, encoder, stepgen

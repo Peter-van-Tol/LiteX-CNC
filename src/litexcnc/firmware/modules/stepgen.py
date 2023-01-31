@@ -1,9 +1,9 @@
 # Imports for creating a json-definition
 try:
-    from typing import Iterable, List, Literal, Union
+    from typing import ClassVar, Iterable, List, Literal, Union
 except ImportError:
     # Imports for Python <3.8
-    from typing import Iterable, List, Union
+    from typing import ClassVar, Iterable, List, Union
     from typing_extensions import Literal
 from pydantic import BaseModel, Field
 
@@ -15,15 +15,17 @@ from litex.soc.integration.soc import SoC
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.build.generic_platform import *
 
+# Import of the basemodel, required to register this module
+from . import ModuleBaseModel, ModuleInstanceBaseModel
 
-class StepGenPinoutStepDirBaseConfig(BaseModel):
+
+class StepGenPinoutStepDirBaseConfig(ModuleInstanceBaseModel):
 
     def create_routine(self, generator, pads):
         """
         Creates the routine for a step-dir stepper. The connection to the pads
         should be made in sub-classes
         """
-
         # Output parameters
         generator.step_prev = Signal()
         generator.step = Signal()
@@ -199,16 +201,17 @@ class StepGenPinoutStepDirDifferentialConfig(StepGenPinoutStepDirBaseConfig):
             pads.dir_neg.eq(~generator.dir),
         ]
 
-class StepgenConfig(BaseModel):
+class StepgenInstanceConfig(BaseModel):
+
+    name: str = Field(
+        None,
+        description="The name of the stepgen as used in LinuxCNC HAL-file (optional). "
+    )
     pins: Union[
             StepGenPinoutStepDirConfig, 
             StepGenPinoutStepDirDifferentialConfig] = Field(
         ...,
         description="The configuration of the stepper type and pin-out."
-    )
-    name: str = Field(
-        None,
-        description="The name of the stepgen as used in LinuxCNC HAL-file (optional). "
     )
     soft_stop: bool = Field(
         False,
@@ -216,6 +219,42 @@ class StepgenConfig(BaseModel):
         "disabled. When True, the stepgen will stop the machine with respect to the "
         "acceleration limits and then be disabled. Default value: False."
     )
+
+
+class StepgenModuleConfig(ModuleBaseModel):
+    """
+    Module describing the PWM module
+    """
+    module_type: Literal['stepgen'] = 'stepgen'
+    module_id: ClassVar[int] = 0x73746570  # The string `step` in hex, must be equal to litexcnc_stepgen.h
+    instances: List[StepgenInstanceConfig] = Field(
+        [],
+        item_type=StepgenInstanceConfig,
+        unique_items=True
+    )
+
+    def create_from_config(self, soc, watchdog):
+        StepgenModule.create_from_config(soc, watchdog, self)
+    
+    def add_mmio_config_registers(self, mmio):
+        StepgenModule.add_mmio_config_registers(mmio, self)
+
+    def add_mmio_write_registers(self, mmio):
+        StepgenModule.add_mmio_write_registers(mmio, self)
+
+    def add_mmio_read_registers(self, mmio):
+        StepgenModule.add_mmio_read_registers(mmio, self)
+
+    @property
+    def config_size(self):
+        return 4
+
+    def store_config(self, mmio):
+        mmio.stepgen_config_data =  CSRStatus(
+            size=self.config_size*8,
+            reset=len(self.instances),
+            description=f"The config of the Stepgen module."
+        )
 
 
 class StepgenCounter(Module, AutoDoc):
@@ -315,7 +354,6 @@ class StepgenModule(Module, AutoDoc):
         )
         self.max_acceleration = Signal(32)
 
-
         # Optionally, use a different clock domain
         sync = self.sync
 
@@ -394,7 +432,7 @@ class StepgenModule(Module, AutoDoc):
         create_routine(self, pads)
 
     @classmethod
-    def add_mmio_config_registers(cls, mmio, config: List[StepgenConfig]):
+    def add_mmio_config_registers(cls, mmio, config: StepgenModuleConfig):
         """
         Adds the configuration registers to the MMIO. The configuration registers
         contain information on the the timings of ALL stepgen.
@@ -413,7 +451,7 @@ class StepgenModule(Module, AutoDoc):
         )
     
     @classmethod
-    def add_mmio_read_registers(cls, mmio, config: List[StepgenConfig]):
+    def add_mmio_read_registers(cls, mmio, config: StepgenModuleConfig):
         """
         Adds the status registers to the MMIO.
         NOTE: Status registers are meant to be read by LinuxCNC and contain
@@ -424,7 +462,7 @@ class StepgenModule(Module, AutoDoc):
         if not config:
             return
 
-        for index, _ in enumerate(config):
+        for index, _ in enumerate(config.instances):
             setattr(
                 mmio,
                 f'stepgen_{index}_position',
@@ -445,7 +483,7 @@ class StepgenModule(Module, AutoDoc):
             )
 
     @classmethod
-    def add_mmio_write_registers(cls, mmio, config: List[StepgenConfig]):
+    def add_mmio_write_registers(cls, mmio, config: StepgenModuleConfig):
         """
         Adds the storage registers to the MMIO.
         NOTE: Storage registers are meant to be written by LinuxCNC and contain
@@ -466,7 +504,7 @@ class StepgenModule(Module, AutoDoc):
         )
 
         # Speed and acceleration settings for the next movement segment
-        for index, _ in enumerate(config):
+        for index, _ in enumerate(config.instances):
             setattr(
                 mmio,
                 f'stepgen_{index}_speed_target',
@@ -492,9 +530,8 @@ class StepgenModule(Module, AutoDoc):
                 )
             )
 
-
     @classmethod
-    def create_from_config(cls, soc: SoC, watchdog, config: List[StepgenConfig]):
+    def create_from_config(cls, soc: SoC, watchdog, config: StepgenModuleConfig):
         """
         Adds the module as defined in the configuration to the SoC.
         NOTE: the configuration must be a list and should contain all the module at
@@ -511,7 +548,7 @@ class StepgenModule(Module, AutoDoc):
         while (soc.clock_frequency / (1 << shift) > 400e3):
             shift += 1
 
-        for index, stepgen_config in enumerate(config):
+        for index, stepgen_config in enumerate(config.instances):
             soc.platform.add_extension([
                 ("stepgen", index,
                     *stepgen_config.pins.convert_to_signal()
