@@ -239,8 +239,8 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
         output.width = htobe32(*(pwm_instance->hal.pin.curr_width));
 
         // Copy the data to the output and advance the pointer
-        memcpy(*data, &output, required_write_buffer(module));
-        *data += required_write_buffer(module);
+        memcpy(*data, &output, sizeof(litexcnc_pwm_data_t));
+        *data += sizeof(litexcnc_pwm_data_t);
     }
 
     return 0;
