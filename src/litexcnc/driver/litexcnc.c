@@ -157,7 +157,7 @@ static void litexcnc_write(void *void_litexcnc, long period) {
     // - custom
     for (size_t i=0; i<litexcnc->num_modules; i++) {
         litexcnc_module_instance_t *module = litexcnc->modules[i];
-        if (module->process_read != NULL) {
+        if (module->prepare_write != NULL) {
             module->prepare_write(module->instance_data, &pointer, period);
         }
     }
