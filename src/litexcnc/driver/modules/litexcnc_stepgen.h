@@ -32,19 +32,32 @@
 
     This code was written as part of the LiteX-CNC project.
 */
-
 #ifndef __INCLUDE_LITEXCNC_STEPGEN_H__
 #define __INCLUDE_LITEXCNC_STEPGEN_H__
 
-#include "cJSON/cJSON.h"
+#include <litexcnc.h>
 
-#define STEPGEN_WALLCLOCK_BUFFER 10
-#define STEPGEN_WALLCLOCK_BUFFER_RECIP 1.0 / STEPGEN_WALLCLOCK_BUFFER
+#define LITEXCNC_STEPGEN_NAME "litexcnc_stepgen"
 
-// Defines the structure of the PWM instance
+#define LITEXCNC_STEPGEN_VERSION_MAJOR 1
+#define LITEXCNC_STEPGEN_VERSION_MINOR 0
+#define LITEXCNC_STEPGEN_VERSION_PATCH 0
+
+#define MAX_INSTANCES 4
+#define STEPGEN_WALLCLOCK_BUFFER 8
+#define STEPGEN_WALLCLOCK_BUFFER_RECIP 1 / STEPGEN_WALLCLOCK_BUFFER
+
+/** The ID of the component, only used when the component is used as stand-alone */
+int comp_id;
+
+/*******************************************************************************
+ * STUCTS
+ ******************************************************************************/
+/** Structure of an stepgen instance */
 typedef struct {
+    /** Structure defining the HAL pin and params*/
     struct {
-
+        /** Structure defining the HAL pins */
         struct {
             hal_u32_t   *counts;              /* The current position, in counts */
             hal_float_t *position_fb;         /* The current position, in length units (see parameter position-scale). The resolution of position-fb is much finer than a single step. If you need to see individual steps, use counts. */ 
@@ -58,7 +71,7 @@ typedef struct {
             hal_float_t *period_s;            /* The calculated period (averaged over 10 cycles) based on the FPGA wall clock */ 
             hal_float_t *period_s_recip;      /* The reciprocal of the calculated period. Calculated here once, to prevent slow division on multiple locations */ 
         } pin;
-
+        /** Structure defining the HAL params */
         struct {
             hal_float_t frequency;            /* The current step rate, in steps per second */ 
             hal_float_t max_acceleration;     /* The acceleration/deceleration limit, in length units per second squared. */ 
@@ -69,9 +82,7 @@ typedef struct {
             hal_u32_t   dir_setup_time;       /* The minimum setup time from direction to step, in nanoseconds. Measured from change of direction to rising edge of step. */
             hal_u32_t   dir_hold_time;        /* The minimum hold time of direction after step, in nanoseconds. Measured from falling edge of step to change of direction */
         } param;
-
     } hal;
-
     // This struct holds all old values (memoization) 
     struct {
         int64_t position;
@@ -86,9 +97,8 @@ typedef struct {
         hal_float_t maxvel;
         bool error_max_speed_printed;
     } memo;
-
     // This struct contains data, both calculated and direct received from the FPGA
-    struct {
+    struct {        
         int64_t position;
         int32_t speed;
         float acceleration;
@@ -117,29 +127,25 @@ typedef struct {
         float fpga_acc_scale;
         float fpga_acc_scale_inv;
     } data;
-    
-} litexcnc_stepgen_pin_t;
+} litexcnc_stepgen_instance_t;
 
-
-typedef struct {
-
-    struct {
-        hal_float_t *period_s;            /* The calculated period (averaged over 10 cycles) based on the FPGA wall clock */ 
-        hal_float_t *period_s_recip;      /* The reciprocal of the calculated period. Calculated here once, to prevent slow division on multiple locations */ 
-    } pin;
-
-    // struct {
-
-    // } param;
-    
-} litexcnc_stepgen_hal_t;
-
-// Defines the PWM, contains a collection of PWM instances
+// Defines the stepgen, contains a collection of stepgen instances
 typedef struct {
     // Input pins
-    int num_instances;
-    litexcnc_stepgen_pin_t *instances;
-    litexcnc_stepgen_hal_t *hal;
+    int num_instances;                   /** Number of stepgen instances */
+    litexcnc_stepgen_instance_t *instances;   /** Structure containing the data on the stepgen instances */
+
+    /** Structure defining the HAL pin and params*/
+    struct {
+        /** Structure defining the HAL pins */
+        struct {
+            hal_float_t *period_s;       /** The calculated period (averaged over 10 cycles) based on the FPGA wall clock */ 
+            hal_float_t *period_s_recip; /** The reciprocal of the calculated period. Calculated here once, to prevent slow division on multiple locations */ 
+        } pin;
+        struct{
+            // NO PARAMS
+        } param;
+    } hal;
 
     struct {
         long period;
@@ -154,6 +160,11 @@ typedef struct {
     
     // Struct containing pre-calculated values
     struct {
+        char *fpga_name;
+        uint32_t *clock_frequency;
+        float *clock_frequency_recip;
+        uint64_t *wallclock_ticks;
+
         float max_frequency;
         bool warning_apply_time_exceeded_shown;
         // Data for calculating the average period_s
@@ -165,44 +176,121 @@ typedef struct {
 } litexcnc_stepgen_t;
 
 
+/*******************************************************************************
+ * DATAPACKAGES
+ ******************************************************************************/
+// - CONFIG DATA
 // Defines the data-package for sending the settings for a single step generator. The
 // order of this package MUST coincide with the order in the MMIO definition.
-// - config
 #pragma pack(push, 4)
 typedef struct {
     uint32_t stepdata;
 } litexcnc_stepgen_config_data_t;
 #pragma pack(pop)
-#define LITEXCNC_STEPGEN_CONFIG_DATA_SIZE sizeof(litexcnc_stepgen_config_data_t)
-// - write
+
+// WRITE DATA
+// - global config
 #pragma pack(push,4)
 typedef struct {
     uint64_t apply_time;
 } litexcnc_stepgen_general_write_data_t;
 #pragma pack(pop)
-#define LITEXCNC_STEPGEN_GENERAL_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_general_write_data_t)
+// - instance
 #pragma pack(push,4)
 typedef struct {
     uint32_t speed_target;
     uint32_t acceleration;
 } litexcnc_stepgen_instance_write_data_t;
 #pragma pack(pop)
-#define LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE sizeof(litexcnc_stepgen_instance_write_data_t)
-#define LITEXCNC_BOARD_STEPGEN_DATA_WRITE_SIZE(litexcnc) ((litexcnc->stepgen.num_instances?sizeof(litexcnc_stepgen_general_write_data_t):0) + LITEXCNC_STEPGEN_INSTANCE_WRITE_DATA_SIZE*litexcnc->stepgen.num_instances)
-// - read
+
+// READ DATA
 #pragma pack(push,4)
 typedef struct {
     int64_t position;
     uint32_t speed;
 } litexcnc_stepgen_instance_read_data_t;
 #pragma pack(pop)
-#define LITEXCNC_BOARD_STEPGEN_DATA_READ_SIZE(litexcnc) litexcnc->stepgen.num_instances*sizeof(litexcnc_stepgen_instance_read_data_t)
 
 
-// Functions for creating, reading and writing stepgen pins
-int litexcnc_stepgen_init(litexcnc_t *litexcnc, cJSON *config);
-uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long period);
-uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
-uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long period);
+/*******************************************************************************
+ * FUNCTIONS
+ ******************************************************************************/
+ 
+/*******************************************************************************
+ * Function which is called when a user adds the component using `loadrt 
+ * litexcnc_stepgen`. It will initialize the component with LinuxCNC and registers
+ * the exposed init, read and write functions with LitexCNC so they can be used
+ * by the driver. 
+ ******************************************************************************/
+int rtapi_app_main(void);
+
+/*******************************************************************************
+ * Function which is called when the realtime application is stopped (i.e. when
+ * LinuxCNC is stopped).
+ ******************************************************************************/
+void rtapi_app_exit(void);
+
+
+/*******************************************************************************
+ * Initializes the component for the given FPGA.
+ *
+ * @param instance Pointer to the struct with the module instance data. This 
+ * function will initialise this struct.
+ * @param fpga_name The name of the FPGA, used to set the pin names correctly.
+ * @param config The configuration of the FPGA, used to set the pin names. 
+ ******************************************************************************/
+size_t litexcnc_stepgen_init(
+    litexcnc_module_instance_t **instance, 
+    litexcnc_t *litexcnc,
+    uint8_t **config
+);
+
+
+/*******************************************************************************
+ * Returns the required buffer size for the config
+ *
+ * @param instance The structure containing the data on the module instance
+ ******************************************************************************/
+size_t required_config_buffer(void *instance);
+
+
+/*******************************************************************************
+ * Returns the required buffer size for the write buffer
+ *
+ * @param instance The structure containing the data on the module instance
+ ******************************************************************************/
+size_t required_write_buffer(void *instance);
+
+
+/*******************************************************************************
+ * Returns the required buffer size for the read buffer
+ *
+ * @param instance The structure containing the data on the module instance
+ ******************************************************************************/
+size_t required_read_buffer(void *instance);
+
+
+/*******************************************************************************
+ * Prepares the data to be written out to the device
+ *
+ * @param instance The structure containing the data on the module instance
+ * @param data Pointer to the array where the data should be written to. NOTE:
+ *     the pointer should moved to the next element, so the next module can 
+ *     append its data. All data in LitexCNC is 4-bytes wide. 
+ * @param period Period in nano-seconds of a cycle
+ ******************************************************************************/
+int litexcnc_stepgen_prepare_write(void *instance, uint8_t **data, int period);
+
+
+/*******************************************************************************
+ * Processes the data which has been received from a device
+ *
+ * @param instance The structure containing the data on the module instance
+ * @param data Pointer to the array where the data is contained in. NOTE:
+ *     the pointer should moved to the next element, so the next module can 
+ *     process its data. All data in LitexCNC is 4-bytes wide. 
+ * @param period Period in nano-seconds of a cycle
+ ******************************************************************************/
+int litexcnc_stepgen_process_read(void *instance, uint8_t** data, int period);
 
 #endif

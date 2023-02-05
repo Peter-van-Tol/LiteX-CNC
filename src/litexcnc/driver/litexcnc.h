@@ -77,7 +77,7 @@ typedef struct litexcnc_struct litexcnc_t;
 typedef struct litexcnc_module_instance_t {
     int (*prepare_write)(void *instance, uint8_t **data, int period);
     int (*process_read)(void *instance, uint8_t **data, int period);
-    int (*configure_module)(uint8_t **data, long period);
+    int (*configure_module)(void *instance, uint8_t **data, int period);
     void *instance_data;
 } litexcnc_module_instance_t;
 
@@ -193,7 +193,7 @@ typedef struct {
 #pragma pack(push,4)
 typedef struct {
     // Input pins
-    uint32_t loop_cycles;
+    // ...
 } litexcnc_config_header_t;
 #pragma pack(pop)
 #define LITEXCNC_CONFIG_HEADER_SIZE sizeof(litexcnc_config_header_t) 

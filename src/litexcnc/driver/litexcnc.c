@@ -57,6 +57,11 @@ static int comp_id;
 static void litexcnc_config(void* void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
 
+    // Safeguard for situation without config
+    if (litexcnc->fpga->config_buffer_size == 0) {
+        return;
+    }
+
     // Clear buffer
     uint8_t *config_buffer = rtapi_kmalloc(litexcnc->fpga->config_buffer_size, RTAPI_GFP_KERNEL);
     memset(config_buffer, 0, litexcnc->fpga->config_buffer_size);
@@ -65,10 +70,10 @@ static void litexcnc_config(void* void_litexcnc, long period) {
     uint8_t* pointer = config_buffer;
 
     // Configure the general settings
-    litexcnc_config_header_t config_data;
-    config_data.loop_cycles = htobe32((int32_t)((double) litexcnc->clock_frequency * period * 0.000000001));
-    memcpy(pointer, &config_data, sizeof(litexcnc_config_header_t));
-    pointer += sizeof(litexcnc_config_header_t);
+    // litexcnc_config_header_t config_data;
+    // ...
+    // memcpy(pointer, &config_data, sizeof(litexcnc_config_header_t));
+    // pointer += sizeof(litexcnc_config_header_t);
 
     // Configure all the functions
     // - default
@@ -78,12 +83,17 @@ static void litexcnc_config(void* void_litexcnc, long period) {
     for (size_t i=0; i<litexcnc->num_modules; i++) {
         litexcnc_module_instance_t *module = litexcnc->modules[i];
         if (module->configure_module != NULL) {
-            module->configure_module(&pointer, period);
+            module->configure_module(module->instance_data, &pointer, period);
         }
     }
     
-    // Write the data to the FPGA
-    // litexcnc->fpga->write_config(litexcnc->fpga, config_buffer, LITEXCNC_CONFIG_HEADER_SIZE);
+    // Write the data to the FPGA'
+    litexcnc->fpga->write_n_bits(
+        litexcnc->fpga, 
+        litexcnc->fpga->config_base_address, 
+        config_buffer, 
+        litexcnc->fpga->config_buffer_size
+    );
 }
 
 
@@ -360,11 +370,11 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     litexcnc->fpga->read_base_address = litexcnc->fpga->write_base_address + litexcnc->fpga->write_buffer_size;
 
     LITEXCNC_PRINT_NO_DEVICE("Base addresses: init: %08X, reset: %08X, config: %08X, write: %08X, read: %08X \n",
-        litexcnc->fpga->init_base_address,
-        litexcnc->fpga->reset_base_address,
-        litexcnc->fpga->config_base_address,
-        litexcnc->fpga->write_base_address,
-        litexcnc->fpga->read_base_address
+        (unsigned int) litexcnc->fpga->init_base_address,
+        (unsigned int) litexcnc->fpga->reset_base_address,
+        (unsigned int) litexcnc->fpga->config_base_address,
+        (unsigned int) litexcnc->fpga->write_base_address,
+        (unsigned int) litexcnc->fpga->read_base_address
     );
     
     // - write buffer
