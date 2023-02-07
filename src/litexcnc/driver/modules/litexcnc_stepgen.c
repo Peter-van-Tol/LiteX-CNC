@@ -283,6 +283,30 @@ int litexcnc_stepgen_prepare_write(void *module, uint8_t **data, int period) {
             instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * (*(stepgen->data.clock_frequency)) * (*(stepgen->data.clock_frequency)) / (1LL << instance->data.pick_off_acc);;
         }
 
+        // Check the limits on the speed of the stepgen
+        if (instance->hal.param.max_velocity <= 0.0) {
+            // Negative speed is limited as zero
+            instance->hal.param.max_velocity = 0.0;
+        } else {
+            // Maximum speed is positive and no zero, compare with maximum frequency
+	        if (instance->hal.param.max_velocity > (stepgen->data.max_frequency * fabs(instance->hal.param.position_scale))) {
+                // Limit speed to the maximum. This will lead to joint follow error when the higher speeds are commanded
+                float max_speed_desired = instance->hal.param.max_velocity;
+                instance->hal.param.max_velocity = stepgen->data.max_frequency * fabs(instance->hal.param.position_scale);
+		        // Maximum speed is too high, complain about it and modify the value
+		        if (!instance->memo.error_max_speed_printed) {
+		            LITEXCNC_ERR_NO_DEVICE(
+			            "STEPGEN: Channel %zu: The requested maximum velocity of %.2f units/sec is too high.\n",
+			            i, 
+                        max_speed_desired);
+		            LITEXCNC_ERR_NO_DEVICE(
+			            "STEPGEN: The maximum possible velocity is %.2f units/second\n",
+			            instance->hal.param.max_velocity);
+		            instance->memo.error_max_speed_printed = true;
+		        }
+	        }
+        }
+
         // Limit the speed to the maximum speed (both phases)
         if (*(instance->hal.pin.velocity_cmd) > instance->hal.param.max_velocity) {
             *(instance->hal.pin.velocity_cmd) = instance->hal.param.max_velocity;
