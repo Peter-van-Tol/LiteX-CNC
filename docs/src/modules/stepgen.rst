@@ -10,7 +10,7 @@ In contrast to the `LinuxCNC stepgen component <https://linuxcnc.org/docs/html/m
 which has both *position*  and *velocity* modes, the module ``StepGen`` only has velocity mode. Velocity 
 control drives the motor at a commanded speed, subject to accel and velocity limits. To convert the
 position command to the required velocity command the component ``pos2vel`` can be used, which is part
-of LitexCNC as well.
+of LitexCNC as well. Alternatively a `pid` component can be used, which supplies a derivative output.
 
 .. note::
     At this moment the timings can be set for each stepgen channel. At start up these timings are 
@@ -44,34 +44,52 @@ The code-block belows gives an example for the configuration of ``StepGen`` for 
     .. code-tab:: json
         :caption: step/dir
         
-        "stepgen": [
+        ...
+        "modules": [
+            ...,
             {
-                "pins" : {
-                    "stepgen_type": "step_dir",
-                    "step_pin": "j9:0",
-                    "dir_pin": "j9:1"
-                },
-                "soft_stop": true
+                "module_type": "stepgen",
+                "instance": [
+                    {
+                        "pins" : {
+                            "stepgen_type": "step_dir",
+                            "step_pin": "j9:0",
+                            "dir_pin": "j9:1"
+                        },
+                        "soft_stop": true
+                    },
+                ...
+                ]
             },
             ...
         ]
+        ...
 
     .. code-tab:: json
         :caption: step/dir (diff.)
         
-        "stepgen": [
+               ...
+        "modules": [
+            ...,
             {
-                "pins" : {
-                    "stepgen_type": "step_dir_differential",
-                    "step_pos_pin": "j9:0",
-                    "step_neg_pin": "j9:1",
-                    "dir_pos_pin": "j9:2",
-                    "dir_neg_pin": "j9:4"
-                },
-                "soft_stop": true
+                "module_type": "stepgen",
+                "instance": [
+                    {
+                        "pins" : {
+                            "stepgen_type": "step_dir_differential",
+                            "step_pos_pin": "j9:0",
+                            "step_neg_pin": "j9:1",
+                            "dir_pos_pin": "j9:2",
+                            "dir_neg_pin": "j9:4"
+                        },
+                        "soft_stop": true
+                    },
+                ...
+                ]
             },
             ...
         ]
+        ...
 
 HAL
 ===
@@ -233,4 +251,16 @@ The code below gives an example for a single axis, using the ``step-dir`` step t
 Break-out boards
 ================
 
-...
+For low performance (<1 kHz steprate) the default  `12 channel sourcing output <https://github.com/Peter-van-Tol/HUB-75-boards/tree/main/HUB75-Sourcing_output>`_ can be
+used. This might be sufficient for toolchangers are other slow moving devices.
+
+For faster movements, you can either:
+- directly connect the output (5 volt) to the stepper driver;
+- use the `stepper break-out board <https://github.com/Peter-van-Tol/HUB-75-boards/tree/main/HUB75-Differential_stepgen>`_. This board does not provide any isolation,
+  but handles both the enable and alarm signals and provide output with RJ45 connectors.
+
+  
+.. image:: images/stepgen_differential_bob-front.png
+   :width: 600
+   :alt: HUB-75 Stepgen break-out - front
+ 
