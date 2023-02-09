@@ -2,6 +2,7 @@
 
 # Default imports
 import math
+import os
 from typing import ClassVar, List, Literal, Union
 from typing_extensions import Annotated
 
@@ -169,12 +170,15 @@ class GPIO_ModuleConfig(ModuleBaseModel):
     """
     module_type: Literal['gpio'] = 'gpio'
     module_id: ClassVar[int] = 0x6770696f  # The string `gpio` in hex, must be equal to litexcnc_gpio.h
+    driver_files: ClassVar[List[str]] = [
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_gpio.c',
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_gpio.h'
+    ]
     instances: List[GPIO_Pin] = Field(
         [],
         item_type=GPIO_Pin,
         unique_items=True,
     )
-    
 
     def create_from_config(self, soc, _):
         GPIO_Module.create_from_config(soc, self)

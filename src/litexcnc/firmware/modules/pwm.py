@@ -2,6 +2,7 @@
 
 # Default imports
 import math
+import os
 from typing import ClassVar, List, Literal
 
 # Imports for the configuration
@@ -217,6 +218,10 @@ class PWM_ModuleConfig(ModuleBaseModel):
     """
     module_type: Literal['pwm'] = 'pwm'
     module_id: ClassVar[int] = 0x70776d5f  # The string `pwm_` in hex, must be equal to litexcnc_pwm.h
+    driver_files: ClassVar[List[str]] = [
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_pwm.c',
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_pwm.h'
+    ]
     instances: List[PWM_Instance] = Field(
         [],
         item_type=PWM_Instance,

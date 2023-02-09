@@ -1,6 +1,7 @@
 
 
 import math
+import os
 from typing import ClassVar, List, Literal
 import warnings
 
@@ -232,7 +233,7 @@ class EncoderModule(Module, AutoDoc):
         #   outside the mainloop in a Cat-statement.
         index_pulse = []
         # - main loop for creating the encoders
-        for index, instance_config in enumerate(config. instances):
+        for index, instance_config in enumerate(config.instances):
             # Add the io to the FPGA
             if instance_config.pin_Z is not None:
                 soc.platform.add_extension([
@@ -369,6 +370,10 @@ class EncoderModuleConfig(ModuleBaseModel):
     """
     module_type: Literal['encoder'] = 'encoder'
     module_id: ClassVar[int] = 0x656e635f  # The string `enc_` in hex, must be equal to litexcnc_pwm.h
+    driver_files: ClassVar[List[str]] = [
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_encoder.c',
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_encoder.h'
+    ]
     instances: List[EncoderInstanceConfig] = Field(
         [],
         item_type=EncoderInstanceConfig,

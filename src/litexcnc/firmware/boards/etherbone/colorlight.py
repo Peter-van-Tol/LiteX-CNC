@@ -11,8 +11,7 @@ from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
 from pydantic import Field
 
 # Local imports
-from . import Etherbone, EthPhy
-from ...soc import LitexCNC_Firmware
+from . import Etherbone, EthPhy, EtherboneBoard
 
 
 class ColorLightBase(SoCMini):
@@ -57,7 +56,7 @@ class ColorLightBase(SoCMini):
         )
 
 
-class ColorLight_5A_75X(LitexCNC_Firmware):
+class ColorLight_5A_75X(EtherboneBoard):
     """
     Configuration for Colorlight 5A-75B and 5A-75E cards:
 

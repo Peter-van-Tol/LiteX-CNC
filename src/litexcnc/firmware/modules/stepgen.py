@@ -1,4 +1,5 @@
 # Imports for creating a json-definition
+import os
 try:
     from typing import ClassVar, Iterable, List, Literal, Union
 except ImportError:
@@ -227,6 +228,10 @@ class StepgenModuleConfig(ModuleBaseModel):
     """
     module_type: Literal['stepgen'] = 'stepgen'
     module_id: ClassVar[int] = 0x73746570  # The string `step` in hex, must be equal to litexcnc_stepgen.h
+    driver_files: ClassVar[List[str]] = [
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_stepgen.c',
+        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_stepgen.h'
+    ]
     instances: List[StepgenInstanceConfig] = Field(
         [],
         item_type=StepgenInstanceConfig,

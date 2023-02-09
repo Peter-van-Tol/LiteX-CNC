@@ -19,8 +19,8 @@ from migen import ClockDomain, Module
 # Imports from Pydantic to create the config
 from pydantic import Field
 
-from . import Etherbone, EthPhy
-from ...soc import LitexCNC_Firmware
+from . import Etherbone, EthPhy, EtherboneBoard
+
 
 # IOs ---------------------------------------------------------------
 _io = [
@@ -363,7 +363,7 @@ class RV901T(SoCMini):
         platform.add_false_path_constraints(crg.cd_sys.clk, self.ethphy.crg.cd_eth_rx.clk)  
 
 
-class RV901T_Config(LitexCNC_Firmware):
+class RV901T_Config(EtherboneBoard):
     """
     Configuration for Colorlight 5A-75B and 5A-75E cards:
 
