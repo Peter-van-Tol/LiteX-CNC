@@ -61,7 +61,8 @@ class LitexCNC_Firmware(BaseModel):
         """"""
         super().__init_subclass__(**kwargs)
         for board_type in get_args(cls.__fields__['board_type'].type_):
-            board_registry[board_type] = cls
+            if board_type != 'abstract':
+                board_registry[board_type] = cls
 
     def _generate_soc(self):
         """

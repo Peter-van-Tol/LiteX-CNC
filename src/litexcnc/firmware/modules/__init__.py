@@ -2,11 +2,19 @@
 from functools import partial
 from typing import Any, ClassVar, List
 
+import sys
+if sys.version_info[:2] >= (3, 8):
+    # TODO: Import directly (no need for conditional) when `python_requires = >= 3.8`
+    from importlib.metadata import entry_points  # pragma: no cover
+else:
+    from importlib_metadata import entry_points  # pragma: no cover
+
 # Imports for creating a json-definition
 from pydantic import BaseModel
 
 # Registry which holds all the sub-classes of modules
 module_registry = {}
+GROUP = "litexcnc.modules"
 
 class ModuleInstanceBaseModel(BaseModel):
     """
@@ -14,6 +22,7 @@ class ModuleInstanceBaseModel(BaseModel):
     """
     pins: ClassVar[List[str]] = []
     params: ClassVar[List[str]] = []
+    driver_files: ClassVar[List[str]] = []
 
 class ModuleBaseModel(BaseModel):
     """
@@ -79,7 +88,16 @@ class ModuleBaseModel(BaseModel):
 
     def store_config(self, mmio):
         raise NotImplementedError("Function must be implemented in subclass")
-        
 
-# Import default modules (otherwise they are not recognized)
-from . import gpio, pwm, encoder, stepgen
+
+entries = entry_points()
+if hasattr(entries, "select"):
+    # The select method was introduced in importlib_metadata 3.9 (and Python 3.10)
+    # and the previous dict interface was declared deprecated
+    modules = entries.select(group=GROUP)  # type: ignore
+else:
+    # TODO: Once Python 3.10 becomes the oldest version supported, this fallback and
+    #       conditional statement can be removed.
+    modules = (extension for extension in entries.get(GROUP, []))  # type: ignore
+for module in modules:
+    module.load()

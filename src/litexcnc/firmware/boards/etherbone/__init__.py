@@ -2,9 +2,12 @@
 
 """
 from ipaddress import IPv4Address
-from typing import Type
+import os
+from typing import ClassVar, List, Literal
 
 from pydantic import BaseModel, Field, validator
+
+from ...soc import LitexCNC_Firmware
 
 
 class EthPhy(BaseModel):
@@ -44,3 +47,15 @@ class Etherbone(BaseModel):
     @validator('mac_address', pre=True)
     def convert_mac_address(cls, value):
         return int(value, base=16)
+
+
+class EtherboneBoard(LitexCNC_Firmware):
+    board_type: Literal[
+        'abstract'
+    ] = 'abstract'
+    driver_files: ClassVar[List[str]] = [
+        os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_eth.c',
+        os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_eth.h',
+        os.path.dirname(__file__) + '/../../../driver/boards/etherbone.c',
+        os.path.dirname(__file__) + '/../../../driver/boards/etherbone.h'
+    ]
