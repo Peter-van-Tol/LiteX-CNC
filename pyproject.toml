@@ -56,6 +56,16 @@ litexcnc = { callable = "litexcnc.__main__:cli", extras = ["cli"] }
 sphinx = "^5.3.0"
 sphinx-rtd-theme = "^1.1.1"
 
+[tool.poetry.plugins."litexcnc.modules"]
+gpio    = "litexcnc.firmware.modules.gpio"
+pwm     = "litexcnc.firmware.modules.pwm"
+stepgen = "litexcnc.firmware.modules.stepgen"
+encoder = "litexcnc.firmware.modules.encoder"
+
+[tool.poetry.plugins."litexcnc.boards"]
+colorlight = "litexcnc.firmware.boards.etherbone.colorlight"
+rv901t     = "litexcnc.firmware.boards.etherbone.rv901t"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
