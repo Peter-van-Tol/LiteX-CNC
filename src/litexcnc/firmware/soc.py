@@ -32,6 +32,9 @@ class LitexCNC_Firmware(BaseModel):
         extra = "allow"
 
     def __new__(cls,  *args, **kwargs):
+        # Deferred import to prevent circular imports. We need to import the boards here
+        # to trigger the import mechanism and make sure that the board_registry is filled.
+        from litexcnc.config import boards
         if cls is not LitexCNC_Firmware:
             return super().__new__(cls)
         if 'board_type' not in kwargs.keys():
