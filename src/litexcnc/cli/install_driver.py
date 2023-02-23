@@ -13,7 +13,7 @@ import click
 
 # Import the driver module.
 from litexcnc import driver
-from litexcnc.firmware.modules import ModuleBaseModel
+from litexcnc.config.modules import ModuleBaseModel
 from litexcnc.firmware.soc import LitexCNC_Firmware
 from litexcnc import driver
 from litexcnc.driver.halcompile import find_modinc
