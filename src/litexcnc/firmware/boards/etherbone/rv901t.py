@@ -5,8 +5,6 @@ this file is taken from:
 
 All credits for this definition goes to Chubby75
 """
-from typing import Literal
-
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
 
@@ -15,11 +13,6 @@ from liteeth.phy.s6rgmii import LiteEthPHYRGMII
 from litex.soc.integration.soc_core import *
 from litex.soc.cores.clock import S6PLL
 from migen import ClockDomain, Module
-
-# Imports from Pydantic to create the config
-from pydantic import Field
-
-from . import Etherbone, EthPhy, EtherboneBoard
 
 
 # IOs ---------------------------------------------------------------
@@ -361,29 +354,3 @@ class RV901T(SoCMini):
         # Timing constraints
         platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
         platform.add_false_path_constraints(crg.cd_sys.clk, self.ethphy.crg.cd_eth_rx.clk)  
-
-
-class RV901T_Config(EtherboneBoard):
-    """
-    Configuration for Colorlight 5A-75B and 5A-75E cards:
-
-    """
-    board_type: Literal[
-        "RV901T"
-    ]
-    ethphy: EthPhy = Field(
-        ...
-    )
-    etherbone: Etherbone = Field(
-        ...,
-    )
-
-    def _generate_soc(self):
-        """Returns the board on which LitexCNC firmware is designed for.
-        """
-        # Split the board and the revision from the board type and create the SoC
-        # based on the board type.
-        board, revision = self.board_type.split('v')
-        return RV901T(
-            config=self
-        )
