@@ -18,12 +18,12 @@ __version__ = "1.1.0"
 
 try:
     from .soc import LitexCNC_Firmware
-    from . import boards
+    from . import boards, config
 except ImportError as e:
     print("Litex is not installed, please run 'python -m litexcnc_firmware install_litex'")
 
 
 __all__ = [
-    'boards',
+    'boards', 'config',
     'LitexCNC_Firmware',
 ]
