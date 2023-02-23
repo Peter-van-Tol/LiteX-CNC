@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 # Registry which holds all the sub-classes of modules
 module_registry = {}
-GROUP = "litexcnc.config"
+GROUP = "litexcnc.modules"
 
 class ModuleInstanceBaseModel(BaseModel):
     """
