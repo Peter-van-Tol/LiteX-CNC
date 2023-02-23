@@ -12,7 +12,7 @@ except ImportError:
 
 from pydantic import BaseModel, Field, validator
 
-from ...soc import LitexCNC_Firmware
+from litexcnc.firmware.soc import LitexCNC_Firmware
 
 
 class EthPhy(BaseModel):
