@@ -16,11 +16,10 @@
 # of the driver. 
 __version__ = "1.1.0"
 
-try:
-    from .soc import LitexCNC_Firmware
-    from . import boards
-except ImportError as e:
-    print("Litex is not installed, please run 'python -m litexcnc_firmware install_litex'")
+# try:
+from .soc import LitexCNC_Firmware
+# except ImportError as e:
+#     print("Litex is not installed, please run 'python -m litexcnc_firmware install_litex'")
 
 
 __all__ = [
