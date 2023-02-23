@@ -23,6 +23,5 @@ from .soc import LitexCNC_Firmware
 
 
 __all__ = [
-    'boards',
     'LitexCNC_Firmware',
 ]
