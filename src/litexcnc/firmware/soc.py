@@ -1,5 +1,9 @@
 # Imports for creating the config
-from typing import Any, List, get_args
+try:
+    from typing import Any, List, get_args
+except ImportError:
+    from typing import Any, List
+    from typing_extensions import get_args
 from pydantic import BaseModel, Field, validator
 
 # Local imports
