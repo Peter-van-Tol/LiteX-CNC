@@ -63,8 +63,8 @@ stepgen = "litexcnc.config.modules.stepgen"
 encoder = "litexcnc.config.modules.encoder"
 
 [tool.poetry.plugins."litexcnc.boards"]
-colorlight = "litexcnc.firmware.boards.etherbone.colorlight"
-rv901t     = "litexcnc.firmware.boards.etherbone.rv901t"
+colorlight = "litexcnc.config.boards.etherbone.colorlight"
+rv901t     = "litexcnc.config.boards.etherbone.rv901t"
 
 [build-system]
 requires = ["poetry-core"]
