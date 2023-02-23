@@ -1,10 +1,10 @@
 # Imports for creating a json-definition
 import os
 try:
-    from typing import ClassVar, Iterable, List, Literal, Union
+    from typing import ClassVar, List, Literal, Union
 except ImportError:
     # Imports for Python <3.8
-    from typing import ClassVar, Iterable, List, Union
+    from typing import ClassVar, List, Union
     from typing_extensions import Literal
 
 # Imports for the configuration

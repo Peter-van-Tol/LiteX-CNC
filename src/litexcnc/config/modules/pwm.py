@@ -6,7 +6,6 @@ except ImportError:
     # Imports for Python <3.8
     from typing import ClassVar, List
     from typing_extensions import Literal
-from typing import ClassVar, List, Literal
 
 # Imports for the configuration
 from pydantic import Field
