@@ -1,6 +1,3 @@
-from migen import *
-from litex.build.generic_platform import *
-
 # Imports for creating the config
 from typing import Any, List, get_args
 from pydantic import BaseModel, Field, validator
@@ -81,6 +78,8 @@ class LitexCNC_Firmware(BaseModel):
         - initialize any user defined module
         """
         # Deferred imports to prevent importing Litex while installing the driver
+        from migen import *
+        from litex.build.generic_platform import *
         from litexcnc.firmware.watchdog import WatchDogModule
         from litexcnc.firmware.mmio import MMIO
 
