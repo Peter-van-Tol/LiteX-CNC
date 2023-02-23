@@ -16,251 +16,6 @@ from litex.soc.integration.soc import SoC
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.build.generic_platform import *
 
-# Import of the basemodel, required to register this module
-from . import ModuleBaseModel, ModuleInstanceBaseModel
-
-
-class StepGenPinoutStepDirBaseConfig(ModuleInstanceBaseModel):
-
-    def create_routine(self, generator, pads):
-        """
-        Creates the routine for a step-dir stepper. The connection to the pads
-        should be made in sub-classes
-        """
-        # Output parameters
-        generator.step_prev = Signal()
-        generator.step = Signal()
-        generator.dir = Signal(reset=True)
-
-        # Link step and dir
-        self.create_pads(generator, pads)
-        
-        # - source which stores the value of the counters
-        generator.steplen = Signal(10)
-        generator.dir_hold_time = Signal(10)
-        generator.dir_setup_time = Signal(12)
-        # - counters
-        generator.steplen_counter = StepgenCounter(10)
-        generator.dir_hold_counter = StepgenCounter(11)
-        generator.dir_setup_counter = StepgenCounter(13)
-        generator.submodules += [
-            generator.steplen_counter,
-            generator.dir_hold_counter,
-            generator.dir_setup_counter
-        ]
-        generator.hold_dds = Signal()
-
-        # Translate the position to steps by looking at the n'th bit (pick-off)
-        # NOTE: to be able to simply add the velocity to the position for every timestep, the position
-        # registered is widened from the default 64-buit width to 64-bit + difference in pick-off for
-        # position and velocity. This meands that the bit we have to watch is also shifted by the
-        # same amount. This means that although we are watching the position, we have to use the pick-off
-        # for velocity
-        generator.sync += If(
-            generator.position[generator.pick_off_vel] != generator.step_prev,
-            # Corner-case: The machine is at rest and starts to move in the opposite
-            # direction. Wait with stepping the machine until the dir setup time has
-            # passed.
-            If(
-                ~generator.hold_dds,
-                # The relevant bit has toggled, make a step to the next position by
-                # resetting the counters
-                generator.step_prev.eq(generator.position[generator.pick_off_vel]),
-                generator.steplen_counter.counter.eq(generator.steplen),
-                generator.dir_hold_counter.counter.eq(generator.steplen + generator.dir_hold_time),
-                generator.dir_setup_counter.counter.eq(generator.steplen + generator.dir_hold_time + generator.dir_setup_time),
-                generator.wait.eq(False)
-            ).Else(
-                generator.wait.eq(True)
-            )
-        )
-        # Reset the DDS flag when dir_setup_counter has lapsed
-        generator.sync += If(
-            generator.dir_setup_counter.counter == 0,
-            generator.hold_dds.eq(0)
-        )
-
-        # Convert the parameters to output of step and dir
-        # - step
-        generator.sync += If(
-            generator.steplen_counter.counter > 0,
-            generator.step.eq(1)
-        ).Else(
-            generator.step.eq(0)
-        )
-        # - dir
-        generator.sync += If(
-            generator.dir != (generator.speed[32 + (generator.pick_off_acc - generator.pick_off_vel) - 1]),
-            # Enable the Hold DDS, but wait with changing the dir pin until the
-            # dir_hold_counter has been elapsed
-            generator.hold_dds.eq(1),
-            # Corner-case: The machine is at rest and starts to move in the opposite
-            # direction. In this case the dir pin is toggled, while a step can follow
-            # suite. We wait in this case the minimum dir_setup_time
-            If(
-                generator.dir_setup_counter.counter == 0,
-                generator.dir_setup_counter.counter.eq(generator.dir_setup_time)
-            ),
-            If(
-                generator.dir_hold_counter.counter == 0,
-                generator.dir.eq(generator.speed[32 + (generator.pick_off_acc - generator.pick_off_vel) - 1])
-            )
-        )
-
-        # Create the outputs
-        generator.ios = {generator.step, generator.dir}
-
-
-class StepGenPinoutStepDirConfig(StepGenPinoutStepDirBaseConfig):
-    stepgen_type: Literal['step_dir']
-    step_pin: str = Field(
-        description="The pin on the FPGA-card for the step signal."
-    )
-    dir_pin: str = Field(
-        None,
-        description="The pin on the FPGA-card for the dir signal."
-    )
-    io_standard: str = Field(
-        "LVCMOS33",
-        description="The IO Standard (voltage) to use for the pins."
-    )
-
-    def convert_to_signal(self):
-        """
-        Creates the pins for this layout.
-        """
-        return (
-            Subsignal("step", Pins(self.step_pin), IOStandard(self.io_standard)),
-            Subsignal("dir", Pins(self.dir_pin), IOStandard(self.io_standard))
-        )
-
-    def create_pads(self, generator, pads):
-        """Links the step and dir pins to the pads. This one is in a
-        separate function, so the differential version only this function
-        has to be overridden."""
-        # Require to test working with Verilog, basically creates extra signals not
-        # connected to any pads.
-        if pads is None:
-            pads = Record([("step", 1), ("dir", 1)])
-
-        generator.comb += [
-            pads.step.eq(generator.step),
-            pads.dir.eq(generator.dir),
-        ]
-
-
-class StepGenPinoutStepDirDifferentialConfig(StepGenPinoutStepDirBaseConfig):
-    stepgen_type: Literal['step_dir_differential']
-    step_pos_pin: str = Field(
-        description="The pin on the FPGA-card for the step+ signal."
-    )
-    step_neg_pin: str = Field(
-        description="The pin on the FPGA-card for the step- signal."
-    )
-    dir_pos_pin: str = Field(
-        None,
-        description="The pin on the FPGA-card for the dir+ signal."
-    )
-    dir_neg_pin: str = Field(
-        None,
-        description="The pin on the FPGA-card for the dir- signal."
-    )
-    io_standard: str = Field(
-        "LVCMOS33",
-        description="The IO Standard (voltage) to use for the pins."
-    )
-
-    def convert_to_signal(self):
-        """
-        Creates the pins for this layout.
-        """
-        return (
-            Subsignal("step_pos", Pins(self.step_pos_pin), IOStandard(self.io_standard)),
-            Subsignal("step_neg", Pins(self.step_neg_pin), IOStandard(self.io_standard)),
-            Subsignal("dir_pos", Pins(self.dir_pos_pin), IOStandard(self.io_standard)),
-            Subsignal("dir_neg", Pins(self.dir_neg_pin), IOStandard(self.io_standard)),
-        )
-
-    def create_pads(self, generator, pads):
-        """Links the step and dir pins to the pads. This one is in a
-        separate function, so the differential version only this function
-        has to be overridden."""
-        # Require to test working with Verilog, basically creates extra signals not
-        # connected to any pads.
-        if pads is None:
-            pads = Record([
-                ("step_pos", 1),
-                ("step_neg", 1), 
-                ("dir_pos", 1),
-                ("dir_neg", 1)
-            ])
-        # Connect pads with the pins
-        generator.sync += [ # AANGEPAST
-            pads.step_pos.eq(generator.step),
-            pads.step_neg.eq(~generator.step),
-            pads.dir_pos.eq(generator.dir),
-            pads.dir_neg.eq(~generator.dir),
-        ]
-
-class StepgenInstanceConfig(BaseModel):
-
-    name: str = Field(
-        None,
-        description="The name of the stepgen as used in LinuxCNC HAL-file (optional). "
-    )
-    pins: Union[
-            StepGenPinoutStepDirConfig, 
-            StepGenPinoutStepDirDifferentialConfig] = Field(
-        ...,
-        description="The configuration of the stepper type and pin-out."
-    )
-    soft_stop: bool = Field(
-        False,
-        description="When False, the stepgen will directly stop when the stepgen is "
-        "disabled. When True, the stepgen will stop the machine with respect to the "
-        "acceleration limits and then be disabled. Default value: False."
-    )
-
-
-class StepgenModuleConfig(ModuleBaseModel):
-    """
-    Module describing the PWM module
-    """
-    module_type: Literal['stepgen'] = 'stepgen'
-    module_id: ClassVar[int] = 0x73746570  # The string `step` in hex, must be equal to litexcnc_stepgen.h
-    driver_files: ClassVar[List[str]] = [
-        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_stepgen.c',
-        os.path.dirname(__file__) + '/../../driver/modules/litexcnc_stepgen.h'
-    ]
-    instances: List[StepgenInstanceConfig] = Field(
-        [],
-        item_type=StepgenInstanceConfig,
-        unique_items=True
-    )
-
-    def create_from_config(self, soc, watchdog):
-        StepgenModule.create_from_config(soc, watchdog, self)
-    
-    def add_mmio_config_registers(self, mmio):
-        StepgenModule.add_mmio_config_registers(mmio, self)
-
-    def add_mmio_write_registers(self, mmio):
-        StepgenModule.add_mmio_write_registers(mmio, self)
-
-    def add_mmio_read_registers(self, mmio):
-        StepgenModule.add_mmio_read_registers(mmio, self)
-
-    @property
-    def config_size(self):
-        return 4
-
-    def store_config(self, mmio):
-        mmio.stepgen_config_data =  CSRStatus(
-            size=self.config_size*8,
-            reset=len(self.instances),
-            description=f"The config of the Stepgen module."
-        )
-
 
 class StepgenCounter(Module, AutoDoc):
 
@@ -282,7 +37,7 @@ class StepgenCounter(Module, AutoDoc):
 
 class StepgenModule(Module, AutoDoc):
 
-    def __init__(self, pads, pick_off, soft_stop, create_routine) -> None:
+    def __init__(self, pads, pick_off, soft_stop, create_pads) -> None:
         """
         
         NOTE: pickoff should be a three-tuple. A different pick-off for position, speed
@@ -434,7 +189,7 @@ class StepgenModule(Module, AutoDoc):
             )
 
         # Create the routine which actually handles the steps
-        create_routine(self, pads)
+        self.create_step_dir_routine(self, pads, create_pads)
 
     @classmethod
     def add_mmio_config_registers(cls, mmio, config: StepgenModuleConfig):
@@ -564,7 +319,7 @@ class StepgenModule(Module, AutoDoc):
                 pads=soc.platform.request('stepgen', index),
                 pick_off=(32, 32 + shift, 32 + shift + 8),
                 soft_stop=stepgen_config.soft_stop,
-                create_routine=stepgen_config.pins.create_routine
+                create_pads=stepgen_config.pins.create_pads
             )
             soc.submodules += stepgen
             # Connect all the memory
@@ -598,6 +353,94 @@ class StepgenModule(Module, AutoDoc):
                     soc.MMIO_inst.stepgen_apply_time.we.eq(1)
                 )
             ]
+
+    def create_step_dir_routine(self, pads, create_pads):
+        """
+        Creates the routine for a step-dir stepper. The connection to the pads
+        should be made in sub-classes
+        """
+        # Output parameters
+        self.step_prev = Signal()
+        self.step = Signal()
+        self.dir = Signal(reset=True)
+
+        # Link step and dir
+        create_pads(self, pads)
+        
+        # - source which stores the value of the counters
+        self.steplen = Signal(10)
+        self.dir_hold_time = Signal(10)
+        self.dir_setup_time = Signal(12)
+        # - counters
+        self.steplen_counter = StepgenCounter(10)
+        self.dir_hold_counter = StepgenCounter(11)
+        self.dir_setup_counter = StepgenCounter(13)
+        self.submodules += [
+            self.steplen_counter,
+            self.dir_hold_counter,
+            self.dir_setup_counter
+        ]
+        self.hold_dds = Signal()
+
+        # Translate the position to steps by looking at the n'th bit (pick-off)
+        # NOTE: to be able to simply add the velocity to the position for every timestep, the position
+        # registered is widened from the default 64-buit width to 64-bit + difference in pick-off for
+        # position and velocity. This meands that the bit we have to watch is also shifted by the
+        # same amount. This means that although we are watching the position, we have to use the pick-off
+        # for velocity
+        self.sync += If(
+            self.position[self.pick_off_vel] != self.step_prev,
+            # Corner-case: The machine is at rest and starts to move in the opposite
+            # direction. Wait with stepping the machine until the dir setup time has
+            # passed.
+            If(
+                ~self.hold_dds,
+                # The relevant bit has toggled, make a step to the next position by
+                # resetting the counters
+                self.step_prev.eq(self.position[self.pick_off_vel]),
+                self.steplen_counter.counter.eq(self.steplen),
+                self.dir_hold_counter.counter.eq(self.steplen + self.dir_hold_time),
+                self.dir_setup_counter.counter.eq(self.steplen + self.dir_hold_time + self.dir_setup_time),
+                self.wait.eq(False)
+            ).Else(
+                self.wait.eq(True)
+            )
+        )
+        # Reset the DDS flag when dir_setup_counter has lapsed
+        self.sync += If(
+            self.dir_setup_counter.counter == 0,
+            self.hold_dds.eq(0)
+        )
+
+        # Convert the parameters to output of step and dir
+        # - step
+        self.sync += If(
+            self.steplen_counter.counter > 0,
+            self.step.eq(1)
+        ).Else(
+            self.step.eq(0)
+        )
+        # - dir
+        self.sync += If(
+            self.dir != (self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1]),
+            # Enable the Hold DDS, but wait with changing the dir pin until the
+            # dir_hold_counter has been elapsed
+            self.hold_dds.eq(1),
+            # Corner-case: The machine is at rest and starts to move in the opposite
+            # direction. In this case the dir pin is toggled, while a step can follow
+            # suite. We wait in this case the minimum dir_setup_time
+            If(
+                self.dir_setup_counter.counter == 0,
+                self.dir_setup_counter.counter.eq(self.dir_setup_time)
+            ),
+            If(
+                self.dir_hold_counter.counter == 0,
+                self.dir.eq(self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1])
+            )
+        )
+
+        # Create the outputs
+        self.ios = {self.step, self.dir}
 
 
 if __name__ == "__main__":

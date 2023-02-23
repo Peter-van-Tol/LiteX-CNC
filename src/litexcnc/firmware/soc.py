@@ -6,9 +6,7 @@ from typing import Any, List, get_args
 from pydantic import BaseModel, Field, validator
 
 # Local imports
-from .watchdog import WatchDogModule
-from .mmio import MMIO
-from .modules import ModuleBaseModel, module_registry
+from litexcnc.config.modules import ModuleBaseModel, module_registry
 
 # Registry which holds all the sub-classes of modules
 board_registry = {}
@@ -82,6 +80,10 @@ class LitexCNC_Firmware(BaseModel):
         - initialize default modules ``watchdog`` and ``wallclock``
         - initialize any user defined module
         """
+        # Deferred imports to prevent importing Litex while installing the driver
+        from litexcnc.firmware.watchdog import WatchDogModule
+        from litexcnc.firmware.mmio import MMIO
+
         soc = self._generate_soc()
 
         # Create memory mapping for IO
