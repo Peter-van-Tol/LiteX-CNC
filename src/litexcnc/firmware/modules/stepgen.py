@@ -16,6 +16,8 @@ from litex.soc.integration.soc import SoC
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.build.generic_platform import *
 
+# Local imports
+from litexcnc.config.modules.stepgen import StepgenModuleConfig
 
 class StepgenCounter(Module, AutoDoc):
 
