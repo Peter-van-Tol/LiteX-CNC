@@ -3,7 +3,12 @@
 # Default imports
 import math
 import os
-from typing import ClassVar, List, Literal, Union
+try:
+    from typing import ClassVar, List, Literal, Union
+except ImportError:
+    # Imports for Python <3.8
+    from typing import ClassVar, List, Union
+    from typing_extensions import Literal
 from typing_extensions import Annotated
 
 # Imports for the configuration

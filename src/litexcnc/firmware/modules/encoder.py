@@ -2,7 +2,12 @@
 
 import math
 import os
-from typing import ClassVar, List, Literal
+try:
+    from typing import ClassVar, List, Literal
+except ImportError:
+    # Imports for Python <3.8
+    from typing import ClassVar, List
+    from typing_extensions import Literal
 import warnings
 
 # Imports for creating a json-definition
