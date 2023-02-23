@@ -3,7 +3,12 @@
 """
 from ipaddress import IPv4Address
 import os
-from typing import ClassVar, List, Literal
+try:
+    from typing import ClassVar, List, Literal
+except ImportError:
+    from typing import ClassVar, List
+    from typing_extensions import Literal
+
 
 from pydantic import BaseModel, Field, validator
 
