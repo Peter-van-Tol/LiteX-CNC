@@ -78,8 +78,6 @@ class LitexCNC_Firmware(BaseModel):
         - initialize any user defined module
         """
         # Deferred imports to prevent importing Litex while installing the driver
-        from migen import *
-        from litex.build.generic_platform import *
         from litexcnc.firmware.watchdog import WatchDogModule
         from litexcnc.firmware.mmio import MMIO
 
