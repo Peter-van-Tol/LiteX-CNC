@@ -185,8 +185,7 @@ static int connect_board(litexcnc_eth_t *board, char *connection_string) {
         port_ptr = port_default;
     }
 
-    // board->connection = eb_connect(connection_string, port_ptr, 1);
-    board->connection = eb_connect("10.0.0.10", "1234", 1);
+    board->connection = eb_connect(connection_string, port_ptr, 1);
     if (!board->connection) {
         rtapi_print_msg(RTAPI_MSG_ERR,"LitexCNC-eth: ERROR: failed to connect to board on '%s:%s'\n", connection_string, port_ptr);
         return -1;

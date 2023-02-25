@@ -34,6 +34,8 @@ typedef struct litexcnc_struct litexcnc_t;
 
 #define MAX_RESET_RETRIES      5  
 
+#define MAX_EXTRAS             32
+
 
 // ------------------------------------
 // Definitions for printing to command line
@@ -54,7 +56,7 @@ typedef struct litexcnc_struct litexcnc_t;
 // --------------------------------
 // Definitions for handling modules
 // --------------------------------
-#define LITEXCNC_LOAD_DEFAULT_MODULE(name)       result = register_default_module(name); if (result<0) return result; 
+#define LITEXCNC_LOAD_MODULE(name)              result = register_default_module(name); if (result<0) return result; 
 // - Creation of the basename
 #define LITEXCNC_CREATE_BASENAME(module, index)  rtapi_snprintf(base_name, sizeof(base_name), "%s.%s.%02zu", litexcnc->fpga->name, module, index);
 // - Creation of a pin

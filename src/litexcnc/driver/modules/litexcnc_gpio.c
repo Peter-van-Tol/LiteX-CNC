@@ -50,7 +50,7 @@ static int num_instances = 0;
  */
 static litexcnc_module_registration_t *registration;
 
-int register_module(void) {
+int register_gpio_module(void) {
     registration = (litexcnc_module_registration_t *)hal_malloc(sizeof(litexcnc_module_registration_t));
     registration->id = 0x6770696f; /** The string `gpio` in hex */
     rtapi_snprintf(registration->name, sizeof(registration->name), "gpio");
@@ -59,7 +59,7 @@ int register_module(void) {
     registration->required_read_buffer  = &required_read_buffer;
     return litexcnc_register_module(registration);
 }
-EXPORT_SYMBOL_GPL(register_module);
+EXPORT_SYMBOL_GPL(register_gpio_module);
 
 
 int rtapi_app_main(void) {
@@ -76,7 +76,7 @@ int rtapi_app_main(void) {
     if(comp_id < 0) return comp_id;
 
     // Register the module with LitexCNC (NOTE: LitexCNC should be loaded first)
-    int result = register_module();
+    int result = register_gpio_module();
     if (result<0) return result;
 
     // Report GPIO is ready to be used

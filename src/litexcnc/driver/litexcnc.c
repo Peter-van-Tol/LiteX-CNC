@@ -42,6 +42,8 @@ MODULE_INFO(linuxcnc, "license:GPL");
 MODULE_LICENSE("GPL");
 #endif // MODULE_INFO
 
+static char *extras[MAX_EXTRAS];
+RTAPI_MP_ARRAY_STRING(extras, MAX_EXTRAS, "Extra modules to load.")
 
 // This keeps track of all the litexcnc instances that have been registered by drivers
 struct rtapi_list_head litexcnc_list;
@@ -517,7 +519,9 @@ size_t register_default_module(char *name) {
     }
 
     // Find the function which initializes the module
-    int (*register_module)(void) = dlsym(module, "register_module");
+    char register_name[LINELEN+1];
+    snprintf(register_name, LINELEN, "register_%s_module", name);
+    int (*register_module)(void) = dlsym(module, register_name);
     if(!register_module) {
         rtapi_print_msg(RTAPI_MSG_ERR, "%s: dlsym: %s\n", name, dlerror());
         dlclose(module);
@@ -550,10 +554,17 @@ int rtapi_app_main(void) {
     // Load default modules
     int result;
     LITEXCNC_PRINT_NO_DEVICE("Loading and registering default modules:\n");
-    LITEXCNC_LOAD_DEFAULT_MODULE("gpio")
-    LITEXCNC_LOAD_DEFAULT_MODULE("pwm")
-    LITEXCNC_LOAD_DEFAULT_MODULE("encoder")
-    
+    LITEXCNC_LOAD_MODULE("gpio")
+    LITEXCNC_LOAD_MODULE("pwm")
+    LITEXCNC_LOAD_MODULE("encoder")
+
+    // Load extra modules
+    size_t i;
+    int ret;
+    for(i = 0, ret = 0; ret == 0 && i<MAX_EXTRAS && extras[i] && *extras[i]; i++) {
+        LITEXCNC_LOAD_MODULE(extras[i])
+    }
+
     // Report ready to rumble
     hal_ready(comp_id);
     return 0;
