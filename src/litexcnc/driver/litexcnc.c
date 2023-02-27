@@ -42,16 +42,25 @@ MODULE_INFO(linuxcnc, "license:GPL");
 MODULE_LICENSE("GPL");
 #endif // MODULE_INFO
 
-static char *extras[MAX_EXTRAS];
-RTAPI_MP_ARRAY_STRING(extras, MAX_EXTRAS, "Extra modules to load.")
+static char *extra_modules[MAX_EXTRAS];
+RTAPI_MP_ARRAY_STRING(extra_modules, MAX_EXTRAS, "Extra modules to load.")
+static char *extra_drivers[MAX_EXTRAS];
+RTAPI_MP_ARRAY_STRING(extra_drivers, MAX_EXTRAS, "Extra drivers to load.")
+static char *connections[MAX_CONNECTIONS];
+RTAPI_MP_ARRAY_STRING(connections, MAX_CONNECTIONS, "Connections to make.")
 
 // This keeps track of all the litexcnc instances that have been registered by drivers
 struct rtapi_list_head litexcnc_list;
 struct rtapi_list_head litexcnc_modules;
+struct rtapi_list_head litexcnc_drivers;
 
 // This keeps track of all default modules, so they can be unloaded later
-void *default_modules[1];
-size_t default_modules_count;
+void *loaded_modules[32];
+size_t loaded_modules_count;
+
+// This keeps track of all default modules, so they can be unloaded later
+void *loaded_drivers[1];
+size_t loaded_drivers_count;
 
 // This keeps track of the component id. Required for setup and tear down.
 static int comp_id;
@@ -197,6 +206,15 @@ size_t retrieve_module_from_registration(litexcnc_module_registration_t **regist
     return -1;
 }
 
+
+size_t retrieve_driver_from_registration(litexcnc_driver_registration_t **registration, char *name){
+    struct rtapi_list_head *ptr;
+    rtapi_list_for_each(ptr, &litexcnc_drivers) {
+        (*registration) = rtapi_list_entry(ptr, litexcnc_driver_registration_t, list);
+        if (strcmp((*registration)->name, name) == 0) {return 0;}
+    }
+    return -1;
+}
 
 EXPORT_SYMBOL_GPL(litexcnc_register);
 int litexcnc_register(litexcnc_fpga_t *fpga) {
@@ -506,13 +524,21 @@ size_t litexcnc_register_module(litexcnc_module_registration_t *registration) {
 }
 
 
-size_t register_default_module(char *name) {
+EXPORT_SYMBOL_GPL(litexcnc_register_driver);
+size_t litexcnc_register_driver(litexcnc_driver_registration_t *registration) {
+    rtapi_list_add_tail(&registration->list, &litexcnc_drivers);
+    LITEXCNC_PRINT_NO_DEVICE("Registered driver %s\n", registration->name);
+    return 0;
+}
+
+
+size_t register_module(char *name) {
     int result;
 
     //  Load the DLL of the module
     char module_path[LINELEN+1];
     snprintf(module_path, LINELEN, "%s/litexcnc_%s.so", EMC2_RTLIB_DIR, name);
-    void *module = default_modules[0] = dlopen(module_path, RTLD_GLOBAL | RTLD_NOW);
+    void *module = loaded_modules[loaded_modules_count] = dlopen(module_path, RTLD_GLOBAL | RTLD_NOW);
     if(!module) {
         rtapi_print_msg(RTAPI_MSG_ERR, "Cannot load default module '%s': %s\n", name, dlerror());
         return -1;
@@ -537,12 +563,51 @@ size_t register_default_module(char *name) {
     }
 
     // succes, get ready for the next one
-    default_modules_count++;
+    loaded_modules_count++;
+    return 0;
+}
+
+size_t register_driver(char *name) {
+    int result;
+
+    //  Load the DLL of the module
+    char driver_path[LINELEN+1];
+    snprintf(driver_path, LINELEN, "%s/litexcnc_%s.so", EMC2_RTLIB_DIR, name);
+    void *driver = loaded_drivers[loaded_drivers_count] = dlopen(driver_path, RTLD_GLOBAL | RTLD_NOW);
+    if(!driver) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "Cannot load default board driver '%s': %s\n", name, dlerror());
+        return -1;
+    }
+
+    // Find the function which initializes the module
+    char register_name[LINELEN+1];
+    snprintf(register_name, LINELEN, "register_%s_driver", name);
+    int (*register_driver)(void) = dlsym(driver, register_name);
+    if(!register_driver) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "%s: dlsym: %s\n", name, dlerror());
+        dlclose(driver);
+        return -1;
+    }
+
+    // Execute the function to start the module
+    if ((result=register_driver()) < 0) {
+        rtapi_print_msg(RTAPI_MSG_ERR, "%s: rtapi_app_main: %s (%d)\n",
+            name, strerror(-result), result);
+        dlclose(driver);
+        return result;
+    }
+
+    // succes, get ready for the next one
+    loaded_drivers_count++;
     return 0;
 }
 
 
 int rtapi_app_main(void) {
+
+    size_t i;
+    int ret;
+
     LITEXCNC_PRINT_NO_DEVICE("Loading Litex CNC driver version %u.%u.%u\n", LITEXCNC_VERSION_MAJOR, LITEXCNC_VERSION_MINOR, LITEXCNC_VERSION_PATCH);
 
     comp_id = hal_init(LITEXCNC_NAME);
@@ -550,6 +615,7 @@ int rtapi_app_main(void) {
     
     RTAPI_INIT_LIST_HEAD(&litexcnc_list);
     RTAPI_INIT_LIST_HEAD(&litexcnc_modules);
+    RTAPI_INIT_LIST_HEAD(&litexcnc_drivers);
 
     // Load default modules
     int result;
@@ -557,12 +623,44 @@ int rtapi_app_main(void) {
     LITEXCNC_LOAD_MODULE("gpio")
     LITEXCNC_LOAD_MODULE("pwm")
     LITEXCNC_LOAD_MODULE("encoder")
+    for(i = 0, ret = 0; ret == 0 && i<MAX_EXTRAS && extra_modules[i] && *extra_modules[i]; i++) {
+        LITEXCNC_LOAD_MODULE(extra_modules[i])
+    }
 
-    // Load extra modules
-    size_t i;
-    int ret;
-    for(i = 0, ret = 0; ret == 0 && i<MAX_EXTRAS && extras[i] && *extras[i]; i++) {
-        LITEXCNC_LOAD_MODULE(extras[i])
+    // Connect to the boards
+    if (connections[i]) {
+        LITEXCNC_PRINT_NO_DEVICE("Setting up board drivers: \n");
+        char *conn_str_ptr;
+        for(i = 0, ret = 0; ret == 0 && i<MAX_EXTRAS && connections[i] && *connections[i]; i++) {
+            // Check whether the connection contains a colon (:), which indicates
+            // the split between driver type and the connection string.
+            conn_str_ptr = strchr(connections[i], ':'); // Find first ':' starting from 'p'
+            if (conn_str_ptr != NULL) {
+                *conn_str_ptr = '\0';          // Replace ':' with a null terminator
+                ++conn_str_ptr;                // Move port pointer forward
+            } else {
+                // TODO: error
+            }
+            // Try to load the module
+            litexcnc_driver_registration_t *registration;
+            ret = retrieve_driver_from_registration(&registration, connections[i]);
+            if (ret < 0) {
+                // The driver is not loaded yet -> load the driver
+                ret = register_driver(connections[i]); 
+                if (ret<0) return ret;
+                ret = retrieve_driver_from_registration(&registration, connections[i]);
+                if (ret<0) {
+                    LITEXCNC_ERR_NO_DEVICE("Error, could not find driver %s after registration.\n", connections[i]);
+                    return ret;
+                }
+            }
+            // Connect with the board
+            ret = registration->initialize_driver(conn_str_ptr, comp_id);
+            if (ret<0) {
+                LITEXCNC_ERR_NO_DEVICE("Failed to initialize the driver.\n");
+                return ret;
+            }
+        }
     }
 
     // Report ready to rumble

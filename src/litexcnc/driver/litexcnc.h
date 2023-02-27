@@ -35,7 +35,7 @@ typedef struct litexcnc_struct litexcnc_t;
 #define MAX_RESET_RETRIES      5  
 
 #define MAX_EXTRAS             32
-
+#define MAX_CONNECTIONS        4
 
 // ------------------------------------
 // Definitions for printing to command line
@@ -56,7 +56,7 @@ typedef struct litexcnc_struct litexcnc_t;
 // --------------------------------
 // Definitions for handling modules
 // --------------------------------
-#define LITEXCNC_LOAD_MODULE(name)              result = register_default_module(name); if (result<0) return result; 
+#define LITEXCNC_LOAD_MODULE(name)              result = register_module(name); if (result<0) return result; 
 // - Creation of the basename
 #define LITEXCNC_CREATE_BASENAME(module, index)  rtapi_snprintf(base_name, sizeof(base_name), "%s.%s.%02zu", litexcnc->fpga->name, module, index);
 // - Creation of a pin
@@ -70,7 +70,8 @@ typedef struct litexcnc_struct litexcnc_t;
     rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, pin_name); \
     r = hal_param_## type ##_new(name, direction, parameter, litexcnc->fpga->comp_id); \
     if (r < 0) { LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name); return r; }
-#define LITEXCNC_CREATE_HAL_PARAM(pin_name, type, direction, parameter) LITEXCNC_CREATE_HAL_PARAM_FN(pin_name, type, direction, parameter)
+#define LITEXCNC_CREATE_HAL_PARAM(pin_name, type, direction, parameter) LITEXCNC_CREATE_HAL_PARAM_FN(pin_name, type, direction, parameter)           
+
 
 /** 
  * This structure defines an instance of a module on a FPGA. It defines the read
@@ -97,6 +98,20 @@ typedef struct {
     size_t (*required_read_buffer)(void *instance);
     struct rtapi_list_head list;
 } litexcnc_module_registration_t;
+
+
+
+/** 
+ * This structure is used to register a board on LitexCNC. When the  
+ * given board is used by a FPGA, the function inialize is called
+ * from Litex-CNC.
+ */
+typedef struct {
+    char name[HAL_NAME_LEN+1]; /* The name of the module (for display purposes only) */
+    int (*initialize_driver)(char *connection_string, int comp_id);
+    // size_t (*connect)(litexcnc_board_instance_t **instance, litexcnc_t *litexcnc, uint8_t **config);
+    struct rtapi_list_head list;
+} litexcnc_driver_registration_t;
 
 
 typedef struct litexcnc_fpga_struct litexcnc_fpga_t;
@@ -203,6 +218,7 @@ typedef struct {
 
 int litexcnc_register(litexcnc_fpga_t *fpga);
 void litexcnc_unregister(litexcnc_fpga_t *fpga);
-size_t litexcnc_register_module(litexcnc_module_registration_t * module);
+size_t litexcnc_register_module(litexcnc_module_registration_t *module);
+size_t litexcnc_register_driver(litexcnc_driver_registration_t *driver);
 
 #endif
