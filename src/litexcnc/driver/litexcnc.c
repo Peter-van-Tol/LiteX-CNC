@@ -628,7 +628,7 @@ int rtapi_app_main(void) {
     }
 
     // Connect to the boards
-    if (connections[i]) {
+    if (connections[0]) {
         LITEXCNC_PRINT_NO_DEVICE("Setting up board drivers: \n");
         char *conn_str_ptr;
         for(i = 0, ret = 0; ret == 0 && i<MAX_EXTRAS && connections[i] && *connections[i]; i++) {
