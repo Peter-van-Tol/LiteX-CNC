@@ -56,6 +56,9 @@ litexcnc = { callable = "litexcnc.__main__:cli", extras = ["cli"] }
 sphinx = "^5.3.0"
 sphinx-rtd-theme = "^1.1.1"
 
+[tool.poetry.plugins."litexcnc.driver_files"]
+default = "litexcnc.driver"
+
 [tool.poetry.plugins."litexcnc.modules"]
 gpio    = "litexcnc.config.modules.gpio"
 pwm     = "litexcnc.config.modules.pwm"
