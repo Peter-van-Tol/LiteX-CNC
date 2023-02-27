@@ -11,61 +11,75 @@ import sys
 import tempfile
 import click
 
+import sys
+if sys.version_info[:2] >= (3, 8):
+    # TODO: Import directly (no need for conditional) when `python_requires = >= 3.8`
+    from importlib.metadata import entry_points  # pragma: no cover
+else:
+    from importlib_metadata import entry_points  # pragma: no cover
+
 # Import the driver module.
-from litexcnc import driver
-from litexcnc.config import boards
-from litexcnc.config.modules import ModuleBaseModel
-from litexcnc.firmware.soc import LitexCNC_Firmware
-from litexcnc.driver.halcompile import find_modinc
+from litexcnc.driver import halcompile
 
 
 @click.command()
-def cli():
+@click.option('--modules', '-m', multiple=True)
+def cli(modules):
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        
+        driver_files_group = "litexcnc.driver_files"
+        entries = entry_points()
+        driver_files = {}
+        if hasattr(entries, "select"):
+            # The select method was introduced in importlib_metadata 3.9 (and Python 3.10)
+            # and the previous dict interface was declared deprecated
+            driver_folders = entries.select(group=driver_files_group)  # type: ignore
+        else:
+            # TODO: Once Python 3.10 becomes the oldest version supported, this fallback and
+            #       conditional statement can be removed.
+            driver_folders = (extension for extension in entries.get(driver_files_group, []))  # type: ignore
+        for driver_folder in driver_folders:
+            # Add the files to the list
+            driver_files[driver_folder.name] = driver_folder.load().FILES
+
+        # List with files for the compile-script
+        files_to_compiles = []
+        
         # Copy the files to the temp directory
-        # - main driver
-        click.echo(click.style("INFO", fg="blue") + ": Retrieving main driver to compile...")
-        driver_folder = os.path.dirname(driver.__file__)
-        with os.scandir(driver_folder) as entries:
-            for entry in entries:
-                if os.path.isfile(entry) and not entry == '__init__.py':
-                    click.echo(f"Copying file '{os.path.basename(entry)}'")
-                    shutil.copy2(
-                        os.path.join(driver_folder, entry),
-                        os.path.join(temp_dir, os.path.basename(entry))
-                    )
-        with os.scandir(os.path.join(driver_folder, 'stepgen')) as entries:
-            os.mkdir(os.path.join(temp_dir, 'stepgen'))
-            for entry in entries:
-                if os.path.isfile(entry) and not entry == '__init__.py':
-                    click.echo(f"Copying file '{os.path.basename(entry)}'")
-                    shutil.copy2(
-                        os.path.join(driver_folder, 'stepgen', entry), 
-                        os.path.join(temp_dir, 'stepgen', os.path.basename(entry))
-                    )
-        # - modules
-        click.echo(click.style("INFO", fg="blue") + ": Retrieving modules to compile...")
-        modules = []
-        for module in ModuleBaseModel.__subclasses__():
-            for file in module.driver_files:
-                click.echo(f"Copying file '{os.path.basename(file)}'")
-                shutil.copy2(file, os.path.join(temp_dir, os.path.basename(file)))
-                if re.search("litexcnc_.*\.c", os.path.basename(file)):
-                    modules.append(os.path.basename(file))
-        # - board drivers
-        click.echo(click.style("INFO", fg="blue") + ": Retrieving board drivers to compile...")
-        boards = []
-        for board in LitexCNC_Firmware.__subclasses__():
-            for file in board.driver_files:
-                click.echo(f"Copying file '{os.path.basename(file)}'")
-                shutil.copy2(file, os.path.join(temp_dir, os.path.basename(file)))
-                if re.search("litexcnc_.*\.c", os.path.basename(file)):
-                    modules.append(os.path.basename(file))
+        shutil.copy2(
+            halcompile.__file__,
+            os.path.join(temp_dir, os.path.basename(halcompile.__file__))
+        )
+        click.echo(click.style("INFO", fg="blue") + ": Retrieving default driver files to compile...")
+        if not modules or 'default' in modules:
+            for file in driver_files.pop('default'):
+                click.echo(f"Copying file '{file.name}'")
+                shutil.copy2(
+                    os.path.join(file),
+                    os.path.join(temp_dir, os.path.basename(file.name))
+                )
+            files_to_compiles.append('litexcnc.c')
+            files_to_compiles.append('pos2vel.c')
+            if re.search("litexcnc_.*\.c", file.name):
+                files_to_compiles.append(file.name)
+        if driver_files.keys():
+            click.echo(click.style("INFO", fg="blue") + ": Retrieving extra modules / boards to compile...")
+            for extra in driver_files.keys():
+                if not modules or extra in modules:
+                    for file in driver_files[extra]:
+                        click.echo(f"Copying file '{file.name}'")
+                        shutil.copy2(
+                            os.path.join(file),
+                            os.path.join(temp_dir, os.path.basename(file.name))
+                        )
+                    if re.search("litexcnc_.*\.c", file.name):
+                        files_to_compiles.append(file.name)
+
         # Compile the driver
         click.echo(click.style("INFO", fg="blue") + ": Compiling LitexCNC driver...")
         ret = subprocess.call(
-            f'{sys.executable} halcompile.py --install litexcnc.c stepgen/pos2vel.c {" ".join(modules)}  {" ".join(boards)}',
+            f'{sys.executable} halcompile.py --install {" ".join(files_to_compiles)}',
             cwd=temp_dir,
             shell=True
         )
