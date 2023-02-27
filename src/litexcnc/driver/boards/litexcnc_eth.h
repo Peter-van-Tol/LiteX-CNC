@@ -45,4 +45,7 @@ typedef struct {
     litexcnc_fpga_t fpga;
 } litexcnc_eth_t;
 
+
+static int initialize_driver(char *connection_string, int comp_id);
+
 #endif

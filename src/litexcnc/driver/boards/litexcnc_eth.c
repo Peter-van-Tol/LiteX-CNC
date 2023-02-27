@@ -76,6 +76,22 @@ static void dict_free(struct rtapi_list_head *head) {
     }
 }
 
+
+/**
+ * Parameter which contains the registration of this board with LitexCNC 
+ */
+static litexcnc_driver_registration_t *registration;
+
+int register_eth_driver(void) {
+    registration = (litexcnc_driver_registration_t *)hal_malloc(sizeof(litexcnc_driver_registration_t));
+    rtapi_snprintf(registration->name, sizeof(registration->name), "eth");
+    registration->initialize_driver = *initialize_driver;
+    // registration->initialize = &litexcnc_gpio_init;
+    return litexcnc_register_driver(registration);
+}
+EXPORT_SYMBOL_GPL(register_eth_driver);
+
+
 static int litexcnc_eth_read_n_bits(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t size) {
     /*
      * This function read N bits of data from the FPGA
@@ -195,15 +211,9 @@ static int connect_board(litexcnc_eth_t *board, char *connection_string) {
     return 0;
 }
 
-static int litexcnc_init_board(litexcnc_fpga_t *this) {
-    litexcnc_eth_t *board = this->private;
 
-    // Create a pin to show debug messages
-    int r = hal_param_bit_newf(HAL_RW, &(board->hal.param.debug), this->comp_id, "%s.debug", this->name);
-    if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", this->name);
-        return r;
-    }
+static int litexcnc_init_buffers(litexcnc_fpga_t *this) {
+    litexcnc_eth_t *board = this->private;
 
     // Initialize the buffers with headers
     size_t words;
@@ -241,6 +251,44 @@ static int close_connection(litexcnc_eth_t *board) {
 }
 
 
+static int initialize_driver(char *connection_string, int comp_id) {
+    size_t ret;
+    boards[boards_count] = (litexcnc_eth_t *)hal_malloc(sizeof(litexcnc_eth_t));
+    ret = connect_board(boards[boards_count], connection_string);
+    if (ret < 0) return ret;
+    // Create an FPGA instance
+    boards[boards_count]->fpga.comp_id           = comp_id;
+    boards[boards_count]->fpga.read_n_bits       = litexcnc_eth_read_n_bits;
+    boards[boards_count]->fpga.read              = litexcnc_eth_read;
+    boards[boards_count]->fpga.read_header_size  = 16;
+    boards[boards_count]->fpga.write_n_bits      = litexcnc_eth_write_n_bits;
+    boards[boards_count]->fpga.write             = litexcnc_eth_write;
+    boards[boards_count]->fpga.write_header_size = 16;
+    boards[boards_count]->fpga.private           = boards[boards_count];
+    // Register the board with the main function
+    ret = litexcnc_register(&boards[boards_count]->fpga);
+    if (ret != 0) {
+        rtapi_print("board fails LitexCNC registration\n");
+        return ret;
+    }
+    // Create a pin to show debug messages
+    ret = hal_param_bit_newf(HAL_RW, &(boards[boards_count]->hal.param.debug), comp_id, "%s.debug", boards[boards_count]->fpga.name);
+    if (ret < 0) {
+        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", boards[boards_count]->fpga.name);
+        return ret;
+    }
+    // Create the pins for the board and write headers to the buffers
+    ret = litexcnc_init_buffers(&boards[boards_count]->fpga);
+    if (ret != 0) {
+        rtapi_print("Failed to create pins and params for the board\n");
+        return ret;
+    }
+    // Proceed to the next board
+    boards_count++;
+    return 0;
+}
+
+
 int rtapi_app_main(void) {
     RTAPI_INIT_LIST_HEAD(&ifnames);
     RTAPI_INIT_LIST_HEAD(&board_num);
@@ -258,32 +306,8 @@ int rtapi_app_main(void) {
 
     // STEP 2: Initialize the board(s)
     for(i = 0, ret = 0; ret == 0 && i<MAX_ETH_BOARDS && connection_string[i] && *connection_string[i]; i++) {
-        boards[i] = (litexcnc_eth_t *)hal_malloc(sizeof(litexcnc_eth_t));
-        ret = connect_board(boards[i], connection_string[i]);
-        if(ret < 0) goto error;
-        // Create an FPGA instance
-        boards[i]->fpga.comp_id           = comp_id;
-        boards[i]->fpga.read_n_bits       = litexcnc_eth_read_n_bits;
-        boards[i]->fpga.read              = litexcnc_eth_read;
-        boards[i]->fpga.read_header_size  = 16;
-        boards[i]->fpga.write_n_bits      = litexcnc_eth_write_n_bits;
-        boards[i]->fpga.write             = litexcnc_eth_write;
-        boards[i]->fpga.write_header_size = 16;
-        boards[i]->fpga.private           = boards[i];
-        // Register the board with the main function
-        size_t ret = litexcnc_register(&boards[i]->fpga);
-        if (ret != 0) {
-            rtapi_print("board fails LitexCNC registration\n");
-            return ret;
-        }
-        // Create the pins for the board and write headers to the buffers
-        ret = litexcnc_init_board(&boards[i]->fpga);
-        if (ret != 0) {
-            rtapi_print("Failed to create pins and params for the board\n");
-            return ret;
-        }
-        // Proceed to the next board
-        boards_count++;
+        ret = initialize_driver(connection_string[i], comp_id);
+        if (ret<0) goto error;
     }
 
     // Report the board as ready
