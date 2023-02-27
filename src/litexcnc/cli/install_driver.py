@@ -52,27 +52,28 @@ def cli(modules):
             os.path.join(temp_dir, os.path.basename(halcompile.__file__))
         )
         click.echo(click.style("INFO", fg="blue") + ": Retrieving default driver files to compile...")
-        if not modules or 'default' in modules:
+        if  not modules or 'default' in modules:
             files_to_compiles.append('litexcnc.c')
             files_to_compiles.append('pos2vel.c')
-            for file in driver_files.pop('default'):
-                click.echo(f"Copying file '{file.name}'")
-                shutil.copy2(
-                    os.path.join(file),
-                    os.path.join(temp_dir, os.path.basename(file.name))
-                )
+        for file in driver_files.pop('default'):
+            click.echo(f"Copying file '{file.name}'")
+            shutil.copy2(
+                os.path.join(file),
+                os.path.join(temp_dir, os.path.basename(file.name))
+            )
+            if not modules or 'default' in modules:
                 if re.search("litexcnc_.*\.c", file.name):
                     files_to_compiles.append(file.name)
         if driver_files.keys():
             click.echo(click.style("INFO", fg="blue") + ": Retrieving extra modules / boards to compile...")
             for extra in driver_files.keys():
-                if not modules or extra in modules:
-                    for file in driver_files[extra]:
-                        click.echo(f"Copying file '{file.name}'")
-                        shutil.copy2(
-                            os.path.join(file),
-                            os.path.join(temp_dir, os.path.basename(file.name))
-                        )
+                for file in driver_files[extra]:
+                    click.echo(f"Copying file '{file.name}'")
+                    shutil.copy2(
+                        os.path.join(file),
+                        os.path.join(temp_dir, os.path.basename(file.name))
+                    )
+                    if not modules or extra in modules:
                         if re.search("litexcnc_.*\.c", file.name):
                             files_to_compiles.append(file.name)
 
