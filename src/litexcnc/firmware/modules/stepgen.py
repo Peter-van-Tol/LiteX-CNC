@@ -191,7 +191,7 @@ class StepgenModule(Module, AutoDoc):
             )
 
         # Create the routine which actually handles the steps
-        self.create_step_dir_routine(self, pads, create_pads)
+        self.create_step_dir_routine(pads, create_pads)
 
     @classmethod
     def add_mmio_config_registers(cls, mmio, config: StepgenModuleConfig):
