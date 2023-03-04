@@ -11,12 +11,12 @@ import click
 def cli(config, output_directory, build):
     """Builds the litexCNC firmware with the given configuration"""
     # Local imports, with check whether Litex is available on path
-    # try:
-    from litex.soc.integration.builder import Builder
-    from litexcnc.firmware.soc import LitexCNC_Firmware
-    # except ImportError as e:
-    #     click.echo(click.style("Error", fg="red") + ": Litex is not installed. Please run 'litexcnc install_litex' first.")
-    #     return -1
+    try:
+        from litex.soc.integration.builder import Builder
+        from litexcnc.firmware.soc import LitexCNC_Firmware
+    except ImportError as e:
+        click.echo(click.style("Error", fg="red") + ": Litex is not installed. Please run 'litexcnc install_litex' first.")
+        return -1
     
     # Set the default value for the folder if not set
     if not output_directory:
