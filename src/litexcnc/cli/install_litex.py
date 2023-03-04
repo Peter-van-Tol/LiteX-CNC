@@ -29,7 +29,10 @@ def cli(user):
     open(os.path.join(target, 'litex_setup.py'), 'wb').write(response.content)
 
     # Run the python file
-    command = f'{sys.executable} {os.path.join(target, "litex_setup.py --init --install --config=standard --tag=2022.04")}'  #  --gcc=riscv if SOC with cpu
+    command = "litex_setup.py --init --install --config=standard --tag=2022.04"
+    if user:
+        command += " --user"
+    command = f'{sys.executable} {os.path.join(target, command)}'  #  --gcc=riscv if SOC with cpu
     click.echo(click.style("INFO", fg="blue") + f": Installing Litex with the command '{command}'.")
     ret = subprocess.call(
         command, 
