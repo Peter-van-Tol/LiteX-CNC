@@ -21,17 +21,17 @@ def cli(config, output_directory, build, alias_file):
     
     # Set the default value for the folder if not set
     if not output_directory:
-        output_directory = os.path.basename(config.name)
-    
-    # Create folder if not exists
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-
+        output_directory = os.path.dirname(config.name)
+ 
     # Add the config name as folder
     output_directory = os.path.join(
         output_directory,
-        os.path.splitext(config.name)[0]
+        os.path.splitext(os.path.basename(config.name))[0]
     )
+   
+    # Create folder if not exists
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
     # Load configuration
     firmware_config = LitexCNC_Firmware.parse_raw(' '.join(config.readlines()))
