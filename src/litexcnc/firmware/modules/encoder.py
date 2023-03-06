@@ -26,7 +26,7 @@ class EncoderModule(Module, AutoDoc):
     limit). The counter will overflow in 858 seconds (just shy of 15 minutes)
     in case it is running at top speed and it is not reset.
     """
-    pads_layout = [("pin_A", 1), ("pin_B", 1), ("pin_Z", 1)]
+    pads_layout = [("Encoder_A", 1), ("Encoder_B", 1), ("Encoder_Z", 1)]
 
     COUNTER_SIZE = 32
 
@@ -41,8 +41,8 @@ class EncoderModule(Module, AutoDoc):
         self.pads = pads
 
         # Exported pins
-        pin_A = Signal()
-        pin_B = Signal()
+        self.pin_A = Signal()
+        self.pin_B = Signal()
         pin_Z = Signal()
 
         # Exported fields
@@ -57,14 +57,14 @@ class EncoderModule(Module, AutoDoc):
         pin_B_delayed = Signal(3)
         pin_Z_delayed = Signal(3)  # NOTE: Z is delayed for 2 cycles (0,1) the third postion is
                                    # used to detect rising edges.
-        count_ena = Signal()
-        count_dir = Signal()
+        self.count_ena = Signal()
+        self.count_dir = Signal()
 
         # Program
         # - Create the connections to the pads
         self.comb += [
-            pin_A.eq(pads.Encoder_A),
-            pin_B.eq(pads.Encoder_B),
+            self.pin_A.eq(pads.Encoder_A),
+            self.pin_B.eq(pads.Encoder_B),
         ]
         # - Add support for Z-index if pin is defined. If not, the Signal is set to be constant
         if hasattr(pads, 'Encoder_Z'):
@@ -75,12 +75,12 @@ class EncoderModule(Module, AutoDoc):
         #   classical solution is to use 2 extra D flip-flops per input to avoid introducing
         #   metastability into the counter (src: https://www.fpga4fun.com/QuadratureDecoder.html)
         self.comb += [
-            count_ena.eq(pin_A_delayed[1] ^ pin_A_delayed[2] ^ pin_B_delayed[1] ^ pin_B_delayed[2]),
-            count_dir.eq(pin_A_delayed[1] ^ pin_B_delayed[2])
+            self.count_ena.eq(pin_A_delayed[1] ^ pin_A_delayed[2] ^ pin_B_delayed[1] ^ pin_B_delayed[2]),
+            self.count_dir.eq(pin_A_delayed[1] ^ pin_B_delayed[2])
         ]
         self.sync += [
-            pin_A_delayed.eq(Cat(pin_A, pin_A_delayed[:2])),
-            pin_B_delayed.eq(Cat(pin_B, pin_B_delayed[:2])),
+            pin_A_delayed.eq(Cat(self.pin_A, pin_A_delayed[:2])),
+            pin_B_delayed.eq(Cat(self.pin_B, pin_B_delayed[:2])),
             pin_Z_delayed.eq(Cat(pin_Z, pin_Z_delayed[:2])),
             # Storing the index pulse (detection of raising flank)
             If(
@@ -106,15 +106,17 @@ class EncoderModule(Module, AutoDoc):
             # at exact the same clock-cycle, which (in simulations) showed the reset
             # would not happen.
             If(
-                count_ena & ~(self.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
+                (pin_A_delayed[1] ^ pin_A_delayed[2] ^ pin_B_delayed[1] ^ pin_B_delayed[2]) & ~(self.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
                 If(
-                    count_dir,
+                    pin_A_delayed[1] ^ pin_B_delayed[2], #self.count_dir,
                     self.create_counter_increase(encoder_config),
                 ).Else(
                     self.create_counter_decrease(encoder_config)
                 )
             )
         ]
+
+        self.ios = {self.pin_A, self.pin_B}
 
     def create_counter_increase(self, encoder_config: 'EncoderInstanceConfig'):
         """
@@ -168,7 +170,7 @@ class EncoderModule(Module, AutoDoc):
                 mmio,
                 f'encoder_{index}_counter',
                 CSRStatus(
-                    size=cls.COUNTER_SIZE,
+                    size=(cls.COUNTER_SIZE, True),
                     name=f'encoder_{index}_counter',
                     description="Encoder counter\n"
                     f"Register containing the count for register {index}."
@@ -270,3 +272,43 @@ class EncoderModule(Module, AutoDoc):
         soc.comb += [
             soc.MMIO_inst.encoder_index_pulse.status.eq(Cat(index_pulse)),
         ]
+
+if __name__ == "__main__":
+    # Imports for creating a simulation
+    from migen import *
+    from migen.fhdl import *
+
+    # Create a dummy config
+    from litexcnc.config.modules.encoder import EncoderInstanceConfig
+    config = EncoderInstanceConfig(
+         pin_A="not_used_in_sim",
+         pin_B="not_used_in_sim"
+    )
+
+    # Create encoder
+    encoder = EncoderModule(config)
+    
+    # Create quadrature signal
+    b = [1, 1, 0, 0]
+    a = [0, 1, 1, 0]
+
+    def test_encoder(encoder):
+
+        for i in range(100):
+            yield (encoder.pads.Encoder_A.eq(a[(i//2) % 4]))
+            yield (encoder.pads.Encoder_B.eq(b[(i//2) % 4]))
+
+            quad_a = (yield encoder.pin_A)
+            quad_b = (yield encoder.pin_B)
+            count_ena = (yield encoder.count_ena)
+            count_dir = (yield encoder.count_dir)
+            count = (yield encoder.counter)
+
+            print(quad_a, quad_b, count_ena, count_dir, count)
+            yield
+        ...
+
+
+    print("\nRunning Sim...\n")
+    # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
+    run_simulation(encoder, test_encoder(encoder))
