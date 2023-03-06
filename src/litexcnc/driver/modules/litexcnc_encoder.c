@@ -159,16 +159,16 @@ size_t litexcnc_encoder_init(litexcnc_module_instance_t **module, litexcnc_t *li
         // Create the pins
         LITEXCNC_CREATE_HAL_PIN("counts", s32, HAL_IN, &(instance->hal.pin.counts))
         LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IN, &(instance->hal.pin.reset))
-        LITEXCNC_CREATE_HAL_PIN("index_enable", bit, HAL_IN, &(instance->hal.pin.index_enable))
-        LITEXCNC_CREATE_HAL_PIN("index_pulse", bit, HAL_OUT, &(instance->hal.pin.index_pulse))
+        LITEXCNC_CREATE_HAL_PIN("index-enable", bit, HAL_IN, &(instance->hal.pin.index_enable))
+        LITEXCNC_CREATE_HAL_PIN("index-pulse", bit, HAL_OUT, &(instance->hal.pin.index_pulse))
         LITEXCNC_CREATE_HAL_PIN("position", float, HAL_OUT, &(instance->hal.pin.position))
         LITEXCNC_CREATE_HAL_PIN("velocity", float, HAL_OUT, &(instance->hal.pin.velocity))
-        LITEXCNC_CREATE_HAL_PIN("velocity_rpm", float, HAL_OUT, &(instance->hal.pin.velocity_rpm))
-        LITEXCNC_CREATE_HAL_PIN("overflow_occurred", bit, HAL_OUT, &(instance->hal.pin.overflow_occurred))
+        LITEXCNC_CREATE_HAL_PIN("velocity-rpm", float, HAL_OUT, &(instance->hal.pin.velocity_rpm))
+        LITEXCNC_CREATE_HAL_PIN("overflow-occurred", bit, HAL_OUT, &(instance->hal.pin.overflow_occurred))
 
         // Create the params
-        LITEXCNC_CREATE_HAL_PARAM("position_scale", float, HAL_RW, &(instance->hal.param.position_scale))
-        LITEXCNC_CREATE_HAL_PARAM("x4_mode", bit, HAL_RW, &(instance->hal.param.x4_mode))
+        LITEXCNC_CREATE_HAL_PARAM("position-scale", float, HAL_RW, &(instance->hal.param.position_scale))
+        LITEXCNC_CREATE_HAL_PARAM("x4-mode", bit, HAL_RW, &(instance->hal.param.x4_mode))
     }
 
     // Succes!
