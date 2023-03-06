@@ -157,7 +157,7 @@ size_t litexcnc_encoder_init(litexcnc_module_instance_t **module, litexcnc_t *li
         LITEXCNC_CREATE_BASENAME("encoder", i)
 
         // Create the pins
-        LITEXCNC_CREATE_HAL_PIN("counts", s32, HAL_IN, &(instance->hal.pin.counts))
+        LITEXCNC_CREATE_HAL_PIN("counts", s32, HAL_OUT, &(instance->hal.pin.counts))
         LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IN, &(instance->hal.pin.reset))
         LITEXCNC_CREATE_HAL_PIN("index-enable", bit, HAL_IN, &(instance->hal.pin.index_enable))
         LITEXCNC_CREATE_HAL_PIN("index-pulse", bit, HAL_OUT, &(instance->hal.pin.index_pulse))
