@@ -61,6 +61,20 @@ class EncoderInstanceConfig(ModuleInstanceBaseModel):
         "LVCMOS33",
         description="The IO Standard (voltage) to use for the pins."
     )
+    pins: ClassVar[List[str]] = [
+        "counts",
+        "reset",
+        "index-enable",
+        "index-pulse",
+        "position",
+        "velocity",
+        "velocity-rpm",
+        "overflow-occurred"
+    ]
+    params: ClassVar[List[str]] = [
+        "position-scale",
+        "x4-mode"
+    ]
 
     @root_validator(skip_on_failure=True)
     def check_min_max_reset_value(cls, values):
