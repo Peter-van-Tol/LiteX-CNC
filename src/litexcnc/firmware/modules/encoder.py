@@ -170,7 +170,7 @@ class EncoderModule(Module, AutoDoc):
                 mmio,
                 f'encoder_{index}_counter',
                 CSRStatus(
-                    size=(cls.COUNTER_SIZE, True),
+                    size=cls.COUNTER_SIZE,
                     name=f'encoder_{index}_counter',
                     description="Encoder counter\n"
                     f"Register containing the count for register {index}."
