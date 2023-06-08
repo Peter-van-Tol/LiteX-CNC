@@ -57,7 +57,7 @@ examples are:
    :header: "Board version", "IP-address", "GPIO (in/out)", "PWM", "Stepgen (type)", "Encoders (type)", "Change buffers", "Link"
    :widths: auto
    
-   "V6.0", "192.168.2.50", "30 / 29", "9", "9 (step/dir)", "9 (A/B)", "TBD", `index <test.html>`_
+   "V6.0", "192.168.2.50", "30 / 29", "9", "9 (step/dir)", "9 (A/B)", "TBD", :download:`JSON <./json/5a-75e_v6.0_i48o56.json>` 
    "V6.0", "192.168.2.50", "30 / 32", "6", "6 (step/dir diff.)", "6 (A/B/Z)", "TBD", `index <test.html>`_
-   "V7.1", "192.168.2.50", "30 / 29", "9", "9 (step/dir)", "9 (A/B)", "TBD", `index <test.html>`_
+   "V7.1", "192.168.2.50", "30 / 29", "9", "9 (step/dir)", "9 (A/B)", "TBD", :download:`JSON <./json/5a-75e_v6.0_i48o56.json>` 
    "V7.1", "192.168.2.50", "30 / 32", "6", "6 (step/dir diff.)", "6 (A/B/Z)", "TBD", `index <test.html>`_
