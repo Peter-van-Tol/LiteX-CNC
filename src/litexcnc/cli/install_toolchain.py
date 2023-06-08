@@ -9,15 +9,29 @@ import requests
 
 @click.command()
 @click.option('--user', is_flag=True)
-def cli(user):
+@click.option(
+    '-a', '--architecture', 'arch',
+    type=click.Choice(['arm', 'arm64', 'x64'], case_sensitive=False),
+    default='x64')
+@click.option(
+    '-os', '--os', 'os_',
+    type=click.Choice(['darwin', 'linux', 'windows'], case_sensitive=False),
+    default='linux')
+def cli(user, arch, os_):
     """Installs the Toolchain for ECP5 (oss-cad-suite)"""
-
+    # Check whether the combination if supported by oss-cad-suite
+    if os_ == 'darwin':
+        if not arch in ['arm64', 'x64']:
+            click.echo(click.style("ERROR", fg="red") + f": Darwin only supports arm64 and x64 as architecture.")
+    if os_ == 'windows':
+        if not arch in ['x64']:
+            click.echo(click.style("ERROR", fg="red") + f": Windows only supports x64 as architecture.")
     with tempfile.TemporaryDirectory() as tempdirname:
         # Download the toolchain from the source
         click.echo(click.style("INFO", fg="blue") + f": Downloading OSS-CAD-Suite ...")
-        download = os.path.join(tempdirname, 'oss-cad-suite-linux-x64-20220227.tgz')
+        download = os.path.join(tempdirname, f'oss-cad-suite-{os_}-{arch}-20220227.tgz')
         response = requests.get(
-            'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-07/oss-cad-suite-linux-x64-20221207.tgz'
+            f'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-07/oss-cad-suite-{os_}-{arch}-20221207.tgz'
         )
         response.raise_for_status()
         open(download, 'wb').write(response.content)
