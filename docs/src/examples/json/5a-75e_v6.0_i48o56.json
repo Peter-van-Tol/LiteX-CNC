@@ -1,6 +1,6 @@
 {
     "board_name": "5A-75B:V6.0",
-    "baseclass": "5A-75E v6.0",
+    "board_type": "5A-75E v6.0",
     "clock_frequency": 40000000,
     "ethphy": {
         "tx_delay": 0
