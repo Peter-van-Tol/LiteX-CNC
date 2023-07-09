@@ -59,6 +59,6 @@ def cli(config, output_directory, build, alias_file):
 
     # Done!
     click.echo(click.style("INFO", fg="blue") + f": Firmware created in {output_directory}")
-    if alias_ouput:
+    if alias_file:
         click.echo(click.style("INFO", fg="blue") + f": Alias HAL-file created in {os.path.join(output_directory, 'alias.hal')}")
     
