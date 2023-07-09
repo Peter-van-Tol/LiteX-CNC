@@ -1,6 +1,6 @@
 {
     "board_name": "test_PWM_GPIO",
-    "baseclass": "litexcnc.firmware.boards.ColorLight_5A_75E_V6_0",
+    "board_type": "5A-75E v6.0",
     "clock_frequency": 40000000,
     "ethphy": {
         "tx_delay": 0

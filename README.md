@@ -5,11 +5,7 @@ This project aims to make a generic CNC firmware and driver for FPGA cards which
 > **RV901T** <br>
 > Although the RV901T is also supported by Litex, the firmware cannot be automatically build with LitexCNC, as it requires the Xilinx-software to compile the Verilog to a bit-stream. LitexCNC can be used to create the Verilog and the driver will work when the bit-stream is loaded on the board. However, there is a gap in the toolchain not covered. There are known issues with the compantibility of Litex with Xilinx.
 
-
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty to obtain a MESA card.
-
-> **Work in progress** <br>
-> The basic functions GPIO, PWM, Stepgen and encoders are working. Expansion of the project with encoders, I2C, RS489, etc. is now required to allow for more flexibility (for example: sending commands to a HY VFD).
 
 ## Acknowledgements
 This project would not be possible without:

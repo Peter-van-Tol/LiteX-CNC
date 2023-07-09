@@ -10,11 +10,12 @@ import requests
 
 @click.command()
 @click.option('--user', is_flag=True)
-def cli(user):
+@click.option('--directory', '-d')
+def cli(user, directory):
     """Installs Litex from https://github.com/enjoy-digital/litex in HOME"""
 
     # Create the directory
-    target = '/opt'
+    target = directory
     if user:
         target = str(Path.home())
     target = os.path.join(target, 'litex')

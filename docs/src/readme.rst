@@ -151,11 +151,11 @@ After loading the main driver, the board-driver can be loaded. At this moment on
 are supported using the ``litexcnc_eth`` board-driver. All the board-driver modules accept a load-time 
 modparam of type string array, named ``connection_string``. This array has one ip-addreess string for each 
 board the driver should use. The default port the driver will connect to is ``1234``. When another port
-should be used, the port can be supplied in the ``connection_string``, i.e. ``10.0.0.10:456``.
+should be used, the port can be supplied in the ``connection_string``, i.e. ``eth:10.0.0.10:456``.
 
 .. code-block:: shell
 
-    loadrt litexcnc_eth connection_string="10.0.0.10"
+    loadrt litexcnc_eth connection_string="eth:10.0.0.10"
 
 The driver exposes two functions to the HAL:
 
