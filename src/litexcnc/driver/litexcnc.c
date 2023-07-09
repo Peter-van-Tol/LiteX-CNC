@@ -33,9 +33,9 @@
 // Between version 2.8 and 2.9 the definition of LINELEN has moved. Below
 // is a check whether 2.9 is installed. If so, the header is imported to
 // get the correct value of LINELEN.
-#ifdef LINUXCNC_H
+#ifndef LINELEN
 #include "linuxcnc.h"
-#endif /* LINUXCNC_H */
+#endif /* LINELEN */
 
 #include "litexcnc.h"
 
