@@ -144,6 +144,16 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
         stepgen->data.wallclock_buffer_sum += *(stepgen->hal.pin.period_s);
     }
 
+    // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
+    int8_t shift = 0;
+    while (*(stepgen->data.clock_frequency) / (1 << (shift + 1) > stepgen->hal.param.max_driver_freq)) {
+        shift++;
+    }
+    stepgen->data.pick_off_pos = 32;
+    stepgen->data.pick_off_vel = stepgen->data.pick_off_pos + shift;
+    stepgen->data.pick_off_acc = stepgen->data.pick_off_vel + 8;
+    stepgen->data.max_frequency = (float) *(stepgen->data.clock_frequency) / (1 << (shift + 1));
+
     // Timings
     // ===============
     // All stepgens will use the same values for steplen, dir_hold_time and dir_setup_time.
@@ -185,7 +195,7 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
 
     // Calculate the maximum frequency for stepgen (in if statement to prevent division)
     if ((stepgen->memo.stepspace_cycles != stepspace_cycles) || (stepgen->memo.steplen_cycles != steplen_cycles)) {
-        stepgen->data.max_frequency = (double) (*(stepgen->data.clock_frequency)) / (steplen_cycles + stepspace_cycles);
+        stepgen->data.max_frequency = fmin(stepgen->data.max_frequency, (double) (*(stepgen->data.clock_frequency)) / (steplen_cycles + stepspace_cycles));
         stepgen->memo.steplen_cycles = steplen_cycles;
         stepgen->memo.stepspace_cycles = stepspace_cycles;
     }
@@ -277,10 +287,10 @@ int litexcnc_stepgen_prepare_write(void *module, uint8_t **data, int period) {
             instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
             instance->memo.position_scale = instance->hal.param.position_scale; 
             // Calculate the scales for speed and acceleration
-            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip))) * (1LL << instance->data.pick_off_vel);
-            instance->data.fpga_speed_scale_inv = (float) (*(stepgen->data.clock_frequency)) * instance->data.scale_recip / (1LL << instance->data.pick_off_vel);
-            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip)) * (*(stepgen->data.clock_frequency_recip))) * (1LL << (instance->data.pick_off_acc));
-            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * (*(stepgen->data.clock_frequency)) * (*(stepgen->data.clock_frequency)) / (1LL << instance->data.pick_off_acc);;
+            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip))) * (1LL << stepgen->data.pick_off_vel);
+            instance->data.fpga_speed_scale_inv = (float) (*(stepgen->data.clock_frequency)) * instance->data.scale_recip / (1LL << stepgen->data.pick_off_vel);
+            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip)) * (*(stepgen->data.clock_frequency_recip))) * (1LL << (stepgen->data.pick_off_acc));
+            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * (*(stepgen->data.clock_frequency)) * (*(stepgen->data.clock_frequency)) / (1LL << stepgen->data.pick_off_acc);;
         }
 
         // Check the limits on the speed of the stepgen
@@ -403,43 +413,43 @@ int litexcnc_stepgen_process_read(void *module, uint8_t **data, int period) {
 
     // Check whether the loop-cycles are within the limits
     if (loop_cycles < (0.9 * stepgen->memo.cycles_per_period)) {
-        // The previous loop was way too short
-        next_apply_time += (loop_cycles - 0.9 * stepgen->memo.cycles_per_period);
+        // The previous loop was way too short => don't let it influece the average too much
+        // next_apply_time += (loop_cycles - 0.9 * stepgen->memo.cycles_per_period);
         loop_cycles = 0.9 * stepgen->memo.cycles_per_period;
     } else if (loop_cycles > (1.1 * stepgen->memo.cycles_per_period)) {
         // The previous loop was way too long, possibly a latency excursion
-        next_apply_time += (loop_cycles - 1.1 * stepgen->memo.cycles_per_period);
+        // next_apply_time += (loop_cycles - 1.1 * stepgen->memo.cycles_per_period);
         loop_cycles = 1.1 * stepgen->memo.cycles_per_period;
     }
 
-    // Check whether the nex_apply_time is within the expected range. When outside of the range, 
-    // the value is clipped and a warning is shown to the user. The warning is only shown once.
-    if (next_apply_time < *(stepgen->data.wallclock_ticks) + 0.81 * stepgen->memo.cycles_per_period) {
-        rtapi_print("Apply time exceeding limits (too short): %" PRIu64 ", %" PRIu64 ", %" PRIu64 "\n",
-            *(stepgen->data.wallclock_ticks),
-            stepgen->memo.apply_time,
-            next_apply_time
-        );  
-        next_apply_time = *(stepgen->data.wallclock_ticks) + 0.85 * stepgen->memo.cycles_per_period;
-        // Show warning
-        if (!stepgen->data.warning_apply_time_exceeded_shown) {
-            LITEXCNC_ERR_NO_DEVICE("Apply time exceeded limits.");
-            stepgen->data.warning_apply_time_exceeded_shown = true;
-        }
-    }
-    if (next_apply_time > *(stepgen->data.wallclock_ticks) + 0.99 * stepgen->memo.cycles_per_period){
-        rtapi_print("Apply time exceeding limits (too long): %" PRIu64 ", %" PRIu64 ", %" PRIu64 "\n",
-            *(stepgen->data.wallclock_ticks),
-            stepgen->memo.apply_time,
-            next_apply_time
-        );     
-        next_apply_time = *(stepgen->data.wallclock_ticks) + 0.95 * stepgen->memo.cycles_per_period;
-        // Show warning
-        if (!stepgen->data.warning_apply_time_exceeded_shown) {
-            LITEXCNC_ERR_NO_DEVICE("Apply time exceeded limits.");
-            stepgen->data.warning_apply_time_exceeded_shown = true;
-        }
-    }
+    // // Check whether the nex_apply_time is within the expected range. When outside of the range, 
+    // // the value is clipped and a warning is shown to the user. The warning is only shown once.
+    // if (next_apply_time < *(stepgen->data.wallclock_ticks) + 0.81 * stepgen->memo.cycles_per_period) {
+    //     rtapi_print("Apply time exceeding limits (too short): %" PRIu64 ", %" PRIu64 ", %" PRIu64 "\n",
+    //         *(stepgen->data.wallclock_ticks),
+    //         stepgen->memo.apply_time,
+    //         next_apply_time
+    //     );  
+    //     next_apply_time = *(stepgen->data.wallclock_ticks) + 0.85 * stepgen->memo.cycles_per_period;
+    //     // Show warning
+    //     if (!stepgen->data.warning_apply_time_exceeded_shown) {
+    //         LITEXCNC_ERR_NO_DEVICE("Apply time exceeded limits.");
+    //         stepgen->data.warning_apply_time_exceeded_shown = true;
+    //     }
+    // }
+    // if (next_apply_time > *(stepgen->data.wallclock_ticks) + 0.99 * stepgen->memo.cycles_per_period){
+    //     rtapi_print("Apply time exceeding limits (too long): %" PRIu64 ", %" PRIu64 ", %" PRIu64 "\n",
+    //         *(stepgen->data.wallclock_ticks),
+    //         stepgen->memo.apply_time,
+    //         next_apply_time
+    //     );     
+    //     next_apply_time = *(stepgen->data.wallclock_ticks) + 0.95 * stepgen->memo.cycles_per_period;
+    //     // Show warning
+    //     if (!stepgen->data.warning_apply_time_exceeded_shown) {
+    //         LITEXCNC_ERR_NO_DEVICE("Apply time exceeded limits.");
+    //         stepgen->data.warning_apply_time_exceeded_shown = true;
+    //     }
+    // }
 
     // Calculate the period in seconds to use for the next step and store the wall clock for
     // next loop
@@ -471,11 +481,11 @@ int litexcnc_stepgen_process_read(void *module, uint8_t **data, int period) {
             instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
             instance->memo.position_scale = instance->hal.param.position_scale; 
             // Calculate the scales for speed and acceleration
-            instance->data.fpga_pos_scale_inv = (float) instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
-            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip))) * (1LL << instance->data.pick_off_vel);
+            instance->data.fpga_pos_scale_inv = (float) instance->data.scale_recip / (1LL << stepgen->data.pick_off_pos);
+            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip))) * (1LL << stepgen->data.pick_off_vel);
             instance->data.fpga_speed_scale_inv = 1.0f / instance->data.fpga_speed_scale;
-            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip)) * (*(stepgen->data.clock_frequency_recip))) * (1LL << (instance->data.pick_off_acc));
-            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * (*(stepgen->data.clock_frequency)) * (*(stepgen->data.clock_frequency)) / (1LL << instance->data.pick_off_acc);;
+            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * (*(stepgen->data.clock_frequency_recip)) * (*(stepgen->data.clock_frequency_recip))) * (1LL << (stepgen->data.pick_off_acc));
+            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * (*(stepgen->data.clock_frequency)) * (*(stepgen->data.clock_frequency)) / (1LL << stepgen->data.pick_off_acc);;
         }
 
         // Store the old data
@@ -488,10 +498,10 @@ int litexcnc_stepgen_process_read(void *module, uint8_t **data, int period) {
         instance->data.speed = (int64_t) be32toh(speed) -  0x80000000;
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
         // Convert the received position to HAL pins for counts and floating-point position
-        *(instance->hal.pin.counts) = instance->data.position >> instance->data.pick_off_pos;
+        *(instance->hal.pin.counts) = instance->data.position >> stepgen->data.pick_off_pos;
         // Check: why is a half step subtracted from the position. Will case a possible problem 
         // when the power is cycled -> will lead to a moving reference frame  
-        // *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1LL<<(instance->data.pick_off_pos-1))) * instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
+        // *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1LL<<(stepgen->data.pick_off_pos-1))) * instance->data.scale_recip / (1LL << stepgen->data.pick_off_pos);
         *(instance->hal.pin.position_fb) = (double) instance->data.position * instance->data.fpga_pos_scale_inv;
         *(instance->hal.pin.speed_fb) = (double) instance->data.speed * instance->data.fpga_speed_scale_inv;
 
@@ -592,6 +602,10 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
     rtapi_snprintf(base_name, sizeof(base_name), "%s.stepgen", litexcnc->fpga->name);
     LITEXCNC_CREATE_HAL_PIN("period-s", float, HAL_OUT, &(stepgen->hal.pin.period_s))
     LITEXCNC_CREATE_HAL_PIN("period-s-recip", float, HAL_OUT, &(stepgen->hal.pin.period_s_recip))
+    LITEXCNC_CREATE_HAL_PARAM("max-driver-freq", float, HAL_RW, &(stepgen->hal.param.max_driver_freq));
+
+    // Set the default values of parameters
+    stepgen->hal.param.max_driver_freq = 400e3;
 
     // Store the amount of stepgen instances on this board and allocate HAL shared memory
     stepgen->num_instances = be32toh(*(uint32_t*)*config);
@@ -605,14 +619,6 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
     // Create the pins and params in the HAL
     for (size_t i=0; i<stepgen->num_instances; i++) {
         litexcnc_stepgen_instance_t *instance = &(stepgen->instances[i]);
-
-        // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
-        int8_t shift = 0;
-        while (litexcnc->clock_frequency / (1 << shift) > 400e3)
-            shift += 1;
-        instance->data.pick_off_pos = 32;
-        instance->data.pick_off_vel = instance->data.pick_off_pos + shift;
-        instance->data.pick_off_acc = instance->data.pick_off_vel + 8;
         
         // Create the basename
         LITEXCNC_CREATE_BASENAME("stepgen", i);

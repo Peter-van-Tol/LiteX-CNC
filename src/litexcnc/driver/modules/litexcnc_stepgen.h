@@ -109,9 +109,6 @@ typedef struct {
         hal_u32_t stepspace_cycles;
         hal_u32_t dirsetup_cycles;
         hal_u32_t dirhold_cycles;
-        size_t pick_off_pos;
-        size_t pick_off_vel;
-        size_t pick_off_acc;
         // The data being send to the FPGA (as calculated)
         float flt_acc;
         float flt_speed;
@@ -143,7 +140,7 @@ typedef struct {
             hal_float_t *period_s_recip; /** The reciprocal of the calculated period. Calculated here once, to prevent slow division on multiple locations */ 
         } pin;
         struct{
-            // NO PARAMS
+            hal_float_t max_driver_freq;      /* The maximum frequency of the driver in Hz. Default value is 400 kHz. */
         } param;
     } hal;
 
@@ -164,7 +161,9 @@ typedef struct {
         uint32_t *clock_frequency;
         float *clock_frequency_recip;
         uint64_t *wallclock_ticks;
-
+        size_t pick_off_pos;
+        size_t pick_off_vel;
+        size_t pick_off_acc;
         float max_frequency;
         bool warning_apply_time_exceeded_shown;
         // Data for calculating the average period_s
