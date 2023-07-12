@@ -30,6 +30,11 @@ LitexCNC can be installed using pip (the pre-release is only available on https:
     The suffix [cli] is required to install the command-line interface. Without this suffix the scripts
     referenced in this documentation will not work.
 
+.. note::
+    LitexCNC requires Python 3.7 or above. The `pip`-command might refer to the Python 2 installation on
+    the system, which will lead to errors in the installation process. In this case, use `pip3` in the
+    command above and `python3` in all commands in the examples.
+
 After installation of LitexCNC, one can setup building environment for the firmware and install the
 drivers the included scripts:
 
