@@ -70,6 +70,12 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, cJSON *config) {
     rtapi_snprintf(name, sizeof(name), "%s.stepgen.period-s-recip", litexcnc->fpga->name);
     r = hal_pin_float_new(name, HAL_OUT, &(litexcnc->stepgen.hal->pin.period_s_recip), litexcnc->fpga->comp_id);
     if (r != 0) { goto fail_pins; }
+    // - the maximum frequency of the drivers
+    rtapi_snprintf(name, sizeof(name), "%s.stepgen.max-driver-freq", litexcnc->fpga->name);
+    r = hal_param_float_new(name, HAL_OUT, &(litexcnc->stepgen.hal->param.max_driver_freq), litexcnc->fpga->comp_id);
+    if (r != 0) { goto fail_pins; }
+    // set the default value
+    litexcnc->stepgen.hal->param.max_driver_freq = 400e3;
     
     // Parse the contents of the config-json
     stepgen_config = cJSON_GetObjectItemCaseSensitive(config, "stepgen");
@@ -91,14 +97,6 @@ int litexcnc_stepgen_init(litexcnc_t *litexcnc, cJSON *config) {
         cJSON_ArrayForEach(stepgen_instance_config, stepgen_config) {
             // Get pointer to the stepgen instance
             litexcnc_stepgen_pin_t *instance = &(litexcnc->stepgen.instances[i]);
-
-            // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
-            int8_t shift = 0;
-            while (litexcnc->clock_frequency / (1 << shift) > 400e3)
-                shift += 1;
-            instance->data.pick_off_pos = 32;
-            instance->data.pick_off_vel = instance->data.pick_off_pos + shift;
-            instance->data.pick_off_acc = instance->data.pick_off_vel + 8;
 
             // Create the basename
             stepgen_instance_name = cJSON_GetObjectItemCaseSensitive(stepgen_instance_config, "name");
@@ -210,6 +208,15 @@ uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long perio
         litexcnc->stepgen.data.wallclock_buffer_sum += *(litexcnc->stepgen.hal->pin.period_s);
     }
 
+    // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
+    int8_t shift = 0;
+    while (litexcnc->clock_frequency / (1 << (shift + 1)) > litexcnc->stepgen.hal->param.max_driver_freq)
+        shift += 1;
+    litexcnc->stepgen.data.pick_off_pos = 32;
+    litexcnc->stepgen.data.pick_off_vel = litexcnc->stepgen.data.pick_off_pos + shift;
+    litexcnc->stepgen.data.pick_off_acc = litexcnc->stepgen.data.pick_off_vel + 8;
+    litexcnc->stepgen.data.max_frequency = (float) litexcnc->clock_frequency / (1 << (shift + 1));
+
     // Timings
     // ===============
     // All stepgens will use the same values for steplen, dir_hold_time and dir_setup_time.
@@ -251,7 +258,7 @@ uint8_t litexcnc_stepgen_config(litexcnc_t *litexcnc, uint8_t **data, long perio
 
     // Calculate the maximum frequency for stepgen (in if statement to prevent division)
     if ((litexcnc->stepgen.memo.stepspace_cycles != stepspace_cycles) || (litexcnc->stepgen.memo.steplen_cycles != steplen_cycles)) {
-        litexcnc->stepgen.data.max_frequency = (double) litexcnc->clock_frequency / (steplen_cycles + stepspace_cycles);
+        litexcnc->stepgen.data.max_frequency = fmin(litexcnc->stepgen.data.max_frequency, (double) litexcnc->clock_frequency / (steplen_cycles + stepspace_cycles));
         litexcnc->stepgen.memo.steplen_cycles = steplen_cycles;
         litexcnc->stepgen.memo.stepspace_cycles = stepspace_cycles;
     }
@@ -340,10 +347,10 @@ uint8_t litexcnc_stepgen_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lon
             instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
             instance->memo.position_scale = instance->hal.param.position_scale; 
             // Calculate the scales for speed and acceleration
-            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << instance->data.pick_off_vel);
-            instance->data.fpga_speed_scale_inv = (float) litexcnc->clock_frequency * instance->data.scale_recip / (1LL << instance->data.pick_off_vel);
-            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (instance->data.pick_off_acc));
-            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << instance->data.pick_off_acc);;
+            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << litexcnc->stepgen.data.pick_off_vel);
+            instance->data.fpga_speed_scale_inv = (float) litexcnc->clock_frequency * instance->data.scale_recip / (1LL << litexcnc->stepgen.data.pick_off_vel);
+            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (litexcnc->stepgen.data.pick_off_acc));
+            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << litexcnc->stepgen.data.pick_off_acc);;
         }
 
         // Limit the speed to the maximum speed (both phases)
@@ -507,11 +514,11 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
             instance->data.scale_recip = 1.0 / instance->hal.param.position_scale;
             instance->memo.position_scale = instance->hal.param.position_scale; 
             // Calculate the scales for speed and acceleration
-            instance->data.fpga_pos_scale_inv = (float) instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
-            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << instance->data.pick_off_vel);
+            instance->data.fpga_pos_scale_inv = (float) instance->data.scale_recip / (1LL << litexcnc->stepgen.data.pick_off_pos);
+            instance->data.fpga_speed_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip) * (1LL << litexcnc->stepgen.data.pick_off_vel);
             instance->data.fpga_speed_scale_inv = 1.0f / instance->data.fpga_speed_scale;
-            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (instance->data.pick_off_acc));
-            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << instance->data.pick_off_acc);;
+            instance->data.fpga_acc_scale = (float) (instance->hal.param.position_scale * litexcnc->clock_frequency_recip * litexcnc->clock_frequency_recip) * (1LL << (litexcnc->stepgen.data.pick_off_acc));
+            instance->data.fpga_acc_scale_inv =  (float) instance->data.scale_recip * litexcnc->clock_frequency * litexcnc->clock_frequency / (1LL << litexcnc->stepgen.data.pick_off_acc);;
         }
 
         // Store the old data
@@ -524,10 +531,10 @@ uint8_t litexcnc_stepgen_process_read(litexcnc_t *litexcnc, uint8_t** data, long
         instance->data.speed = (int64_t) be32toh(speed) -  0x80000000;
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
         // Convert the received position to HAL pins for counts and floating-point position
-        *(instance->hal.pin.counts) = instance->data.position >> instance->data.pick_off_pos;
+        *(instance->hal.pin.counts) = instance->data.position >> litexcnc->stepgen.data.pick_off_pos;
         // Check: why is a half step subtracted from the position. Will case a possible problem 
         // when the power is cycled -> will lead to a moving reference frame  
-        // *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1LL<<(instance->data.pick_off_pos-1))) * instance->data.scale_recip / (1LL << instance->data.pick_off_pos);
+        // *(instance->hal.pin.position_fb) = (double)(instance->data.position-(1LL<<(litexcnc->stepgen.data.pick_off_pos-1))) * instance->data.scale_recip / (1LL << litexcnc->stepgen.data.pick_off_pos);
         *(instance->hal.pin.position_fb) = (double) instance->data.position * instance->data.fpga_pos_scale_inv;
         *(instance->hal.pin.speed_fb) = (double) instance->data.speed * instance->data.fpga_speed_scale_inv;
 
