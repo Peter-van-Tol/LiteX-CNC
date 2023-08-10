@@ -146,7 +146,7 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
 
     // Set the pick-offs. At this moment it is fixed, but is easy to make it configurable
     int8_t shift = 0;
-    while (*(stepgen->data.clock_frequency) / (1 << (shift + 1) > stepgen->hal.param.max_driver_freq)) {
+    while (*(stepgen->data.clock_frequency) / (1 << (shift + 1)) > stepgen->hal.param.max_driver_freq) {
         shift++;
     }
     stepgen->data.pick_off_pos = 32;
