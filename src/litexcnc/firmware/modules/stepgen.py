@@ -307,7 +307,7 @@ class StepgenModule(Module, AutoDoc):
         # Determine the pick-off for the velocity. This one is based on the clock-frequency
         # and the step frequency to be obtained
         shift = 0
-        while (soc.clock_frequency / (1 << shift) > 400e3):
+        while (soc.clock_frequency / (1 << (shift + 1)) > 400e3):
             shift += 1
 
         for index, stepgen_config in enumerate(config.instances):
