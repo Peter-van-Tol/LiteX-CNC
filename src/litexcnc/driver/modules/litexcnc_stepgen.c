@@ -153,11 +153,6 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
     stepgen->data.pick_off_vel = stepgen->data.pick_off_pos + shift;
     stepgen->data.pick_off_acc = stepgen->data.pick_off_vel + 8;
     stepgen->data.max_frequency = (float) *(stepgen->data.clock_frequency) / (1 << (shift + 1));
-    rtapi_print("Pick-off: %" PRIu32 ", %" PRIu32 ", %" PRIu32 "\n",
-        stepgen->data.pick_off_pos,
-        stepgen->data.pick_off_vel,
-        stepgen->data.pick_off_acc
-    );
 
     // Timings
     // ===============
