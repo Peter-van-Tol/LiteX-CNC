@@ -139,9 +139,14 @@ SDR	8	TDI  (60);
 RUNTEST	2.50E-2 SEC;
                 """, file=svf)
 
-                print("""
+            print("""
 // BYPASS
 SIR 8 TDI (FF);
+
+//REFRESH
+SIR 8 TDI(79);
+SDR 24 TDI(000000);
+
 STATE IDLE;
 RUNTEST 32 TCK;
 RUNTEST 2.00E-2 SEC;
