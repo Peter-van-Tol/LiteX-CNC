@@ -183,7 +183,7 @@ typedef struct {
 // order of this package MUST coincide with the order in the MMIO definition.
 #pragma pack(push, 4)
 typedef struct {
-    uint32_t stepdata;
+    uint32_t timings;
 } litexcnc_stepgen_config_data_t;
 #pragma pack(pop)
 

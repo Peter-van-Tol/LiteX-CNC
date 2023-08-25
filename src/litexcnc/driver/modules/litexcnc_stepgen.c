@@ -153,6 +153,11 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
     stepgen->data.pick_off_vel = stepgen->data.pick_off_pos + shift;
     stepgen->data.pick_off_acc = stepgen->data.pick_off_vel + 8;
     stepgen->data.max_frequency = (float) *(stepgen->data.clock_frequency) / (1 << (shift + 1));
+    rtapi_print("Pick-off: %" PRIu32 ", %" PRIu32 ", %" PRIu32 "\n",
+        stepgen->data.pick_off_pos,
+        stepgen->data.pick_off_vel,
+        stepgen->data.pick_off_acc
+    );
 
     // Timings
     // ===============
@@ -215,7 +220,7 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
         dirsetup_cycles = (1 << 13) - 1;
     }
     // - convert the timings to the data to be sent to the FPGA
-    config_data.stepdata = htobe32((steplen_cycles << 22) + (dirhold_cycles << 12) + (dirsetup_cycles << 0));
+    config_data.timings = htobe32((steplen_cycles << 22) + (dirhold_cycles << 12) + (dirsetup_cycles << 0));
 
     // Put the data on the data-stream and advance the pointer
     memcpy(*data, &config_data, required_config_buffer(stepgen));
