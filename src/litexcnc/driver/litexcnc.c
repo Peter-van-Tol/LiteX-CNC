@@ -65,7 +65,8 @@ struct rtapi_list_head litexcnc_drivers;
 void *loaded_modules[32];
 size_t loaded_modules_count;
 
-// This keeps track of all default modules, so they can be unloaded later
+// This keeps track of all default drivers (i.e. ethernet, USB, UART), so they can
+// be unloaded later. NOTE: only ethernet is supported at this moment.
 void *loaded_drivers[1];
 size_t loaded_drivers_count;
 
@@ -222,6 +223,72 @@ size_t retrieve_driver_from_registration(litexcnc_driver_registration_t **regist
     }
     return -1;
 }
+
+
+int litexcnc_reset(litexcnc_fpga_t *fpga) {
+
+    size_t i;
+    int r;
+    uint32_t reset_flag;
+    uint32_t reset_status;
+    uint8_t *reset_buffer = rtapi_kmalloc(LITEXCNC_RESET_HEADER_SIZE, RTAPI_GFP_KERNEL);
+
+    // Raise flag
+    reset_flag = htobe32(0x01);
+    reset_status = htobe32(0x00); // Make sure the loop below is run at least once
+    i = 0;
+    while (reset_flag != reset_status) {
+        if (i > MAX_RESET_RETRIES) {
+            LITEXCNC_ERR_NO_DEVICE("Reset of the card failed after %d times\n", MAX_RESET_RETRIES);
+            return -1;
+        }
+        // Write the reset flag to the FPGA
+        memcpy(reset_buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
+        r = fpga->write_n_bits(
+            fpga, 
+            fpga->reset_base_address, 
+            reset_buffer, 
+            sizeof(reset_flag)
+        );
+        r = fpga->read_n_bits(
+            fpga, 
+            fpga->reset_base_address, 
+            reset_buffer, 
+            sizeof(reset_flag)
+        );
+        reset_status = *(uint32_t *)reset_buffer;
+        i++;
+    }
+
+    // Lower flag
+    reset_flag = htobe32(0x00);
+    i = 0;
+    while (reset_flag != reset_status) {
+        if (i > MAX_RESET_RETRIES) {
+            LITEXCNC_ERR_NO_DEVICE("Reset of the card failed after %d times\n", MAX_RESET_RETRIES);
+            return -1;
+        }
+        // Write the reset flag to the FPGA
+        memcpy(reset_buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
+        r = fpga->write_n_bits(
+            fpga, 
+            fpga->reset_base_address, 
+            reset_buffer, 
+            sizeof(reset_flag)
+        );
+        r = fpga->read_n_bits(
+            fpga, 
+            fpga->reset_base_address, 
+            reset_buffer, 
+            sizeof(reset_flag)
+        );
+        reset_status = *(uint32_t *)reset_buffer;
+        i++;
+    }
+
+    return 0;
+}
+
 
 EXPORT_SYMBOL_GPL(litexcnc_register);
 int litexcnc_register(litexcnc_fpga_t *fpga) {
@@ -456,62 +523,13 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     // ==========
     // RESET FPGA
     // ==========
-    uint32_t reset_flag;
-    uint32_t reset_status;
-    uint8_t *reset_buffer = rtapi_kmalloc(LITEXCNC_RESET_HEADER_SIZE, RTAPI_GFP_KERNEL);
-    // Raise flag
-    reset_flag = htobe32(0x01);
-    reset_status = htobe32(0x00); // Make sure the loop below is run at least once
-    i = 0;
-    while (reset_flag != reset_status) {
-        if (i > MAX_RESET_RETRIES) {
-            LITEXCNC_ERR_NO_DEVICE("Reset of the card failed after %d times\n", MAX_RESET_RETRIES);
-            return -1;
-        }
-        // Write the reset flag to the FPGA
-        memcpy(reset_buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
-        r = litexcnc->fpga->write_n_bits(
-            litexcnc->fpga, 
-            litexcnc->fpga->reset_base_address, 
-            reset_buffer, 
-            sizeof(reset_flag)
-        );
-        r = litexcnc->fpga->read_n_bits(
-            litexcnc->fpga, 
-            litexcnc->fpga->reset_base_address, 
-            reset_buffer, 
-            sizeof(reset_flag)
-        );
-        reset_status = *(uint32_t *)reset_buffer;
-        i++;
-    }
-    // Lower flag
-    reset_flag = htobe32(0x00);
-    i = 0;
-    while (reset_flag != reset_status) {
-        if (i > MAX_RESET_RETRIES) {
-            LITEXCNC_ERR_NO_DEVICE("Reset of the card failed after %d times\n", MAX_RESET_RETRIES);
-            return -1;
-        }
-        // Write the reset flag to the FPGA
-        memcpy(reset_buffer, &reset_flag, LITEXCNC_RESET_HEADER_SIZE);
-        r = litexcnc->fpga->write_n_bits(
-            litexcnc->fpga, 
-            litexcnc->fpga->reset_base_address, 
-            reset_buffer, 
-            sizeof(reset_flag)
-        );
-        r = litexcnc->fpga->read_n_bits(
-            litexcnc->fpga, 
-            litexcnc->fpga->reset_base_address, 
-            reset_buffer, 
-            sizeof(reset_flag)
-        );
-        reset_status = *(uint32_t *)reset_buffer;
-        i++;
+    r = litexcnc_reset(litexcnc->fpga);
+    if (r != 0) {
+        goto fail1;
     }
 
-     return 0;
+    // Succes
+    return 0;
 
 fail1:
     litexcnc_cleanup(litexcnc);  // undoes the rtapi_kmallocs from hm2_parse_module_descriptors()
@@ -678,6 +696,17 @@ int rtapi_app_main(void) {
 
 
 void rtapi_app_exit(void) {
+
+    // Reset the FPGA to its known state (stop coolant, turn of LED's, etc).
+    // It is assumed that when the card is reset, it will be reset to a safe
+    // state.
+    struct rtapi_list_head *ptr;
+    rtapi_list_for_each(ptr, &litexcnc_list) {
+        litexcnc_t* board = rtapi_list_entry(ptr, litexcnc_t, list);
+        litexcnc_reset(board->fpga);
+    }
+
+    // Exit the component
     hal_exit(comp_id);
     LITEXCNC_PRINT_NO_DEVICE("LitexCNC driver unloaded \n");
 }
