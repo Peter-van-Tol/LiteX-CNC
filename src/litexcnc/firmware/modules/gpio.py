@@ -75,10 +75,10 @@ class GPIO_Module(Module, AutoDoc):
         soc.sync += [
             soc.MMIO_inst.gpio_out.we.eq(0),
             If(
-                soc.MMIO_inst.reset.storage,
+                soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_has_bitten.status,
                 soc.MMIO_inst.gpio_out.dat_w.eq(
                     cls.gpio_out_safe_state(config)
-            ),
+                ),
                 soc.MMIO_inst.gpio_out.we.eq(1)
             )
         ]
