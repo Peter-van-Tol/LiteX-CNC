@@ -1,5 +1,3 @@
-
-
 # Default imports
 import math
 
@@ -108,7 +106,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         NOTE: Storage registers are meant to be written by LinuxCNC and contain
         the flags and configuration for the module.
         """
-        # Don't create the registers when the config is empty (no encoders
+        # Don't create the registers when the config is empty (no PWM/PDM
         # defined in this case)
         if not pwm_config:
             return
@@ -117,7 +115,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
             size=int(math.ceil(float(len(pwm_config.instances))/32))*32,
             name='gpio_out',
             description="Register containing the bits to be written to the GPIO out pins.", 
-            write_from_dev=False
+            write_from_dev=True
         )
 
         # Speed and acceleration settings for the next movement segment
@@ -162,6 +160,17 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
             in enumerate(pwm_config.instances)
         ])
         soc.pwm_outputs = [pad for pad in soc.platform.request_all("pwm").l]
+
+        # Turn the PWM off when the card is reset or watchdog has bitten
+        # Connect to the reset mechanism
+        soc.sync += [
+            soc.MMIO_inst.pwm_enable.we.eq(0),
+            If(
+                soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_has_bitten.status,
+                soc.MMIO_inst.pwm_enable.dat_w.eq(0x0),
+                soc.MMIO_inst.pwm_enable.we.eq(1)
+            )
+        ]
 
         # Create the generators
         for index in range(len(pwm_config.instances)):
