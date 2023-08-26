@@ -28,6 +28,19 @@ class GPIO_Module(Module, AutoDoc):
             pads_in = self._to_signal(pads_in)
             self.specials += MultiReg(pads_in, mmio.gpio_in.status)
 
+    @staticmethod
+    def gpio_out_safe_state(config) -> int:
+        """
+        Gets the safe state of the GPIO
+        """
+        return sum(
+            [
+                (1*instance.safe_state << index ) 
+                for index, instance 
+                in enumerate([instance for instance in config.instances if instance.direction == "out"])
+            ]
+        )
+    
     @classmethod
     def create_from_config(cls, soc, config: 'GPIO_ModuleConfig'):
         """
@@ -64,25 +77,19 @@ class GPIO_Module(Module, AutoDoc):
             If(
                 soc.MMIO_inst.reset.storage,
                 soc.MMIO_inst.gpio_out.dat_w.eq(
-                    sum(
-                    [
-                        (1*instance.safe_state << index ) 
-                        for index, instance 
-                        in enumerate([instance for instance in config.instances if instance.direction == "out"])
-                    ]
-                )
+                    cls.gpio_out_safe_state(config)
             ),
                 soc.MMIO_inst.gpio_out.we.eq(1)
             )
         ]
-
+        
         # Create the GPIO module
         gpio = cls(
             soc.MMIO_inst,
             pads_out,
             pads_in
         )
-        soc.submodules += gpio
+        soc.submodules += gpio 
 
     @classmethod
     def add_mmio_write_registers(cls, mmio, config: 'GPIO_ModuleConfig'):
@@ -99,18 +106,11 @@ class GPIO_Module(Module, AutoDoc):
 
         mmio.gpio_out = CSRStorage(
             size=int(math.ceil(float(sum(1 for instance in config.instances if instance.direction == "out"))/32))*32,
-            reset=sum(
-                [
-                    (1*instance.safe_state << index ) 
-                    for index, instance 
-                    in enumerate([instance for instance in config.instances if instance.direction == "out"])
-                ]
-            ), 
+            reset=cls.gpio_out_safe_state(config), 
             name='gpio_out',
             description="Register containing the bits to be written to the GPIO out pins.", 
             write_from_dev=True
         )
-
 
     @classmethod
     def add_mmio_read_registers(cls, mmio, config: 'GPIO_ModuleConfig'):
