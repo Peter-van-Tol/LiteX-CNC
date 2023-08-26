@@ -58,6 +58,24 @@ class GPIO_Module(Module, AutoDoc):
             ])
             pads_in = soc.platform.request_all("gpio_in")
 
+        # Connect to the reset mechanism
+        soc.sync += [
+            soc.MMIO_inst.gpio_out.we.eq(0),
+            If(
+                soc.MMIO_inst.reset.storage,
+                soc.MMIO_inst.gpio_out.dat_w.eq(
+                    sum(
+                    [
+                        (1*instance.safe_state << index ) 
+                        for index, instance 
+                        in enumerate([instance for instance in config.instances if instance.direction == "out"])
+                    ]
+                )
+            ),
+                soc.MMIO_inst.gpio_out.we.eq(1)
+            )
+        ]
+
         # Create the GPIO module
         gpio = cls(
             soc.MMIO_inst,
@@ -81,9 +99,16 @@ class GPIO_Module(Module, AutoDoc):
 
         mmio.gpio_out = CSRStorage(
             size=int(math.ceil(float(sum(1 for instance in config.instances if instance.direction == "out"))/32))*32,
+            reset=sum(
+                [
+                    (1*instance.safe_state << index ) 
+                    for index, instance 
+                    in enumerate([instance for instance in config.instances if instance.direction == "out"])
+                ]
+            ), 
             name='gpio_out',
             description="Register containing the bits to be written to the GPIO out pins.", 
-            write_from_dev=False
+            write_from_dev=True
         )
 
 
