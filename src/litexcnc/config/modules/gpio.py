@@ -44,6 +44,15 @@ class GPIO_PinIn(GPIO_PinBase):
 
 class GPIO_PinOut(GPIO_PinBase):
     direction: Literal['out']
+    safe_state: bool = Field(
+        False,
+        description="The safe state of the pin. By default the safe state is "
+        "False, meaning the output is LOW. When logic negates the output, it can "
+        "be required to set the pin to True, meaning when the FPGA starts with "
+        "the output HIGH. When LinuxCNC is running, the behavior of the pin is "
+        "governed by the `invert_output` parameter; this setting does not alter "
+        "behavior when running LinuxCNC."
+    )
     pins: ClassVar[List[str]] = [
         'out',
     ]

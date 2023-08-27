@@ -21,7 +21,9 @@ a second 32-bit wide word is automatically used to send or retrieve the informat
 Configuration
 =============
 
-The configuration of the GPIO consists of separate blocks for GPIO In and GPIO Out. 
+The configuration of the GPIO of a list of pins. Per pin it can be indicated whether it
+is an input or an output pin. The name of the GPIO is optional. The name will be exported
+to `alias.hal` when the firmware is build using the `-a` directive.
 
 .. code-block:: json
 
@@ -31,11 +33,21 @@ The configuration of the GPIO consists of separate blocks for GPIO In and GPIO O
     {
       "module_type": "gpio",
       "instances": [
-        {"direction": "out", "pin":"j1:7" , "name":"j1:8" },
+        {"direction": "out", "pin":"j1:7" , "name":"Optional_name" },
+        {"direction": "out", "pin":"j1:7" , "safe_state":true },
+        {"direction": "in",  "pin":"j9:7"  }
       ]
     },
     ...
   ]
+
+.. info::
+    By default the safe state is False, meaning the output is LOW on start up of
+    the FPGA or after reset. When logic negates the output, it can be required to
+    set the pin to True, meaning when the FPGA starts with the output HIGH. When
+    LinuxCNC is running, the behavior of the pin is governed by the `invert_output`
+    parameter (See below); the `safe_State` setting does not alter behavior when 
+    running LinuxCNC.
 
 Defining the pin is required in the configuration. Optionally one can give the pin a name which
 will be used as an alias in HAL. When no name is given, no entry in the file containnig the
