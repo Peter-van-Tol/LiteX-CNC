@@ -6,11 +6,18 @@ The module ``StepGen`` is used to control stepper motors. The maximum step rate 
 software or CPU, but rather by the speed of the FPGA. Based on the FPGA frequency the maximum step frequency
 is tuned to be approximately 400 kHz. The maximum step frequency scales linearly with the FPGA frequency
 
-In contrast to the `LinuxCNC stepgen component <https://linuxcnc.org/docs/html/man/man9/stepgen.9.html>`_, 
-which has both *position*  and *velocity* modes, the module ``StepGen`` only has velocity mode. Velocity 
-control drives the motor at a commanded speed, subject to accel and velocity limits. To convert the
-position command to the required velocity command the component ``pos2vel`` can be used, which is part
-of LitexCNC as well. Alternatively a `pid` component can be used, which supplies a derivative output.
+Simlar to the `LinuxCNC stepgen component <https://linuxcnc.org/docs/html/man/man9/stepgen.9.html>`_, 
+which has both *position*  and *velocity* modes, the module ``stepgen`` also has positiona and velocity
+mode.  The default is position control, which drives the motor to a commanded position, subject to 
+acceleration and velocity limits. Velocity control drives the motor at a commanded speed, subject to 
+accel and velocity limits. In contrast to the LinuxCNC stepgen component, one can switch between position
+and velocity mode during operations.
+
+.. info::
+    In the latest version the component ``pos2vel`` has been removed from Litex-CNC and only ``stepgen``
+    is required for position mode. If you want to continue to use ``pos2vel`` or ``pid`` to convert
+    position to veloctiy, you can keep your current setup when you explicitly set te pin ``velocity-mode``
+    to TRUE.
 
 .. note::
     At this moment the timings can be set for each stepgen channel. At start up these timings are 
@@ -105,11 +112,18 @@ Input pins
 
 <board-name>.stepgen.<index/name>.enable (HAL_BIT)
     Enables output steps - when false, no steps are generated and is the hardware disabled.
+<board-name>.stepgen.<index/name>.velocity-mode (HAL_BIT)
+    Enables velocity mode. Default value is FALSE, in which case the positon-cmd is translated
+    to a required velocity.
+<board-name>.stepgen.<index/name>.position-cmd (HAL_FLOAT)
+    Commanded position, in length units per second (see parameter position-scale). Only applicable
+    when the pin ``velocity-mode`` is set to FALSE.
 <board-name>.stepgen.<index/name>.velocity-cmd (HAL_FLOAT)
-    Commanded velocity, in length units per second (see parameter
-    position-scale).
+    Commanded velocity, in length units per second (see parameter position-scale). Only applicable
+    when the pin ``velocity-mode`` is set to FALSE.
 <board-name>.stepgen.<index/name>.acceleration-cmd (HAL_FLOAT)
-    The acceleration used to accelarate from the current velocity to ``velocity-cmd``.
+    The acceleration used to accelarate from the current velocity to the commanded velocity. Optional
+    parameter. When not set, the acceleration-cmd will be equal to the maximum acceleration.
 
 Output pins
 -----------
@@ -205,32 +219,12 @@ The code below gives an example for a single axis, using the ``step-dir`` step t
     addf [LITEXCNC](NAME).read servo-thread
     addf motion-command-handler servo-thread
     addf motion-controller servo-thread
-    addf pos2vel.convert servo-thread
     addf [LITEXCNC](NAME).write servo-thread
 
     [...]
 
-    ########################################################################
-    STEPGEN
-    ########################################################################
-    # - timings (prevent re-calculation)
-    net pos2vel.period-s       <= [LITEXCNC](NAME).stepgen.period-s
-    net pos2vel.period-s-recip <= [LITEXCNC](NAME).stepgen.period-s-recip
-
     STEPGEN - X-AXIS
     ########################################################################
-    # POS2VEL
-    # - position control
-    net xpos-fb  <= [LITEXCNC](NAME).stepgen.00.position_prediction
-    net xpos-fb  => joint.0.motor-pos-fb
-    net xpos-fb  => pos2vel.0.position-feedback
-    net xvel-fb  pos2vel.0.velocity-feedback <= [LITEXCNC](NAME).stepgen.00.velocity-prediction
-    net xpos-cmd pos2vel.0.position-cmd      <= joint.0.motor-pos-cmd
-    # - settings
-    setp pos2vel.0.max-acceleration [JOINT_2]STEPGEN_MAXACCEL
-    # setp pos2vel.0.debug 1
-
-    # STEPGEN
     # - Setup of timings
     setp [LITEXCNC](NAME).stepgen.00.position-scale   [JOINT_2]SCALE
     setp [LITEXCNC](NAME).stepgen.00.steplen          5000
@@ -241,9 +235,8 @@ The code below gives an example for a single axis, using the ``step-dir`` step t
     setp [LITEXCNC](NAME).stepgen.00.max-acceleration [JOINT_2]STEPGEN_MAXACCEL
     # setp [LITEXCNC](NAME).stepgen.00.debug 1
     # - Connect velocity command
-    net xvel_cmd pos2vel.0.velocity-cmd => [LITEXCNC](NAME).stepgen.00.velocity-cmd
-    # - Set the acceleration to be used (NOTE: pos2vel has fixed acceleration)
-    setp [LITEXCNC](NAME).stepgen.00.acceleration-cmd [JOINT_2]STEPGEN_MAXACCEL
+    net xpos_cmd joint.0.motor-pos-cmd => [LITEXCNC](NAME).stepgen.00.position-cmd
+    net xpos_cmd joint.0.motor-pos-fb  <= [LITEXCNC](NAME).stepgen.00.position-prediction
     # - enable the drive
     net xenable joint.0.amp-enable-out => [LITEXCNC](NAME).stepgen.00.enable
 
