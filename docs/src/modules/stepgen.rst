@@ -213,7 +213,6 @@ The code below gives an example for a single axis, using the ``step-dir`` step t
     loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS
     loadrt litexcnc
     loadrt litexcnc_eth config_file="[LITEXCNC]CONFIG_FILE"
-    loadrt pos2vel number=1
 
     # Add the functions to the thread
     addf [LITEXCNC](NAME).read servo-thread
