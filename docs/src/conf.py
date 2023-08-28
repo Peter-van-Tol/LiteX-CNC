@@ -39,6 +39,7 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinxcontrib.jquery",
     "sphinx_code_tabs"
 ]
 
