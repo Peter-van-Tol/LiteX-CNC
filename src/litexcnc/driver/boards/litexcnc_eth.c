@@ -290,55 +290,16 @@ static int initialize_driver(char *connection_string, int comp_id) {
 
 
 int rtapi_app_main(void) {
-    RTAPI_INIT_LIST_HEAD(&ifnames);
-    RTAPI_INIT_LIST_HEAD(&board_num);
-
-    int ret, i;
-
-    LITEXCNC_PRINT_NO_DEVICE("loading litexCNC etherbone driver version " LITEXCNC_ETH_VERSION "\n");
-
-    // STEP 1: Initialize component
-    ret = hal_init(LITEXCNC_ETH_NAME);
-    if (ret < 0) {
-        goto error;
-    }
-    comp_id = ret;
-
-    // STEP 2: Initialize the board(s)
-    for(i = 0, ret = 0; ret == 0 && i<MAX_ETH_BOARDS && connection_string[i] && *connection_string[i]; i++) {
-        ret = initialize_driver(connection_string[i], comp_id);
-        if (ret<0) goto error;
-    }
-
-    // Report the board as ready
-    hal_ready(comp_id);
-    return 0;
-
-error:
-    // Close all the boards
-    for(i = 0; i<MAX_ETH_BOARDS && connection_string[i] && connection_string[i][0]; i++)
-        close_connection(boards[i]);
-    // Free up the used memory
-    dict_free(&board_num);
-    dict_free(&ifnames);
-    // Report the board as unloaded
-    hal_exit(comp_id);
-    return ret;
+    LITEXCNC_ERR_NO_DEVICE("ERROR: Direct usage of the module `litexcnc_eth` is not supported\n");
+    LITEXCNC_ERR_NO_DEVICE("This is caused by the following loadrt-commands in your HAL-file:\n");
+    LITEXCNC_ERR_NO_DEVICE("    loadrt litexcnc\n");
+    LITEXCNC_ERR_NO_DEVICE("    loadrt litexcnc_eth connection_string=\"%s\"\n", connection_string[0]);
+    LITEXCNC_ERR_NO_DEVICE("Please use the folllowing single command in your hal-file instead:\n");
+    LITEXCNC_ERR_NO_DEVICE("    loadrt litexcnc connections=\"eth:%s\"\n", connection_string[0]);
+    LITEXCNC_ERR_NO_DEVICE("For more information, see: https://github.com/Peter-van-Tol/LiteX-CNC/issues/32 \n");
+    LITEXCNC_ERR_NO_DEVICE("Stopping LinuxCNC now!\n");
+    return -1;
 }
-
-
-void rtapi_app_exit(void) {
-    // Close all the boards
-    for(int i = 0; i<MAX_ETH_BOARDS && connection_string[i] && connection_string[i][0]; i++)
-        close_connection(boards[i]);
-    // Free up the used memory
-    dict_free(&board_num);
-    dict_free(&ifnames);
-    // Report the board as unloaded
-    hal_exit(comp_id);
-    LITEXCNC_PRINT_NO_DEVICE("LitexCNC etherbone driver unloaded \n");
-}
-
 
 // Include other c-files, because LinuxCNC Makefile cannot handle loose files
 #include "etherbone.c"
