@@ -6,6 +6,12 @@ This project aims to make a generic CNC firmware and driver for FPGA cards which
 Configuration of the board and driver is done using json-files. The supported boards are the Colorlight
 boards 5A-75B and 5A-75E, as these are fully supported with the open source toolchain.
 
+.. info::
+    At this moment it is **strongly** recommended to use the ``11-add-external-extensions-to-linuxcnc``
+    version of the software. This version has essential upgrades in both safety and usability. See the
+    `documentation <https://litex-cnc.readthedocs.io/en/11-add-external-extensions-to-litexcnc/>`_ of
+    this version on how to obtain and use it.
+
 The idea of this project was conceived by ColorCNC by *romanetz* on the official LinuxCNC and the difficulty
 to obtain a MESA card.
 
