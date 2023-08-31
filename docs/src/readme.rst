@@ -26,11 +26,11 @@ This project would not be possible without:
 Installation
 ============
 
-LitexCNC can be installed using pip (the pre-release is only available on https:/test.pypi.org):
+LitexCNC can be installed using pip:
 
 .. code-block:: shell
 
-    pip install --extra-index-url https://test.pypi.org/simple/ litexcnc[cli]
+    pip install litexcnc[cli]
 
 .. note::
     The suffix [cli] is required to install the command-line interface. Without this suffix the scripts
@@ -49,6 +49,8 @@ drivers the included scripts:
     litexcnc install_driver
     litexcnc install_litex 
     litexcnc install_toolchain
+    litexcnc build_firmware
+    litexcnc convert_bit_to_flash
 
 .. note::
     In case the scripts ``litexcnc <command>`` cannot be found, the cause can be that the scripts are
@@ -124,6 +126,35 @@ The firmare can be created based with the following command:
 
 Type ``litexcnc build_firmware --help`` for more options. 
 
+After building the firmware, all files will reside in the ``.\<FGPA_NAME\gateware`` directory. The ``.svf`` 
+in this directory can be flashed to your FPGA using a program such as OpenOCD (part of the OSS-CAD-suite
+which is by default installed as part of the toolchain). An example of such a command is:
+
+.. code-block:: shell
+
+    openocd \
+        -f interface/raspberrypi-native-mod.cfg \
+        -c "transport select jtag" \
+        -f fpga/lattice_ecp5.cfg \
+        -c "init; svf quiet progress colorlight_5a_75e.svf; exit"
+
+.. info::
+    You can use the GPIO of your Raspberry Pi to flash the FPGA. The version of OpenOCD included with the
+    toolchain however, does not support teh GPIO. A good guide on how to install OpenOCD with support for
+    GPIO on your Rasberry Pi can be found `here <https://catleytech.com/?p=2679>`_.
+
+By default, the ``.svf``-file is not retained in th flash of the FPGA. When the card is power-cycled, the
+previous program will run again. This makes it possible to test new version and features before making them
+permanent. To make the program reside in the flash of the FPGA, the bit-file has to be converted with the
+``convert_bit_to_flash`` tool (NOTE: this command requires the ``.bit``-file, not the previously used 
+``.svf``-file):
+
+.. code-block:: shell
+
+    litexcnc convert_bit_to_flash colorlight_5a_75e.bit colorlight_5a_75e.flash
+
+The created ``.flash`` file can now be flashed to the FPGA using the same method as used before.
+
 Compiling the driver
 --------------------
 
@@ -160,13 +191,20 @@ Typically main litexcnc driver is loaded first:
 
 After loading the main driver, the board-driver can be loaded. At this moment only ethernet cards 
 are supported using the ``litexcnc_eth`` board-driver. All the board-driver modules accept a load-time 
-modparam of type string array, named ``connection_string``. This array has one ip-addreess string for each 
+modparam of type string array, named ``connections``. This array has one ip-addreess string for each 
 board the driver should use. The default port the driver will connect to is ``1234``. When another port
-should be used, the port can be supplied in the ``connection_string``, i.e. ``eth:10.0.0.10:456``.
+should be used, the port can be supplied in the ``connections``, i.e. ``eth:10.0.0.10:456``.
 
 .. code-block:: shell
 
-    loadrt litexcnc_eth connection_string="eth:10.0.0.10"
+    loadrt litexcnc_eth connections="eth:10.0.0.10"
+
+.. info::
+
+    In pre-releases it was possible to use ``litexcnc_eth`` directly as a component. With the release
+    of v1.0 of LitexCNC the support for this has been dropped in favour of resetting the FPGA to a
+    known safe state before LinuxCNC is stopped. In case ``litexcnc_eth`` is still used directly, an
+    error will be thrown, indicating the required changes.
 
 The driver exposes two functions to the HAL:
 
@@ -176,7 +214,7 @@ The driver exposes two functions to the HAL:
   on the FPGA. Any changes to configuration pins such as stepgen timing, GPIO inversions, etc, are also
   effected by this function. 
 
-It is strongly recommended to have structure the functions in the HAL-file as follows:
+It is **strongly** recommended to have structure the functions in the HAL-file as follows:
 
 #. Read the status from the FPGA using the ``<BoardName>.<BoardNum>.read``.
 #. Add all functions which process the received data.

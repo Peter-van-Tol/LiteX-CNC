@@ -119,7 +119,6 @@ def cli(modules, rtlib):
         click.echo(click.style("INFO", fg="bright_blue") + ": Retrieving default driver files to compile...")
         if  not modules or 'default' in modules:
             files_to_compiles.append('litexcnc.c')
-            files_to_compiles.append('pos2vel.c')
         for file in driver_files.pop('default'):
             click.echo(f"Copying file '{file.name}'")
             shutil.copy2(
