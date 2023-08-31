@@ -6,17 +6,32 @@ All versions in this changelog have two entries: ``dirver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
-Version 0.9.0-alpha1
-====================
+Version 1.0.0
+=============
 
-This is a test version for release to PyPi. 
+First release!
 
 * ``driver``:
 
-  * Main driver with supported modules: ``GPIO``, ``PWM``, ``StepGen``
-  * Ethernet/Etherbone driver
+  * Modules and boards can be extended with plugins. The available modules and boards are automatically picked up
+    by the script ``litexcnc install_driver``.
+  * Removed dependency on JSON-libraries. The configuration is now announced from the FPGA at initialisation
+  * Main driver with supported modules: ``gpio``, ``pwm``, ``stepgen``, ``encoder``;
+  * Ethernet/Etherbone driver;
 
 * ``firmware``:
 
-  * Supported modules: ``GPIO``, ``PWM``, ``StepGen``
+  * Modules can be extended with plugins, this requires a different approach in the configuration JSON. The configs 
+    created for version 0.9 will not work in this version without modification.
+  * Firmware contains configuration.
+  * Supported modules: ``gpio``, ``pwm``, ``stepgen``, ``encoder``;
   * Supported cards: ``5A-75B``, ``5A-75E``
+
+
+Previous test-releases
+======================
+
+Several test releases have been made with increasing functionality and several bug-fixes. These versions have
+now been superseeded by the v1.0-releases of Litex-CNC. These pre-releases differ significantly in setup and 
+design philosophy from the v1.0-release as they were monolythic and difficult to expand with new modules. They
+have served the purpose to remove bugs in the algorithms of the various modules.

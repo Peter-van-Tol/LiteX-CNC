@@ -1,119 +1,119 @@
-from migen import *
-from litex.build.generic_platform import *
-
 # Imports for creating the config
-from typing import List, Type
+try:
+    from typing import Any, List, get_args
+except ImportError:
+    from typing import Any, List
+    from typing_extensions import get_args
 from pydantic import BaseModel, Field, validator
 
 # Local imports
-from .encoder import EncoderConfig, EncoderModule
-from .etherbone import Etherbone, EthPhy
-from .gpio import GPIO, GPIO_Out, GPIO_In
-from .mmio import MMIO
-from .pwm import PWMConfig, PwmPdmModule
-from .stepgen import StepgenConfig, StepgenModule
-from .watchdog import WatchDogModule
+from litexcnc.config.modules import ModuleBaseModel, module_registry
+
+# Registry which holds all the sub-classes of modules
+board_registry = {}
 
 
 class LitexCNC_Firmware(BaseModel):
     board_name: str = Field(
         ...,
-        description="The name of the board, required for identification purposes."
-    )
-    baseclass: Type = Field(
-        ...,
-        description=""
+        description="The name of the board, required for identification purposes.",
+        max_length=16
     )
     clock_frequency: int = Field(
       50e6  
     )
-    ethphy: EthPhy = Field(
-        ...
-    )
-    etherbone: Etherbone = Field(
-        ...,
-    )
-    gpio_in: List[GPIO] = Field(
+    modules: List[ModuleBaseModel] = Field(
         [],
-        item_type=GPIO,
-        # max_items=32,
+        item_type=ModuleBaseModel,
         unique_items=True
     )
-    gpio_out: List[GPIO] = Field(
-        [],
-        item_type=GPIO,
-        # max_items=32,
-        unique_items=True
-    )
-    pwm: List[PWMConfig] = Field(
-        [],
-        item_type=PWMConfig,
-        unique_items=True
-    )
-    stepgen: List[StepgenConfig] = Field(
-        [],
-        item_type=StepgenConfig,
-        max_items=32,
-        unique_items=True
-    )
-    encoders: List[EncoderConfig] = Field(
-        [],
-        item_type=EncoderConfig,
-        max_items=32,
-        unique_items=True
-    )
+    
+    class Config:
+        extra = "allow"
 
-    @validator('baseclass', pre=True)
-    def import_baseclass(cls, value):
-        components = value.split('.')
-        mod = __import__(components[0])
-        print(mod)
-        for comp in components[1:]:
-            mod = getattr(mod, comp)
-        return mod
+    def __new__(cls,  *args, **kwargs):
+        # Deferred import to prevent circular imports. We need to import the boards here
+        # to trigger the import mechanism and make sure that the board_registry is filled.
+        from litexcnc.config import boards
+        if cls is not LitexCNC_Firmware:
+            return super().__new__(cls)
+        if 'board_type' not in kwargs.keys():
+            raise ValueError("Field `board_type` is requierd.")
+        if kwargs['board_type'] not in board_registry.keys():
+            raise TypeError(f"Unknown board type `{kwargs['board_type']}`. Supported board types: {' '.join(board_registry.keys())}")
+        subclass = board_registry[kwargs['board_type']]
+        return subclass.__new__(subclass,  *args, **kwargs)
 
+    def __init__(self, **kwargs):
+        for index in range(len(kwargs['modules'])):
+            current_module = kwargs['modules'][index]
+            if isinstance(current_module, dict):
+                item_module_type = current_module['module_type']
+                for name, subclass in module_registry.items():
+                    registery_module_type = subclass.__fields__['module_type'].default
+                    if item_module_type == registery_module_type:
+                        current_module = subclass(**current_module) 
+                        break
+                else:
+                    raise TypeError(f"Unknown module type `{current_module['module_type']}`. Supported module types: {' '.join([module.__fields__['module_type'].default for module in module_registry.values()])}")
+                kwargs['modules'][index] = current_module
+        super().__init__(**kwargs)
 
-    def generate(self, fingerprint):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """"""
+        super().__init_subclass__(**kwargs)
+        for board_type in get_args(cls.__fields__['board_type'].type_):
+            if board_type != 'abstract':
+                board_registry[board_type] = cls
+
+    def _generate_soc(self):
         """
-        Function which generates the firmware
+        
         """
-        class _LitexCNC_SoC(self.baseclass):
+        raise NotImplementedError("This function should be implemented by a sub-class")
 
-            def __init__(
-                    self,
-                    config: 'LitexCNC_Firmware',
-                    ):
-                
-                # Configure the top level class
-                super().__init__(config)
+    @validator('board_name')
+    def ascii_boardname(cls, value):
+        assert value.isascii(), 'Must be ASCII string'
+        return value
 
-                # Create memory mapping for IO
-                self.submodules.MMIO_inst = MMIO(config=config, fingerprint=fingerprint)
+    def generate(self):
+        """
+        Function which generates the firmware (excluding communication):
+        - create MMIO (memory)
+        - initialize default modules ``watchdog`` and ``wallclock``
+        - initialize any user defined module
+        """
+        # Deferred imports to prevent importing Litex while installing the driver
+        from litexcnc.firmware.watchdog import WatchDogModule
+        from litexcnc.firmware.mmio import MMIO
 
-                # Create watchdog
-                watchdog = WatchDogModule(timeout=self.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
-                self.submodules += watchdog
-                self.sync+=[
-                    # Watchdog input (fixed values)
-                    watchdog.enable.eq(self.MMIO_inst.watchdog_data.storage[31]),
-                    # Watchdog output (status whether the dog has bitten)
-                    self.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
-                    # self.MMIO_inst.watchdog_has_bitten.we.eq(True)
-                ]
+        soc = self._generate_soc()
 
-                # Create a wall-clock
-                self.sync+=[
-                    # Increment the wall_clock
-                    self.MMIO_inst.wall_clock.status.eq(self.MMIO_inst.wall_clock.status + 1),
-                    # self.MMIO_inst.wall_clock.we.eq(True)
-                ]
+        # Create memory mapping for IO
+        soc.submodules.MMIO_inst = MMIO(config=self)
 
-                # Create modules
-                GPIO_In.create_from_config(self, config.gpio_in)
-                GPIO_Out.create_from_config(self, config.gpio_out)
-                PwmPdmModule.create_from_config(self, watchdog,config.pwm)
-                StepgenModule.create_from_config(self, watchdog, config.stepgen)
-                EncoderModule.create_from_config(self, config.encoders)
-                
-        return _LitexCNC_SoC(
-            config=self)
+        # Create watchdog
+        watchdog = WatchDogModule(timeout=soc.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
+        soc.submodules += watchdog
+        soc.sync+=[
+            # Watchdog input (fixed values)
+            watchdog.enable.eq(soc.MMIO_inst.watchdog_data.storage[31]),
+            # Watchdog output (status whether the dog has bitten)
+            soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
+            # self.MMIO_inst.watchdog_has_bitten.we.eq(True)
+        ]
+
+        # Create a wall-clock
+        soc.sync+=[
+            # Increment the wall_clock
+            soc.MMIO_inst.wall_clock.status.eq(soc.MMIO_inst.wall_clock.status + 1),
+            # self.MMIO_inst.wall_clock.we.eq(True)
+        ]
+
+        # Create modules
+        for module in self.modules:
+            module.create_from_config(soc, watchdog)
+
+        # Return the created SoC 
+        return soc

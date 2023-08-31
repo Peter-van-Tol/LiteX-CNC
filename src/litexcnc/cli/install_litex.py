@@ -10,11 +10,12 @@ import requests
 
 @click.command()
 @click.option('--user', is_flag=True)
-def cli(user):
+@click.option('--directory', '-d')
+def cli(user, directory):
     """Installs Litex from https://github.com/enjoy-digital/litex in HOME"""
 
     # Create the directory
-    target = '/opt'
+    target = directory
     if user:
         target = str(Path.home())
     target = os.path.join(target, 'litex')
@@ -29,7 +30,10 @@ def cli(user):
     open(os.path.join(target, 'litex_setup.py'), 'wb').write(response.content)
 
     # Run the python file
-    command = f'{sys.executable} {os.path.join(target, "litex_setup.py --init --install --config=standard --tag=2022.04")}'  #  --gcc=riscv if SOC with cpu
+    command = "litex_setup.py --init --install --config=standard --tag=2022.04"
+    if user:
+        command += " --user"
+    command = f'{sys.executable} {os.path.join(target, command)}'  #  --gcc=riscv if SOC with cpu
     click.echo(click.style("INFO", fg="blue") + f": Installing Litex with the command '{command}'.")
     ret = subprocess.call(
         command, 

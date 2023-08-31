@@ -1,0 +1,168 @@
+{
+    "board_name": "test_PWM_GPIO",
+    "board_type": "5A-75E v6.0",
+    "clock_frequency": 40000000,
+    "ethphy": {
+        "tx_delay": 0
+    },
+    "etherbone": {
+        "ip_address": "10.0.0.10",
+        "mac_address": "0x10e2d5000000"
+    },
+    "gpio_in": [
+        {"pin":"j16:0", "name":"j16:1"},
+        {"pin":"j16:1", "name":"j16:2"},
+        {"pin":"j16:2", "name":"j16:3"},
+        {"pin":"j16:4", "name":"j16:5"},
+        {"pin":"j16:5", "name":"j16:6"},
+        {"pin":"j16:6", "name":"j16:7"},
+        {"pin":"j15:0", "name":"j15:1"},
+        {"pin":"j15:1", "name":"j15:2"},
+        {"pin":"j15:2", "name":"j15:3"},
+        {"pin":"j15:4", "name":"j15:5"},
+        {"pin":"j15:5", "name":"j15:6"},
+        {"pin":"j15:6", "name":"j15:7"},
+        {"pin":"j14:0", "name":"j14:1"},
+        {"pin":"j14:1", "name":"j14:2"},
+        {"pin":"j14:2", "name":"j14:3"},
+        {"pin":"j14:4", "name":"j14:5"},
+        {"pin":"j14:5", "name":"j14:6"},
+        {"pin":"j14:6", "name":"j14:7"},
+        {"pin":"j13:0", "name":"j13:1"},
+        {"pin":"j13:1", "name":"j13:2"},
+        {"pin":"j13:2", "name":"j13:3"},
+        {"pin":"j13:4", "name":"j13:5"},
+        {"pin":"j13:5", "name":"j13:6"},
+        {"pin":"j13:6", "name":"j13:7"}
+    ],
+    "encoders": [
+        {
+            "pin_A":"j8:0",
+            "pin_B":"j8:1",
+            "pin_Z":"j8:2"
+        },
+        {
+            "pin_A":"j8:4",
+            "pin_B":"j8:5",
+            "pin_Z":"j8:6"
+        },
+        {
+            "pin_A":"j9:0",
+            "pin_B":"j9:1",
+            "pin_Z":"j9:2"
+        },
+        {
+            "pin_A":"j9:4",
+            "pin_B":"j9:5",
+            "pin_Z":"j9:6"
+        },
+        {
+            "pin_A":"j10:0",
+            "pin_B":"j10:1",
+            "pin_Z":"j10:2"
+        },
+        {
+            "pin_A":"j10:4",
+            "pin_B":"j10:5",
+            "pin_Z":"j10:6"
+        }
+    ],
+    "gpio_out": [
+        {"pin":"j1:7" , "name":"j1:8" },
+        {"pin":"j1:8" , "name":"j1:9" },
+        {"pin":"j1:9" , "name":"j1:10"},
+        {"pin":"j1:10", "name":"j1:11"},
+        {"pin":"j1:11", "name":"j1:12"},
+        {"pin":"j1:12", "name":"j1:13"},
+        {"pin":"j1:13", "name":"j1:14"},
+        {"pin":"j1:14", "name":"j1:15"},
+        {"pin":"j1:0" , "name":"j1:1" },
+        {"pin":"j1:1" , "name":"j1:2" },
+        {"pin":"j1:2" , "name":"j1:3" },
+        {"pin":"j1:4" , "name":"j1:5" },
+        {"pin":"j1:5" , "name":"j1:6" },
+        {"pin":"j1:6" , "name":"j1:7" },
+        {"pin":"j2:0" , "name":"j2:1" },
+        {"pin":"j2:1" , "name":"j2:2" },
+        {"pin":"j2:2" , "name":"j2:3" },
+        {"pin":"j2:4" , "name":"j2:5" },
+        {"pin":"j2:5" , "name":"j2:6" },
+        {"pin":"j2:6" , "name":"j2:7" },
+        {"pin":"j3:0" , "name":"j3:1" },
+        {"pin":"j3:1" , "name":"j3:2" },
+        {"pin":"j3:2" , "name":"j3:3" },
+        {"pin":"j3:4" , "name":"j3:5" },
+        {"pin":"j3:5" , "name":"j3:6" },
+        {"pin":"j3:6" , "name":"j3:7" }
+    ],
+    "pwm": [
+        {"pin":"j4:0", "name":"j6:1"},
+        {"pin":"j4:1", "name":"j6:2"},
+        {"pin":"j4:2", "name":"j6:3"},
+        {"pin":"j4:4", "name":"j6:5"},
+        {"pin":"j4:5", "name":"j6:6"},
+        {"pin":"j4:6", "name":"j6:7"}
+    ],
+    "stepgen": [
+        {
+            "pins" : {
+                "stepgen_type": "step_dir_differential",
+                "step_pos_pin": "j5:0",
+                "step_neg_pin": "j5:1",
+                "dir_pos_pin": "j5:2",
+                "dir_neg_pin": "j5:4"
+            },
+            "soft_stop": true
+        },
+        {
+            "pins" : {
+                "stepgen_type": "step_dir_differential",
+                "step_pos_pin": "j5:5",
+                "step_neg_pin": "j5:6",
+                "dir_pos_pin": "j6:0",
+                "dir_neg_pin": "j6:1"
+            },
+            "soft_stop": true
+        },
+        {
+            "pins" : {
+                "stepgen_type": "step_dir_differential",
+                "step_pos_pin": "j6:2",
+                "step_neg_pin": "j6:4",
+                "dir_pos_pin": "j6:5",
+                "dir_neg_pin": "j6:6"
+            },
+            "soft_stop": true
+        },
+        {
+            "pins" : {
+                "stepgen_type": "step_dir_differential",
+                "step_pos_pin": "j7:0",
+                "step_neg_pin": "j7:1",
+                "dir_pos_pin": "j7:2",
+                "dir_neg_pin": "j7:4"
+            },
+            "soft_stop": true
+        },
+        {
+            "pins" : {
+                "stepgen_type": "step_dir_differential",
+                "step_pos_pin": "j7:5",
+                "step_neg_pin": "j7:6",
+                "dir_pos_pin": "j8:0",
+                "dir_neg_pin": "j8:1"
+            },
+            "soft_stop": true
+        },
+        {
+            "pins" : {
+                "stepgen_type": "step_dir_differential",
+                "step_pos_pin": "j8:2",
+                "step_neg_pin": "j8:4",
+                "dir_pos_pin": "j8:5",
+                "dir_neg_pin": "j8:6"
+            },
+            "soft_stop": true
+        }
+    ]
+}

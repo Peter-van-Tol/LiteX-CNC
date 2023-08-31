@@ -33,6 +33,7 @@
 
     This code was written as part of the LiteX-CNC project.
 */
+#include <inttypes.h>
 #include <stdio.h>
 
 #include "rtapi.h"
@@ -41,29 +42,11 @@
 
 #include "watchdog.h"
 
-int litexcnc_watchdog_init(litexcnc_t *litexcnc, cJSON *config) {
+int litexcnc_watchdog_init(litexcnc_t *litexcnc) {
     
     // Declarations
     int r = 0;
-    uint32_t default_timeout_ns = 0;
     char name[HAL_NAME_LEN + 1];
-
-    // Parse the contents of the config-json
-    const cJSON *watchdog_config = NULL;
-    const cJSON *watchdog_default_timeout = NULL;
-    watchdog_config = cJSON_GetObjectItemCaseSensitive(config, "watchdog");
-    if (cJSON_IsObject(watchdog_config)) {
-        watchdog_default_timeout = cJSON_GetObjectItemCaseSensitive(watchdog_config, "default_timeout_ns");
-        if (cJSON_IsNumber(watchdog_default_timeout)) {
-            default_timeout_ns = watchdog_default_timeout->valueint;
-        }
-    }
-
-    // Warn user that we use the default time out
-    if (!default_timeout_ns) {
-        default_timeout_ns = 5 * 1000 * 1000;
-        LITEXCNC_INFO_NO_DEVICE("Watchdog: No default timeout specified in json-configuration, using default value %i ns\n", default_timeout_ns);
-    }
 
     // Allocate memory
     litexcnc->watchdog = (litexcnc_watchdog_t *)hal_malloc(sizeof(litexcnc_watchdog_t));
@@ -79,7 +62,6 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, cJSON *config) {
     rtapi_snprintf(name, sizeof(name), "%s.watchdog.timeout_ns", litexcnc->fpga->name); 
     r = hal_param_u32_new(name, HAL_RW, &(litexcnc->watchdog->hal.param.timeout_ns), litexcnc->fpga->comp_id);
     if (r < 0) { goto fail_pins; }
-    litexcnc->watchdog->hal.param.timeout_ns = default_timeout_ns;
     // - time-out in cycles (read-only)
     rtapi_snprintf(name, sizeof(name), "%s.watchdog.timeout_cycles", litexcnc->fpga->name); 
     r = hal_param_u32_new(name, HAL_RO, &(litexcnc->watchdog->hal.param.timeout_cycles), litexcnc->fpga->comp_id);
@@ -100,6 +82,15 @@ fail_pins:
 
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
 
+
+    if (!litexcnc->watchdog->hal.param.timeout_ns) {
+        LITEXCNC_PRINT(
+            "Watchdog timeout not set. Using default value %"PRIu32" ns (3 times period).",
+            litexcnc->fpga->name,
+            (uint32_t) litexcnc->watchdog->hal.param.timeout_ns
+        );
+        litexcnc->watchdog->hal.param.timeout_ns = 3 * period;    }
+
     // Recalculate timeout_cycles only required when timeout_ns changed
     if (litexcnc->watchdog->hal.param.timeout_ns != litexcnc->watchdog->memo.timeout_ns ) {
         // Store value to detect future scale changes
@@ -107,9 +98,9 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
         // Validate new value (give warning when it is to close to the period of the thread)
         if (litexcnc->watchdog->hal.param.timeout_ns < (1.5 * period)) {
             LITEXCNC_PRINT(
-                "Watchdog timeout (%u ns) is dangerously short compared to litexcnc_write() period (%ld ns)\n",
+                "Watchdog timeout (%"PRIu32" ns) is dangerously short compared to litexcnc_write() period (%ld ns)\n",
                 litexcnc->fpga->name,
-                litexcnc->watchdog->hal.param.timeout_ns,
+                (uint32_t) litexcnc->watchdog->hal.param.timeout_ns,
                 period
             );
         }
@@ -119,7 +110,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
         if (litexcnc->watchdog->hal.param.timeout_cycles > 0x7FFFFFFF) {
             litexcnc->watchdog->hal.param.timeout_cycles = 0x7FFFFFFF;
             litexcnc->watchdog->memo.timeout_ns = (litexcnc->watchdog->hal.param.timeout_cycles + 1) / ((double) litexcnc->clock_frequency / (double) 1e9);
-            LITEXCNC_ERR_NO_DEVICE("Requested watchdog timeout is out of range, setting it to max: %u ns\n", litexcnc->watchdog->memo.timeout_ns);
+            LITEXCNC_ERR_NO_DEVICE("Requested watchdog timeout is out of range, setting it to max: %"PRIu32" ns\n", (uint32_t) litexcnc->watchdog->memo.timeout_ns);
         }
     }
 

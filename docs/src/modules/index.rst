@@ -24,4 +24,5 @@ number of modules, as long as the following conditions are met:
    GPIO <gpio>
    PWM <pwm>
    StepGen <stepgen>
+   Encoder <encoder>
  

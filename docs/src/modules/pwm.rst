@@ -26,7 +26,11 @@ The code-block belows gives an example for the configuration of ``PWM``.
 .. code-block:: json
 
   ...
-    "pwm": [
+  "modules": [
+    ...,
+    {
+      "module_type": "pwm",
+      "instances": [
         {"pin": "j2:0"},
         {
           "pin":"j2:1",
@@ -34,11 +38,16 @@ The code-block belows gives an example for the configuration of ``PWM``.
         },
         ...,
         {"pin": "j2:5"}
-    ],
+      ]
+    },
+    ...
+  ]
   ...
 
+
 Defining the pin is required in the configuration. Optionally one can give the pin a name which
-will be used in the HAL. When no name is supplied, the pin is numbered, starting at 0. 
+will be used as an alias in HAL. When no name is given, no entry in the file containnig the
+aliases will be generated. 
 
 .. warning::
   When *inserting* new pins in the list and the firmware is re-compiled, this will lead to a renumbering
@@ -123,4 +132,7 @@ spindle rotation is set using GPIO.
 Break-out boards
 ================
 
-...
+There is currently no dedicated break-out board available for PWM. As an alternative
+the break-out board for th `12 channel sourcing output <https://github.com/Peter-van-Tol/HUB-75-boards/tree/main/HUB75-Sourcing_output>`_
+can be used, although the frequency has to be limited to suit the requirements of the
+opto-couplers.
