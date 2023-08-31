@@ -6,10 +6,10 @@ All versions in this changelog have two entries: ``dirver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
-Version 1.0.0-beta1
-====================
+Version 1.0.0
+=============
 
-This is a test version for release to PyPi. 
+First release!
 
 * ``driver``:
 
@@ -28,8 +28,8 @@ This is a test version for release to PyPi.
   * Supported cards: ``5A-75B``, ``5A-75E``
 
 
-Version 0.9.0-alpha-releases
-============================
+Previous test-releases
+======================
 
 Several test releases have been made with increasing functionality and several bug-fixes. These versions have
 now been superseeded by the v1.0-releases of Litex-CNC. These pre-releases differ significantly in setup and 
