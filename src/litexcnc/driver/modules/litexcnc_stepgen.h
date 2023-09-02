@@ -136,22 +136,14 @@ typedef struct {
 
     /** Structure defining the HAL pin and params*/
     struct {
-        hal_float_t *period_s;            /* The calculated period (averaged over 10 cycles) based on the FPGA wall clock */ 
-        hal_float_t *period_s_recip;      /* The reciprocal of the calculated period. Calculated here once, to prevent slow division on multiple locations */ 
-    } pin;
-
-    struct {
-        hal_float_t max_driver_freq;
-    } param;
-    
-} litexcnc_stepgen_hal_t;
-
-// Defines the PWM, contains a collection of PWM instances
-typedef struct {
-    // Input pins
-    int num_instances;
-    litexcnc_stepgen_pin_t *instances;
-    litexcnc_stepgen_hal_t *hal;
+        /** Structure defining the HAL pins */
+        struct {
+        
+        } pin;
+        struct{
+            hal_float_t max_driver_freq;      /* The maximum frequency of the driver in Hz. Default value is 400 kHz. */
+        } param;
+    } hal;
 
     struct {
         long period;
