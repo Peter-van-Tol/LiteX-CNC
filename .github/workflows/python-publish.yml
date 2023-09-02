@@ -12,10 +12,10 @@ name: Upload Python Package
 #  release:
 #    types: [published]
     
-on: workflow_dispatch
-  # push:
-  #   tags:
-  #     - '**'
+on:
+  push:
+    tags:
+      - '**'
 
 permissions:
   contents: read
