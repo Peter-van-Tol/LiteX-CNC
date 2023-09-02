@@ -6,6 +6,17 @@ All versions in this changelog have two entries: ``dirver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.0.1
+=============
+
+When drafting release 1.0.0 a merge conflict occurred. This merge conflict was solved, however leading to an error
+in ``module_stepgen.h``. During testing this error passed by unnoticed, because an old version of the driver
+was still installed on the system. This bug-fix solves this problem.
+
+* ``driver``:
+
+  * Resolved error in ``module_stepgen.h``, which prevented installation of the driver.
+
 Version 1.0.0
 =============
 
