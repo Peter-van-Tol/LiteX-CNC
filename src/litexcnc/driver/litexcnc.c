@@ -130,7 +130,7 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     memset(
         litexcnc->fpga->read_buffer + litexcnc->fpga->read_header_size, 
         0, 
-        litexcnc->fpga->read_buffer_size
+        litexcnc->fpga->read_buffer_size - litexcnc->fpga->read_header_size
     );
     
     // Read the state from the FPGA
@@ -175,7 +175,7 @@ static void litexcnc_write(void *void_litexcnc, long period) {
     memset(
         litexcnc->fpga->write_buffer + litexcnc->fpga->write_header_size, 
         0, 
-        litexcnc->fpga->write_buffer_size
+        litexcnc->fpga->write_buffer_size - litexcnc->fpga->write_header_size
     );
 
     // Process all functions
