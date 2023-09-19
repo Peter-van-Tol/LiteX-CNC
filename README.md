@@ -13,7 +13,7 @@ This project would not be possible without:
 - HostMot2 (MESA card driver) as the structure of the driver has been adopted.
 
 ## Quick start
-LitexCNC can be installed using pip (the pre-release is only available on https:/test.pypi.org):
+LitexCNC can be installed using pip:
 ```shell
 pip install litexcnc[cli]
 ```
