@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "litexcnc"
-version = "1.0.1"
+version = "1.0.2"
 description = "Generic CNC firmware and driver for FPGA cards which are supported by LiteX"
 authors = ["Peter van Tol <petertgvantol@gmail.com>"]
 license = "GPL-3.0-or-later"
