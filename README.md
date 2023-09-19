@@ -15,7 +15,7 @@ This project would not be possible without:
 ## Quick start
 LitexCNC can be installed using pip (the pre-release is only available on https:/test.pypi.org):
 ```shell
-pip install --extra-index-url https://test.pypi.org/simple/ litexcnc[cli]
+pip install litexcnc[cli]
 ```
 
 > **NOTE: Suffix `[cli]` required!** <br>
