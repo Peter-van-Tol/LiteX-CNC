@@ -2,9 +2,20 @@
 Changelog
 =========
 
-All versions in this changelog have two entries: ``dirver`` and ``firmware``. The firmware and driver should
+All versions in this changelog have two entries: ``driver`` and ``firmware``. The firmware and driver should
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
+
+Version 1.0.2
+=============
+
+On some systems the communication to the FPGA failed. This was due to the package header of the read request
+being partly overwritten by another function (buffer overflow). Thanks to OJthe123 this bug has been identified
+and tracked to its origins.
+
+* ``driver``:
+
+  * Resolved buffer-overflow error in ``litexcnc.c``.
 
 Version 1.0.1
 =============
@@ -37,10 +48,6 @@ First release!
   * Firmware contains configuration.
   * Supported modules: ``gpio``, ``pwm``, ``stepgen``, ``encoder``;
   * Supported cards: ``5A-75B``, ``5A-75E``
-
-
-Previous test-releases
-======================
 
 Several test releases have been made with increasing functionality and several bug-fixes. These versions have
 now been superseeded by the v1.0-releases of Litex-CNC. These pre-releases differ significantly in setup and 
