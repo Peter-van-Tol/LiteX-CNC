@@ -21,3 +21,23 @@ class SPIboneConnection(BaseModel):
         os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_spi.c',
         os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_spi.h'
     ]
+    mosi: str = Field(
+          ...,
+          description="The pin on the FPGA-card used for Master Out Slave In (MOSI)."
+    )
+    miso: str = Field(
+          ...,
+          description="The pin on the FPGA-card used for Master In Slave Out (MISO)."
+    )
+    clk: str = Field(
+          ...,
+          description="The pin on the FPGA-card used for the clock-signal."
+    )
+    cs_n: str = Field(
+          ...,
+          description="The pin on the FPGA-card used for the chip-select."
+    )
+    io_standard: str = Field(
+        "LVCMOS33",
+        description="The IO Standard (voltage) to use for the pin."
+    )
