@@ -76,11 +76,10 @@ is described in their :doc:`relevant sections </modules/index>`.
     "board_name": "test_PWM_GPIO",
     "baseclass": "litexcnc.firmware.boards.ColorLight_5A_75E_V7_1",
     "clock_frequency": 40000000,
-    "ethphy": {
-        "tx_delay": 0
-    },
-    "etherbone": {
-        "ip_address": "192.168.2.50",
+    "connection": {
+        "connection_type": "etherbone",
+        "tx_delay": 0,
+        "ip_address": "10.0.0.10",
         "mac_address": "0x10e2d5000000"
     },
     ... (module-config)
@@ -101,10 +100,10 @@ board_type
 
 clock_frequency
     The clock-frequency of the board. Recommended value is 40 MHz.
-ethphy
-    Settings for the ethernet adapter, use default value as shown in example
-etherbone
-    Settings for mac-address and ip-address. Change to the needs of the project.
+connection
+    Settings for the connection adapter. At this moment only ``etherbone`` is supported, 
+    however ``spi`` is under development. Use default values as shown in example and change
+    mac-address and ip-address to the needs of the project.
 
 Some example configuration are given in the :doc:`examples sections </examples/index>`.
 
