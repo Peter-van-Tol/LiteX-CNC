@@ -3,14 +3,10 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-# Imports from Pydantic to create the config
-from pydantic import Field
-
-# Local imports
-from . import Etherbone, EthPhy, EtherboneBoard
+from litexcnc.firmware.soc import LitexCNC_Firmware
 
 
-class ColorLight_5A_75X(EtherboneBoard):
+class ColorLight_5A_75X(LitexCNC_Firmware):
     """
     Configuration for Colorlight 5A-75B and 5A-75E cards:
 
@@ -22,18 +18,12 @@ class ColorLight_5A_75X(EtherboneBoard):
         '5A-75E v6.0',
         '5A-75E v7.1'
     ]
-    ethphy: EthPhy = Field(
-        ...
-    )
-    etherbone: Etherbone = Field(
-        ...,
-    )
 
     def _generate_soc(self):
         """Returns the board on which LitexCNC firmware is designed for.
         """
         # Deferred imports to prevent importing Litex while installing the driver
-        from litexcnc.firmware.boards.etherbone.colorlight import ColorLightBase
+        from litexcnc.firmware.boards.colorlight import ColorLightBase
         # Split the board and the revision from the board type and create the SoC
         # based on the board type.
         board, revision = self.board_type.split('v')

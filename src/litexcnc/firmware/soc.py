@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, validator
 
 # Local imports
 from litexcnc.config.modules import ModuleBaseModel, module_registry
+from litexcnc.config.connections import EtherboneConnection
 
 # Registry which holds all the sub-classes of modules
 board_registry = {}
@@ -18,6 +19,10 @@ class LitexCNC_Firmware(BaseModel):
         ...,
         description="The name of the board, required for identification purposes.",
         max_length=16
+    )
+    connection: EtherboneConnection = Field(
+        ...,
+        description="The configuration of the connection to the board."
     )
     clock_frequency: int = Field(
       50e6  
@@ -87,8 +92,10 @@ class LitexCNC_Firmware(BaseModel):
         # Deferred imports to prevent importing Litex while installing the driver
         from litexcnc.firmware.watchdog import WatchDogModule
         from litexcnc.firmware.mmio import MMIO
+        from litexcnc.firmware.connections import add_connection
 
         soc = self._generate_soc()
+        add_connection(soc, self)
 
         # Create memory mapping for IO
         soc.submodules.MMIO_inst = MMIO(config=self)

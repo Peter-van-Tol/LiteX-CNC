@@ -1,5 +1,4 @@
 # Imports for defining the board
-from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 from litex.soc.integration.soc_core import *
 from litex_boards.targets.colorlight_5a_75x import _CRG
 from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
@@ -32,16 +31,3 @@ class ColorLightBase(SoCMini):
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(self.platform, config.clock_frequency, with_rst=False)
-        
-        # Etherbone --------------------------------------------------------------------------------
-        self.submodules.ethphy = LiteEthPHYRGMII(
-            clock_pads = self.platform.request("eth_clocks"),
-            pads       = self.platform.request("eth"),
-            **{key: value for key, value in config.ethphy.dict(exclude={'module'}).items() if value is not None})
-        self.add_etherbone(
-            phy=self.ethphy,
-            mac_address=config.etherbone.mac_address,
-            ip_address=str(config.etherbone.ip_address),
-            buffer_depth=255,
-            data_width=32
-        )

@@ -9,7 +9,6 @@ from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
 
 # Imports for defining the board
-from liteeth.phy.s6rgmii import LiteEthPHYRGMII
 from litex.soc.integration.soc_core import *
 from litex.soc.cores.clock import S6PLL
 from migen import ClockDomain, Module
@@ -331,26 +330,4 @@ class RV901T(SoCMini):
         )
 
         # CRG -----------------------------------------------------------------
-        self.submodules.crg = crg = _CRG(platform, config.clock_frequency)
-
-        # Etherbone -----------------------------------------------------------
-        self.ethphy = LiteEthPHYRGMII(
-            clock_pads = platform.request("eth_clocks", eth_phy),
-            pads       = platform.request("eth", eth_phy),
-            **{key: value 
-               for key, value 
-               in config.ethphy.dict(exclude={'module'}).items() if value is not None
-            }
-        )
-        self.submodules += self.ethphy
-        self.add_etherbone(
-            phy=self.ethphy,
-            mac_address=config.etherbone.mac_address,
-            ip_address=str(config.etherbone.ip_address),
-            buffer_depth=255,
-            data_width=32
-        )
-
-        # Timing constraints
-        platform.add_period_constraint(self.ethphy.crg.cd_eth_rx.clk, 1e9/125e6)
-        platform.add_false_path_constraints(crg.cd_sys.clk, self.ethphy.crg.cd_eth_rx.clk)  
+        self.submodules.crg = _CRG(platform, config.clock_frequency)

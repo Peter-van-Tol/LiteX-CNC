@@ -12,13 +12,17 @@ except ImportError:
 
 from pydantic import BaseModel, Field, validator
 
-from litexcnc.firmware.soc import LitexCNC_Firmware
 
-
-class EthPhy(BaseModel):
-    """
-    _summary_
-    """
+class EtherboneConnection(BaseModel):
+    connection_type: Literal[
+        'etherbone'
+    ] = 'etherbone'
+    driver_files: ClassVar[List[str]] = [
+        os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_eth.c',
+        os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_eth.h',
+        os.path.dirname(__file__) + '/../../../driver/boards/etherbone.c',
+        os.path.dirname(__file__) + '/../../../driver/boards/etherbone.h'
+    ]
     tx_delay: float = Field(
         None,
         help_text="Optional field to set the delay on the TX line."
@@ -34,12 +38,6 @@ class EthPhy(BaseModel):
         False,
         help_text="Hardware reset."
     )
-
-
-class Etherbone(BaseModel):
-    """
-    _summary_
-    """
     mac_address: int = Field(
         ...,
         help_text="The mac-address for the FPGA-card"
@@ -52,15 +50,3 @@ class Etherbone(BaseModel):
     @validator('mac_address', pre=True)
     def convert_mac_address(cls, value):
         return int(value, base=16)
-
-
-class EtherboneBoard(LitexCNC_Firmware):
-    board_type: Literal[
-        'abstract'
-    ] = 'abstract'
-    driver_files: ClassVar[List[str]] = [
-        os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_eth.c',
-        os.path.dirname(__file__) + '/../../../driver/boards/litexcnc_eth.h',
-        os.path.dirname(__file__) + '/../../../driver/boards/etherbone.c',
-        os.path.dirname(__file__) + '/../../../driver/boards/etherbone.h'
-    ]
