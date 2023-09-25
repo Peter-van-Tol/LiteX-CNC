@@ -312,7 +312,7 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
             *(instance->hal.pin.velocity_rpm) = *(instance->hal.pin.velocity) * 60.0;
             // Increase the pointer to the next element, revert to the beginning of
             // the array
-            if (encoder->memo.velocity_pointer++ >= sizeof(instance->memo.velocity)) {encoder->memo.velocity_pointer=0;};
+            if (encoder->memo.velocity_pointer++ >= LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE) {encoder->memo.velocity_pointer=0;};
         }
     }
 
