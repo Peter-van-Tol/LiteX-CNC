@@ -1,5 +1,7 @@
 
 import os
+import sys
+import platform
 import subprocess
 import tarfile
 import tempfile
@@ -12,20 +14,30 @@ import requests
 @click.option(
     '-a', '--architecture', 'arch',
     type=click.Choice(['arm', 'arm64', 'x64'], case_sensitive=False),
-    default='x64')
+    help="Use specific architecture. Leave empty for auto-detect")
 @click.option(
     '-os', '--os', 'os_',
     type=click.Choice(['darwin', 'linux', 'windows'], case_sensitive=False),
-    default='linux')
+    help="Use specific os. Leave empty for auto-detect")
 def cli(user, arch, os_):
     """Installs the Toolchain for ECP5 (oss-cad-suite)"""
+    if not os_:
+        os_ = platform.system().lower()
+        click.echo(click.style("INFO", fg="blue") + f": Auto-detected os {os_}.")
+    if not arch:
+        if platform.machine().startswith('arm'):
+            arch = 'arm64' if sys.maxsize > 2**32 else 'arm'
+        else:
+            arch = 'i386' if sys.maxsize > 2**32 else 'x64'
+        click.echo(click.style("INFO", fg="blue") + f": Auto-detected architecture {arch}.")
     # Check whether the combination if supported by oss-cad-suite
     if os_ == 'darwin':
-        if not arch in ['arm64', 'x64']:
+        if not arch.lower() in ['arm64', 'x64']:
             click.echo(click.style("ERROR", fg="red") + f": Darwin only supports arm64 and x64 as architecture.")
     if os_ == 'windows':
-        if not arch in ['x64']:
+        if not arch.lower() in ['x64']:
             click.echo(click.style("ERROR", fg="red") + f": Windows only supports x64 as architecture.")
+    # Download and install the selected files
     with tempfile.TemporaryDirectory() as tempdirname:
         # Download the toolchain from the source
         click.echo(click.style("INFO", fg="blue") + f": Downloading OSS-CAD-Suite ...")
