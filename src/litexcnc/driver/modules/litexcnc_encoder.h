@@ -56,6 +56,7 @@
  * into account that at these low speeds the resolution of the speed is detoriated.
 */
 #define LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE 8
+#define LITEXCNC_ENCODER_POSITION_AVERAGE_RECIP 0.125
 
 /** The ID of the component, only used when the component is used as stand-alone */
 int comp_id;
@@ -145,6 +146,7 @@ typedef struct {
     /** This struct holds data from previous cycles, so changes can be detected */
     struct {
         long period; /** period of a single cycle */
+        size_t velocity_pointer;
     } memo;
 } litexcnc_encoder_t;
 

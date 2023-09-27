@@ -302,18 +302,17 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
         // running average is not modified when an index-pulse is received, as this
         // means there is a large jump in position and thus to a large theoretical 
         // speed.
-        size_t velocity_pointer = 0;
         if (!(*(instance->hal.pin.index_pulse))) {
             // Replace the element in the array
-            instance->memo.velocity[velocity_pointer] = (*(instance->hal.pin.position) - position_old) * encoder->data.recip_dt;
+            instance->memo.velocity[encoder->memo.velocity_pointer] = (*(instance->hal.pin.position) - position_old) * encoder->data.recip_dt;
             // Sum the array and divide by the size of the array
             float average = 0.0;
             for (size_t j=0; j < LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE; j++) {average += instance->memo.velocity[j];};
-            *(instance->hal.pin.velocity) = average * 0.125;
+            *(instance->hal.pin.velocity) = average * LITEXCNC_ENCODER_POSITION_AVERAGE_RECIP;
             *(instance->hal.pin.velocity_rpm) = *(instance->hal.pin.velocity) * 60.0;
             // Increase the pointer to the next element, revert to the beginning of
             // the array
-            if (velocity_pointer++ >= sizeof(instance->memo.velocity)) {velocity_pointer=0;};
+            if (encoder->memo.velocity_pointer++ >= LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE) {encoder->memo.velocity_pointer=0;};
         }
     }
 
