@@ -50,6 +50,12 @@ static litexcnc_spi_t* boards[MAX_SPI_BOARDS];
  */
 static litexcnc_driver_registration_t *registration;
 
+/*
+ * Parameters for SPI connection (prevent magic numbers in the code)
+ **/
+static uint32_t speed = 500000;
+static uint16_t delay;
+static uint8_t bits = 8;
 
 /*******************************************************************************
  * Registers this SPI-driver within LitexCNC driver. Gets called from litexcnc.c
@@ -80,7 +86,49 @@ EXPORT_SYMBOL_GPL(register_spi_driver);
 static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t N) {
     litexcnc_spi_t *board = this->private;
     
-    // TODO
+    // Create the required buffers
+    uint8_t tx_buf[5+2+N];
+    memset((void*) tx_buf, 0, 5+2+N);
+    uint8_t rx_buf[5+2+N];
+    memset((void*) rx_buf, 0, 5+2+N);
+
+     // Write data to package
+    // - command and size
+    size_t words = N >> 2;
+    tx_buf[0] = 0x40 + (words & 0x1F);
+    // - address
+    uint32_t address_be = htobe32(address);
+    memcpy(&tx_buf[1], &address_be, 4);
+    
+    // Create the request and send the data 
+    struct spi_ioc_transfer tr = {
+		.tx_buf = (unsigned long)&tx_buf,
+		.rx_buf = (unsigned long)&rx_buf,
+		.len = 5 + N + 2,
+		.delay_usecs = delay,
+		.speed_hz = speed,
+		.bits_per_word = bits,
+	};
+    int ret = ioctl(board->connection, SPI_IOC_MESSAGE(1), &tr);
+	if (ret < 1) {
+        LITEXCNC_ERR("Could not read from SPI device\n", this->name);
+		return -1;
+    }
+    
+    // Check whether write was successfull
+    for(size_t i = 0; i < (5 + 2); i++) {
+        if(rx_buf[i] == 0x01) {
+            // Copy the results to the output
+            memcpy(data, &rx_buf[i+1], N);
+            // Indicate success
+            return 0;
+        }
+    }
+
+    // Writing has failed
+    LITEXCNC_ERR("Read from SPI device was unsuccessful.\n", this->name);
+    return -1;
+
 }
 
 
@@ -93,6 +141,23 @@ static int litexcnc_spi_read(litexcnc_fpga_t *this) {
     litexcnc_spi_t *board = this->private;
     
     // TODO
+    // LITEXCNC_PRINT_NO_DEVICE("Transmitted \n");
+    // for (size_t j=0; j<(8 + N); j+=4) {
+    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+    //             (unsigned char)tx_buf[j+0],
+    //             (unsigned char)tx_buf[j+1],
+    //             (unsigned char)tx_buf[j+2],
+    //             (unsigned char)tx_buf[j+3]);
+    // }
+    // LITEXCNC_PRINT_NO_DEVICE("Received \n");
+    // for (size_t j=0; j<(8 + N); j+=4) {
+    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
+    //             (unsigned char)rx_buf[j+0],
+    //             (unsigned char)rx_buf[j+1],
+    //             (unsigned char)rx_buf[j+2],
+    //             (unsigned char)rx_buf[j+3]);
+    // }
+
     
     // Successful read
     return 0;
@@ -111,14 +176,49 @@ static int litexcnc_spi_read(litexcnc_fpga_t *this) {
  *                of @param data. 
  ******************************************************************************/
 static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t N) {
-    /*
-     * This function sends N bits of data to the FPGA.
-     */
+    litexcnc_spi_t *board = this->private;
     
-    // TODO
+    // Create the required buffers
+    uint8_t tx_buf[5+2+N];
+    uint8_t rx_buf[5+2+N];
+    memset((void*) rx_buf, 0, 5+2+N);
 
-    // Indicate success (writing does not give back a status)
-    return 0;
+     // Write data to package
+    // - command and size
+    size_t words = N >> 2;
+    tx_buf[0] = 0x80 + (words & 0x1F);
+    // - address
+    uint32_t address_be = htobe32(address);
+    memcpy(&tx_buf[1], &address_be, 4);
+    // - data
+    memcpy(&tx_buf[5], data, N);
+
+    // Create the request and send the data 
+    struct spi_ioc_transfer tr = {
+		.tx_buf = (unsigned long)&tx_buf,
+		.rx_buf = (unsigned long)&rx_buf,
+		.len = 5 + N + 2,
+		.delay_usecs = delay,
+		.speed_hz = speed,
+		.bits_per_word = bits,
+	};
+    int ret = ioctl(board->connection, SPI_IOC_MESSAGE(1), &tr);
+	if (ret < 1) {
+        LITEXCNC_ERR("Could not write to SPI device\n", this->name);
+		return -1;
+    }
+
+    // Check whether write was successfull
+    for(size_t i = 0; i < (5 + N + 2); i++) {
+        if(rx_buf[i] == 0x01) {
+            // Indicate success
+            return 0;
+        }
+    }
+
+    // Writing has failed
+    LITEXCNC_ERR("Write to SPI device was unsuccessful.\n", this->name);
+    return -1;
 }
 
 
