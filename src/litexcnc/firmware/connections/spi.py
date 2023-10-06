@@ -121,7 +121,16 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
 
     The bridge core is designed to run at 1/4 the system clock.
     """
-    def __init__(self, pads, wires=4, with_tristate=True):
+    COMMAND_BITS   = 2
+    COMMAND_READ   = 0x1
+    COMMAND_WRITE  = 0x2
+    SIZE_BITS      = 6
+    ADDRESS_WIDTH  = 4
+    VALUE_WIDTH    = 4 
+
+
+
+    def __init__(self, pads, wires=4, with_tristate=True, debug_led=None):
         self.wishbone = wishbone.Interface()
 
         # # #
@@ -133,18 +142,21 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
         elif wires == 2:
             self.mod_doc = Spi2WireDocumentation()
 
-        clk = Signal()
+        clk  = Signal()
         cs_n = Signal()
         mosi = Signal()
         miso = Signal()
         miso_en = Signal()
 
-        counter = Signal(8)
+        counter   = Signal(8)
+        counter2   = Signal(8)
         write_offset = Signal(5)
-        command = Signal(8)
-        address = Signal(32)
-        value   = Signal(32)
-        wr      = Signal()
+        write_response = Signal(1)
+        command   = Signal(self.COMMAND_BITS)
+        address   = Signal(32)
+        num_words = Signal(5)
+        value     = Signal(32)
+        wr        = Signal()
         sync_byte = Signal(8)
 
         self.specials += [
@@ -185,6 +197,9 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
         self.submodules += fsm
         self.comb += fsm.reset.eq(cs_n)
 
+        if debug_led is not None:
+            self.comb += debug_led[0].eq(cs_n)
+
         # Connect the Wishbone bus up to our values
         self.comb += [
             self.wishbone.adr.eq(address[2:]),
@@ -195,6 +210,7 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
         # Constantly have the counter increase, except when it's reset
         # in the IDLE state
         self.sync += If(cs_n, counter.eq(0)).Elif(clk_rising, counter.eq(counter + 1))
+        self.sync += If(cs_n, counter2.eq(0))
 
         if wires == 2:
             fsm.act("IDLE",
@@ -204,7 +220,7 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
                     NextValue(sync_byte, Cat(mosi, sync_byte))
                 ),
                 If(sync_byte[0:7] == 0b101011,
-                    NextState("GET_TYPE_BYTE"),
+                    NextState("GET_COMMAND"),
                     NextValue(counter, 0),
                     NextValue(command, mosi),
                 )
@@ -213,8 +229,9 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             fsm.act("IDLE",
                 miso_en.eq(0),
                 NextValue(miso, 1),
+                NextValue(write_response, 1),
                 If(clk_rising,
-                    NextState("GET_TYPE_BYTE"),
+                    NextState("GET_COMMAND"),
                     NextValue(command, mosi),
                 ),
             )
@@ -222,19 +239,18 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             raise ValueError("invalid `wires` count: {}".format(wires))
 
         # Determine if it's a read or a write
-        fsm.act("GET_TYPE_BYTE",
+        fsm.act("GET_COMMAND",
             miso_en.eq(0),
             NextValue(miso, 1),
-            If(counter == 8,
+            If(counter == self.COMMAND_BITS,
                 # Write value
-                If(command == 0,
+                If(command == self.COMMAND_WRITE,
                     NextValue(wr, 1),
-                    NextState("READ_ADDRESS"),
-
+                    NextState("READ_NUM_BYTES"),
                 # Read value
-                ).Elif(command == 1,
+                ).Elif(command == self.COMMAND_READ,
                     NextValue(wr, 0),
-                    NextState("READ_ADDRESS"),
+                    NextState("READ_NUM_BYTES"),
                 ).Else(
                     NextState("END"),
                 ),
@@ -244,9 +260,19 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             ),
         )
 
+        fsm.act("READ_NUM_BYTES",
+            miso_en.eq(0),
+            If(counter == self.COMMAND_BITS + self.SIZE_BITS,
+                NextState("READ_ADDRESS"),
+            ),
+            If(clk_rising,
+                NextValue(num_words, Cat(mosi, num_words)),
+            ),
+        )
+
         fsm.act("READ_ADDRESS",
             miso_en.eq(0),
-            If(counter == 32 + 8,
+            If(counter == self.COMMAND_BITS + self.SIZE_BITS + self.ADDRESS_WIDTH * 8,
                 If(wr,
                     NextState("READ_VALUE"),
                 ).Else(
@@ -260,10 +286,11 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
 
         fsm.act("READ_VALUE",
             miso_en.eq(0),
-            If(counter == 32 + 32 + 8,
+            If(counter2 == self.VALUE_WIDTH * 8,
                 NextState("WRITE_WISHBONE"),
             ),
             If(clk_rising,
+                NextValue(counter2, counter2 + 1),
                 NextValue(value, Cat(mosi, value)),
             ),
         )
@@ -274,7 +301,15 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             self.wishbone.cyc.eq(1),
             miso_en.eq(1),
             If(self.wishbone.ack | self.wishbone.err,
-                NextState("WAIT_BYTE_BOUNDARY"),
+                NextValue(num_words, num_words - 1),
+                If(
+                    num_words == 1,  # NOTE: the updating of num_bytes is not sequential, it happens in the next loop
+                    NextState("CHECK_BYTE_BOUNDARY")  
+                ).Else(
+                    NextValue(address, address + self.ADDRESS_WIDTH),
+                    NextValue(counter2, 0),
+                    NextState("READ_VALUE")
+                )
             ),
         )
 
@@ -284,9 +319,23 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             self.wishbone.cyc.eq(1),
             miso_en.eq(1),
             If(self.wishbone.ack | self.wishbone.err,
-                NextState("WAIT_BYTE_BOUNDARY"),
                 NextValue(value, self.wishbone.dat_r),
+                NextState("CHECK_BYTE_BOUNDARY")         
             ),
+        )
+
+        fsm.act("CHECK_BYTE_BOUNDARY",
+            If(
+                counter[0:3] == 0,
+                NextValue(miso, 0),
+                    If(wr,
+                        NextState("WRITE_RESPONSE"),
+                    ).Else(
+                        NextState("WRITE_DATA"),
+                    ),
+            ).Else(
+                NextState("WAIT_BYTE_BOUNDARY")  
+            )
         )
 
         fsm.act("WAIT_BYTE_BOUNDARY",
@@ -294,14 +343,23 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             If(clk_falling,
                 If(counter[0:3] == 0,
                     NextValue(miso, 0),
-                    # For writes, fill in the 0 byte response
                     If(wr,
-                        NextState("WRITE_WR_RESPONSE"),
-                    ).Else(
                         NextState("WRITE_RESPONSE"),
+                    ).Else(
+                        NextState("WRITE_DATA"),
                     ),
                 ),
             ),
+        )
+
+        fsm.act("WRITE_DATA",
+            If(
+                write_response,
+                NextState("WRITE_RESPONSE"),
+            ).Else(
+                NextValue(write_offset, self.VALUE_WIDTH * 8 - 1),
+                NextState("WRITE_VALUE")
+            )
         )
 
         # Write the "01" byte that indicates a response
@@ -310,9 +368,14 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             If(clk_falling,
                 If(counter[0:3] == 0b111,
                     NextValue(miso, 1),
-                ).Elif(counter[0:3] == 0,
-                    NextValue(write_offset, 31),
-                    NextState("WRITE_VALUE")
+                    NextValue(write_response, 0),
+                ).Elif((counter[0:3] == 0) & (write_response == 0),
+                    If(wr,
+                        NextState("END")
+                    ).Else(
+                        NextValue(write_offset, self.VALUE_WIDTH * 8 - 1),
+                        NextState("WRITE_VALUE")
+                    )
                 ),
             ),
         )
@@ -324,23 +387,22 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             If(clk_falling,
                 NextValue(write_offset, write_offset - 1),
                 If(write_offset == 0,
-                    NextValue(miso, 0),
-                    NextState("END"),
-                ),
-            ),
-        )
-
-        fsm.act("WRITE_WR_RESPONSE",
-            miso_en.eq(1),
-            If(clk_falling,
-                If(counter[0:3] == 0,
-                    NextState("END"),
+                    NextValue(num_words, num_words - 1),
+                    If(
+                        num_words == 1,  # NOTE: the updating of num_bytes is not sequential, it happens in the next loop
+                        NextValue(miso, 0),
+                        NextState("END")
+                    ).Else(
+                        NextValue(address, address + self.ADDRESS_WIDTH),
+                        NextState("READ_WISHBONE")
+                    )
                 ),
             ),
         )
 
         if wires == 3 or wires == 4:
             fsm.act("END",
+                NextValue(miso, 1),
                 miso_en.eq(1),
             )
         elif wires == 2:
@@ -353,16 +415,16 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             raise ValueError("invalid `wires` count: {}".format(wires))
 
 
-def add_spi(soc, config):
+def add_spi(soc, connection):
     """
     Adds spi connection to the board
     """
     soc.platform.add_extension([
         ("spi", 0, 
-            Subsignal("mosi", Pins(config.connection.mosi), IOStandard(config.connection.io_standard)),
-            Subsignal("miso", Pins(config.connection.miso), IOStandard(config.connection.io_standard)),
-            Subsignal("clk",  Pins(config.connection.clk),  IOStandard(config.connection.io_standard)),
-            Subsignal("cs_n", Pins(config.connection.cs_n), IOStandard(config.connection.io_standard))
+            Subsignal("mosi", Pins(connection.mosi), IOStandard(connection.io_standard)),
+            Subsignal("miso", Pins(connection.miso), IOStandard(connection.io_standard)),
+            Subsignal("clk",  Pins(connection.clk),  IOStandard(connection.io_standard)),
+            Subsignal("cs_n", Pins(connection.cs_n), IOStandard(connection.io_standard)),
         )
     ])
     spi_pads = soc.platform.request("spi")
@@ -373,8 +435,11 @@ def add_spi(soc, config):
         soc.spi_cd.clk.eq(ClockSignal("sys")),
         soc.spi_cd.rst.eq(ResetSignal("sys"))
     ]
+    # timing constraints
+    # soc.platform.add_period_constraint(soc.spi_cd.clk, 1e9/125e6)
+    # soc.platform.add_false_path_constraints(soc.crg.cd_sys.clk, soc.spi_cd.clk)
 
-    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads))
+    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, debug_led=soc.platform.request("user_led_n")))
     soc.add_wb_master(soc.spibone.wishbone)
 
 
