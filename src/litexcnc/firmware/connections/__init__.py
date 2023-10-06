@@ -10,9 +10,10 @@ CONNECTION_MAPPING = {
 
 
 def add_connection(soc, config):
-    if config.connection.connection_type not in CONNECTION_MAPPING:
-        raise KeyError(f"Unknown connection type '{config.connection.connection_type}'")
-    CONNECTION_MAPPING[config.connection.connection_type](soc, config)
+    for connection in config.connections:
+        if connection.connection_type not in CONNECTION_MAPPING:
+            raise KeyError(f"Unknown connection type '{config.connection.connection_type}'")
+        CONNECTION_MAPPING[connection.connection_type](soc, connection)
 
 
 __all__ = [

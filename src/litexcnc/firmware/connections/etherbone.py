@@ -1,7 +1,7 @@
 from ..boards.colorlight import ColorLightBase
 from ..boards.rv901t import RV901T
 
-def _add_etherbone_colorlight(soc, config):
+def _add_etherbone_colorlight(soc, connection):
     
     from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
     soc.submodules.ethphy = LiteEthPHYRGMII(
@@ -9,20 +9,20 @@ def _add_etherbone_colorlight(soc, config):
         pads       = soc.platform.request("eth"),
         **{key: value 
            for key, value
-           in config.connection.dict(exclude={'module'}).items()
+           in connection.dict(exclude={'module'}).items()
            if value is not None
            and key in ['tx_delay', 'rx_delay', 'with_hw_init_reset']
         }
     )
     soc.add_etherbone(
         phy=soc.ethphy,
-        mac_address=config.connection.mac_address,
-        ip_address=str(config.connection.ip_address),
+        mac_address=connection.mac_address,
+        ip_address=str(connection.ip_address),
         buffer_depth=255,
         data_width=32
     )
 
-def _add_etherbone_rv901t(soc, config):
+def _add_etherbone_rv901t(soc, connection):
     from liteeth.phy.s6rgmii import LiteEthPHYRGMII
         
     soc.ethphy = LiteEthPHYRGMII(
@@ -30,7 +30,7 @@ def _add_etherbone_rv901t(soc, config):
         pads       = soc.platform.request("eth", 0),
         **{key: value 
            for key, value
-           in config.connection.dict(exclude={'module'}).items()
+           in connection.dict(exclude={'module'}).items()
            if value is not None
            and key in ['tx_delay', 'rx_delay', 'with_hw_init_reset']
         }
@@ -38,8 +38,8 @@ def _add_etherbone_rv901t(soc, config):
     soc.submodules += soc.ethphy
     soc.add_etherbone(
         phy=soc.ethphy,
-        mac_address=config.connection.mac_address,
-        ip_address=str(config.connection.ip_address),
+        mac_address=connection.mac_address,
+        ip_address=str(connection.ip_address),
         buffer_depth=255,
         data_width=32
     )
@@ -54,10 +54,10 @@ ETHERBONE_PLATFORM = {
 }
 
 
-def add_etherbone(soc, config):
+def add_etherbone(soc, connection):
     """
     Adds etherbone to the board
     """
     if type(soc) not in ETHERBONE_PLATFORM:
         raise KeyError(f"Unknown platform {type(soc)}")
-    ETHERBONE_PLATFORM[type(soc)](soc, config)
+    ETHERBONE_PLATFORM[type(soc)](soc, connection)

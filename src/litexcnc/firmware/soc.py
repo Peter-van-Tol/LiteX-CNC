@@ -20,7 +20,7 @@ class LitexCNC_Firmware(BaseModel):
         description="The name of the board, required for identification purposes.",
         max_length=16
     )
-    connection: Union[EtherboneConnection, SPIboneConnection] = Field(
+    connections: List[Union[EtherboneConnection, SPIboneConnection]] = Field(
         ...,
         description="The configuration of the connection to the board."
     )
