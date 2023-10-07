@@ -53,7 +53,7 @@ static litexcnc_driver_registration_t *registration;
 /*
  * Parameters for SPI connection (prevent magic numbers in the code)
  **/
-static uint32_t speed = 500000;
+static uint32_t speed = 1800000;
 static uint16_t delay;
 static uint8_t bits = 8;
 
@@ -87,9 +87,9 @@ static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint
     litexcnc_spi_t *board = this->private;
     
     // Create the required buffers
-    uint8_t tx_buf[5+2+N];
-    memset((void*) tx_buf, 0, 5+2+N);
-    uint8_t rx_buf[5+2+N];
+    static uint8_t tx_buf[5+2+256];
+    memset((void*) tx_buf, 5, 2+N);
+    static uint8_t rx_buf[5+2+256];
     memset((void*) rx_buf, 0, 5+2+N);
 
      // Write data to package
@@ -133,34 +133,17 @@ static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint
 
 
 /*******************************************************************************
- * This function reads the status registers from the FPGA
+ * This function reads the status registers from the FPGA. IT is relyaed to the
+ * standard function litexcnc_spi_read_n_bytes.
  *
  * @param this    Pointer to the FPGA to read the data from.
  ******************************************************************************/
 static int litexcnc_spi_read(litexcnc_fpga_t *this) {
-    litexcnc_spi_t *board = this->private;
-    
-    // TODO
-    // LITEXCNC_PRINT_NO_DEVICE("Transmitted \n");
-    // for (size_t j=0; j<(8 + N); j+=4) {
-    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-    //             (unsigned char)tx_buf[j+0],
-    //             (unsigned char)tx_buf[j+1],
-    //             (unsigned char)tx_buf[j+2],
-    //             (unsigned char)tx_buf[j+3]);
-    // }
-    // LITEXCNC_PRINT_NO_DEVICE("Received \n");
-    // for (size_t j=0; j<(8 + N); j+=4) {
-    //     LITEXCNC_PRINT_NO_DEVICE("%02X %02X %02X %02X\n",
-    //             (unsigned char)rx_buf[j+0],
-    //             (unsigned char)rx_buf[j+1],
-    //             (unsigned char)rx_buf[j+2],
-    //             (unsigned char)rx_buf[j+3]);
-    // }
-
-    
-    // Successful read
-    return 0;
+    return litexcnc_spi_read_n_bytes(
+        this, 
+        this->read_base_address, 
+        this->read_buffer, 
+        this->read_buffer_size);
 }
 
 
@@ -179,8 +162,8 @@ static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uin
     litexcnc_spi_t *board = this->private;
     
     // Create the required buffers
-    uint8_t tx_buf[5+2+N];
-    uint8_t rx_buf[5+2+N];
+    static uint8_t tx_buf[5+2+256];
+    static uint8_t rx_buf[5+2+256];
     memset((void*) rx_buf, 0, 5+2+N);
 
      // Write data to package
@@ -228,21 +211,11 @@ static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uin
  * @param this    Pointer to the FPGA to write the data to.
  ******************************************************************************/
 static int litexcnc_spi_write(litexcnc_fpga_t *this) {
-    litexcnc_spi_t *board = this->private;
-    
-    // TODO
-    
-    // Successful read
-    return 0;
-}
-
-
-static int litexcnc_init_buffers(litexcnc_fpga_t *this) {
-    litexcnc_spi_t *board = this->private;
-
-    // TODO
-
-    return 0;
+    return litexcnc_spi_write_n_bytes(
+        this, 
+        this->write_base_address, 
+        this->write_buffer, 
+        this->write_buffer_size);
 }
 
 
@@ -270,10 +243,10 @@ static int initialize_driver(char *connection_string, int comp_id) {
     boards[boards_count]->fpga.comp_id           = comp_id;
     boards[boards_count]->fpga.read_n_bits       = litexcnc_spi_read_n_bytes;
     boards[boards_count]->fpga.read              = litexcnc_spi_read;
-    boards[boards_count]->fpga.read_header_size  = 8;
+    boards[boards_count]->fpga.read_header_size  = 0;
     boards[boards_count]->fpga.write_n_bits      = litexcnc_spi_write_n_bytes;
     boards[boards_count]->fpga.write             = litexcnc_spi_write;
-    boards[boards_count]->fpga.write_header_size = 8;
+    boards[boards_count]->fpga.write_header_size = 0;
     boards[boards_count]->fpga.private           = boards[boards_count];
     // Register the board with the main function
     ret = litexcnc_register(&boards[boards_count]->fpga);
@@ -285,12 +258,6 @@ static int initialize_driver(char *connection_string, int comp_id) {
     ret = hal_param_bit_newf(HAL_RW, &(boards[boards_count]->hal.param.debug), comp_id, "%s.debug", boards[boards_count]->fpga.name);
     if (ret < 0) {
         LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", boards[boards_count]->fpga.name);
-        return ret;
-    }
-    // Create the pins for the board and write headers to the buffers
-    ret = litexcnc_init_buffers(&boards[boards_count]->fpga);
-    if (ret != 0) {
-        rtapi_print("Failed to create pins and params for the board\n");
         return ret;
     }
     // Proceed to the next board
