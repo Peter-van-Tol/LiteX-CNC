@@ -18,8 +18,8 @@
 #ifndef __INCLUDE_LITEXCNC_PIGPIO_H__
 #define __INCLUDE_LITEXCNC_PIGPIO_H__
 
-#define LITEXCNC_ETH_NAME    "litexcnc_pigpio"
-#define LITEXCNC_ETH_VERSION "1.0.0"
+#define LITEXCNC_PIGPIO_NAME    "litexcnc_pigpio"
+#define LITEXCNC_PIGPIO_VERSION "1.0.0"
 #define MAX_SPI_BOARDS 4
 
 #include <litexcnc.h>
