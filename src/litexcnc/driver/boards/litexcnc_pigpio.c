@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
-#include <linux/spi/spidev.h>
+#include <sys/types.h>
 
 #include <rtapi_slab.h>
 #include <rtapi_list.h>
@@ -270,7 +270,7 @@ static int initialize_driver(char *connection_string, int comp_id) {
         ++conn_str_ptr;                // Move port pointer forward
         speed = atoi(conn_str_ptr);    // Convert the speed to an integer
     }
-    boards[boards_count]->connection = spiOpen(atoi(connection_string), speed, 0);;
+    boards[boards_count]->connection = spiOpen(atoi(connection_string), speed, 0);
     if (boards[boards_count]->connection < 0) {
         fprintf(stderr, "main: opening device file: %s: %s\n", connection_string, strerror(errno));
         gpioTerminate();
