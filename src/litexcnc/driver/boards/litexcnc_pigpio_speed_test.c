@@ -46,6 +46,8 @@
 #define LITEXCNC_PIGPIO_SPEED_TEST_NAME    "litexcnc_pigpio_speedtest"
 #define LITEXCNC_PIGPIO_SPEED_TEST_VERSION "1.0.0"
 
+#define LOOPS 10000
+
 // This keeps track of the component id. Required for setup and tear down.
 static int comp_id;
 
@@ -123,14 +125,20 @@ int rtapi_app_main(void) {
         // Open the SPI connection
         fd = spiOpen(0, speed, 0);
 
+        double max = 0;
         double start = time_time();
 
-        for (size_t i=0; i<10000; i++) {
-
+        for (size_t i=0; i<LOOPS; i++) {
+            
+            double start2 = time_time();
             int ret = spiXfer(fd, tx_data, rx_data, BYTES);
             if (ret < 1) {
                 fprintf(stderr, "Could not write to SPI device\n");
                 return -1;
+            }
+            double diff2 = time_time() - start2;
+            if (diff2 > max) {
+                max = diff2;
             }
 
             // Check whether write was successfull
@@ -169,8 +177,8 @@ int rtapi_app_main(void) {
 
         fprintf(
             stderr, 
-            "sps=%.1f: %d bytes @ %d bps (loops=%d time=%.1f)\n", 
-            (double)10000 / diff, BYTES, speed, 10000, diff
+            "sps=%.1f: %d bytes @ %d bps (loops=%d, average time=%.3f us, maximum time=%.3f us)\n", 
+            (double)10000 / diff, BYTES, speed, 10000, diff / LOOPS * 1e6f, max * 1e6
         );
 
         spiClose(fd);
