@@ -18,8 +18,8 @@
 #ifndef __INCLUDE_LITEXCNC_ETH_H__
 #define __INCLUDE_LITEXCNC_ETH_H__
 
-#define LITEXCNC_ETH_NAME    "litexcnc_spi"
-#define LITEXCNC_ETH_VERSION "1.0.0"
+#define LITEXCNC_SPIDEV_NAME    "litexcnc_spidev"
+#define LITEXCNC_SPIDEV_VERSION "1.0.1"
 #define MAX_SPI_BOARDS 4
 
 #include <litexcnc.h>

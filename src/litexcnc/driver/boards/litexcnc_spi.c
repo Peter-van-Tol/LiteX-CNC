@@ -63,13 +63,13 @@ static uint8_t bits = 8;
  * In case a user does not connect to this type of connection, the driver is not
  * loaded at all.
  ******************************************************************************/
-int register_spi_driver(void) {
+int register_spidev_driver(void) {
     registration = (litexcnc_driver_registration_t *)hal_malloc(sizeof(litexcnc_driver_registration_t));
-    rtapi_snprintf(registration->name, sizeof(registration->name), "spi");
+    rtapi_snprintf(registration->name, sizeof(registration->name), "spidev");
     registration->initialize_driver = *initialize_driver;
     return litexcnc_register_driver(registration);
 }
-EXPORT_SYMBOL_GPL(register_spi_driver);
+EXPORT_SYMBOL_GPL(register_spidev_driver);
 
 
 /*******************************************************************************
@@ -275,7 +275,7 @@ int rtapi_app_main(void) {
     LITEXCNC_ERR_NO_DEVICE("    loadrt litexcnc\n");
     LITEXCNC_ERR_NO_DEVICE("    loadrt litexcnc_spi connection_string=\"%s\"\n", connection_string[0]);
     LITEXCNC_ERR_NO_DEVICE("Please use the folllowing single command in your hal-file instead:\n");
-    LITEXCNC_ERR_NO_DEVICE("    loadrt litexcnc connections=\"spi:%s\"\n", connection_string[0]);
+    LITEXCNC_ERR_NO_DEVICE("    loadrt litexcnc connections=\"spidev:%s\"\n", connection_string[0]);
     LITEXCNC_ERR_NO_DEVICE("For more information, see: https://github.com/Peter-van-Tol/LiteX-CNC/issues/32 \n");
     LITEXCNC_ERR_NO_DEVICE("Stopping LinuxCNC now!\n");
     return -1;
