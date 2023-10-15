@@ -13,6 +13,7 @@ Contents
    :maxdepth: 2
 
    Overview <readme>
+   Connections <connections/index>
    Modules <modules/index>
    Examples <examples/index>
    License <license>

@@ -1,0 +1,5 @@
+loadrt litexcnc connections="pigpio:0:2000000"
+show function
+loadrt threads name1=test-thread period1=1000000
+addf EMCO5_SPI.read  test-thread
+addf EMCO5_SPI.write test-thread

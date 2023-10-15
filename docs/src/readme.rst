@@ -74,7 +74,7 @@ is described in their :doc:`relevant sections </modules/index>`.
 .. code-block:: json
 
     "board_name": "test_PWM_GPIO",
-    "baseclass": "litexcnc.firmware.boards.ColorLight_5A_75E_V7_1",
+    "board_type": "5A-75E v6.0",
     "clock_frequency": 40000000,
     "connection": {
         "connection_type": "etherbone",
@@ -98,12 +98,9 @@ board_type
     * ``5A-75E v7.1``
     * ``RV901T`` 
 
-clock_frequency
-    The clock-frequency of the board. Recommended value is 40 MHz.
 connection
-    Settings for the connection adapter. At this moment only ``etherbone`` is supported, 
-    however ``spi`` is under development. Use default values as shown in example and change
-    mac-address and ip-address to the needs of the project.
+    Settings for the connection adapter. At this moment ``etherbone`` and ``SPI`` are 
+    supported. See the :doc:`connections sections </connections/index>` for more information.
 
 Some example configuration are given in the :doc:`examples sections </examples/index>`.
 
