@@ -12,6 +12,6 @@ from your PC to the FPGA.
    :maxdepth: 2
 
    Ethernet <ethernet>
-   SPI (``spidev``) <spidev>
-   SPI (``pigio``) <pigpio>
+   SPI - spidev <spidev>
+   SPI - pigio <pigpio>
  
