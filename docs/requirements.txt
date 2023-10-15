@@ -1,1 +1,2 @@
 sphinx-code-tabs
+sphinxcontrib-jquery
