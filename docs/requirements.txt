@@ -1,2 +1,3 @@
 sphinx-code-tabs
+sphinx-rtd-theme
 sphinxcontrib-jquery
