@@ -9,7 +9,7 @@ Litex-CNC. Connections define the way how the data is being transferred
 from your PC to the FPGA. 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    Ethernet <ethernet>
    SPI - spidev <spidev>
