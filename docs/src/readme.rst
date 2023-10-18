@@ -58,9 +58,59 @@ drivers the included scripts:
     It might be necessary to replace ``python`` with the name of the python executable in which 
     litexcnc is installed (for example ``python3``)
 
+.. note::
+    Using the ``--help`` argument on each of the commands will show additional information on the 
+    arguments and options of eacht command.  
+
+Compiling the driver
+--------------------
+
+.. note::
+    Compilation of the driver is only required once as long the same version of LitexCNC is used. When 
+    LitexCNC is updated, please re-install the driver; the version of the firmware should always be the 
+    same as the version of the driver.  An error will be produced by LinuxCNC when the versions do not
+    match.
+
+.. note::
+    To install the driver, ``linuxcnc-dev`` should be installed on the system. 
+
+The firmare can be created based with the following command:
+
+.. code-block:: shell
+
+    litexcnc install_driver
+
+.. info::
+    When ``sudo`` is required to install the driver, it might be required to pass the environment variables
+    to the command:
+
+    .. code-block:: shell
+
+        sudo -E env PATH=$PATH litexcnc install_driver
+
+Installing Litex and toolchain
+------------------------------
+
 Both Litex and the toolchain (OSS-CAD-suite) will be installed by default be installed in the ``/opt``
-folder. Optionally the flag ``--user`` can be supplied to both commands, in which case the building
-environment is installed in ``HOME``-directory.
+folder. Optionally the flag ``--user`` can be supplied to both ``install_litex`` and ``install_toolchain``, in
+which case the building environment is installed in ``HOME``-directory.
+
+Litex can be installed using:
+
+.. code-block:: shell
+
+    litexcnc install_litex
+
+The toolchain can be installed using:
+
+.. code-block:: shell
+
+    litexcnc install_toolchain
+
+The command ``install_toolchain`` automatically detects which operating system (Darwin, Linux, or Windows)
+and architecture (arm, arm64 or x64) is used. The version is shown in the terminal while downloading the
+software. In case the detection is erronous, the correct OS and architecture can be chosen by using the
+``--os`` and ``-architecture`` options of the command.
 
 Configuration of the FPGA
 =========================
@@ -154,32 +204,6 @@ permanent. To make the program reside in the flash of the FPGA, the bit-file has
     litexcnc convert_bit_to_flash colorlight_5a_75e.bit colorlight_5a_75e.flash
 
 The created ``.flash`` file can now be flashed to the FPGA using the same method as used before.
-
-Compiling the driver
---------------------
-
-.. note::
-    Compilation of the driver is only required once as long the same version of LitexCNC is used. When 
-    LitexCNC is updated, please re-install the driver; the version of the firmware should always be the 
-    same as the version of the driver.  An error will be produced by LinuxCNC when the versions do not
-    match.
-
-.. note::
-    To install the driver, ``linuxcnc-dev`` should be installed on the system. 
-
-The firmare can be created based with the following command:
-
-.. code-block:: shell
-
-    litexcnc install_driver
-
-.. info::
-    When ``sudo`` is required to install the driver, it might be required to pass the environment variables
-    to the command:
-
-    .. code-block:: shell
-
-        sudo -E env PATH=$PATH litexcnc install_driver
 
 Usage in HAL
 ============
