@@ -6,10 +6,10 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
-Under development
-=================
+Version 1.0.3
+=============
 
-These are the features which are currently under development, but not yet released.
+Bugfixes for several issues.
 
 * ``driver``:
 
@@ -17,7 +17,7 @@ These are the features which are currently under development, but not yet releas
 
 * ``cli``:
 
-  * ``install_litex``: Solved bug which prevented installation without the option ``--user``.
+  * ``install_litex``: Solved bug which prevented installation without the option ``--user`` (#47).
   * ``install_toolchain``: Auto-detection of both architecture and os. Command line options
     are only required when installing specific versions.
 
