@@ -15,6 +15,11 @@ These are the features which are currently under development, but not yet releas
 
   * ``encoder``: calculation of average speed has been correctd (#50).
 
+* ``cli``:
+
+  * ``install_litex``: Solved bug which prevented installation without the option ``--user``.
+  * ``install_toolchain``: Auto-detection of both architecture and os. Command line options
+    are only required when installing specific versions.
 
 Version 1.0.2
 =============
