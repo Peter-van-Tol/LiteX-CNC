@@ -40,7 +40,7 @@ def cli(user, arch, os_):
     # Download and install the selected files
     with tempfile.TemporaryDirectory() as tempdirname:
         # Download the toolchain from the source
-        click.echo(click.style("INFO", fg="blue") + f": Downloading OSS-CAD-Suite ...")
+        click.echo(click.style("INFO", fg="blue") + f": Downloading OSS-CAD-Suite ({os_}/{arch}) ...")
         download = os.path.join(tempdirname, f'oss-cad-suite-{os_}-{arch}-20220227.tgz')
         response = requests.get(
             f'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-07/oss-cad-suite-{os_}-{arch}-20221207.tgz'
