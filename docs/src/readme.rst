@@ -88,8 +88,8 @@ The firmare can be created based with the following command:
 
         sudo -E env PATH=$PATH litexcnc install_driver
 
-Installing Litex and toolchain
-------------------------------
+Installing Litex
+----------------
 
 Both Litex and the toolchain (OSS-CAD-suite) will be installed by default be installed in the ``/opt``
 folder. Optionally the flag ``--user`` can be supplied to both ``install_litex`` and ``install_toolchain``, in
@@ -101,11 +101,36 @@ Litex can be installed using:
 
     litexcnc install_litex
 
+Options for the command are:
+
+--directory
+    Defines a specific directory to install Litex in. By default, Litex is installed
+    in `\opt` (regular install) or `~` (when using --user option). This option can be
+    used when you don't have rights to write in `\opt`.
+--user
+    Installs Litex in the userspace site-packages. When this option has been selected,
+    Litex will be installed in ~/litex, unless another directory has been defined.
+
+Installing toolchain
+--------------------
+
 The toolchain can be installed using:
 
 .. code-block:: shell
 
     litexcnc install_toolchain
+
+Options for the command are:
+
+--user
+    Installs Litethe toolchain for current user only. By default, the toolchain is installed
+    in `\opt` (regular install) or `~` (when using --user option).
+--architecture
+    The architecture (arm, arm64 or x64) to install the binaries for. Normally auto-detected
+    (see below)
+--os
+    The Operating System (Darwin, Linux, or Windows) to install the binaries for. Normally
+    auto-detected (see below)
 
 The command ``install_toolchain`` automatically detects which operating system (Darwin, Linux, or Windows)
 and architecture (arm, arm64 or x64) is used. The version is shown in the terminal while downloading the
