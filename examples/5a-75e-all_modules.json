@@ -1,0 +1,47 @@
+{
+    "board_name": "simple_5a-75a",
+    "board_type": "5A-75E v8.0",
+    "clock_frequency": 40000000,
+    "ethphy": {
+        "tx_delay": 0
+    },
+    "etherbone": {
+        "ip_address": "10.0.0.10",
+        "mac_address": "0x10e2d5000000"
+    },
+    "modules": [
+        {
+            "module_type": "gpio",
+            "instances": [
+                {"direction": "in", "pin":"j2:1"},
+                {"direction": "in", "pin":"j2:5"},
+                {"direction": "out","pin": "j16:1"},
+                {"direction": "out","pin": "j16:5"}
+            ]
+        }, {
+            "module_type": "pwm",
+            "instances": [
+                {"pin": "j15:1"}
+            ]
+        }, {
+            "module_type": "encoder",
+            "instances": [
+                {"pin_A":"j3:0", "pin_B":"j3:1"},
+                {"pin_A":"j3:2", "pin_B":"j3:4"},
+                {"pin_A":"j3:5", "pin_B":"j3:6"},
+            ]
+        }, {
+            "module_type": "stepgen",
+            "instances": [
+                {
+                    "pins" : {
+                        "stepgen_type": "step_dir",
+                        "step_pin": "j7:0",
+                        "dir_pin": "j7:1"
+                    },
+                    "soft_stop": true
+                }
+            ]
+        }
+    ]
+}

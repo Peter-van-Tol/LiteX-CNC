@@ -1,0 +1,43 @@
+{
+    "board_name": "simple_5a-75a",
+    "board_type": "5A-75E v8.0",
+    "clock_frequency": 50000000,
+    "ethphy": {
+        "tx_delay": 0
+    },
+    "etherbone": {
+        "ip_address": "192.168.0.50",
+        "mac_address": "0x10e2d5000000"
+    },
+    "modules": [
+        {
+            "module_type": "gpio",
+            "instances": [
+                {"direction": "in", "pin":"j12:0", "name": "optional_name_unique"},
+                {"direction": "in", "pin":"j12:1"},
+                {"direction": "in", "pin":"j12:2"},
+                {"direction": "in", "pin":"j12:4"},
+                {"direction": "in", "pin":"j12:5"},
+                {"direction": "in", "pin":"j12:6"},
+                {"direction": "in", "pin":"j13:0"},
+                {"direction": "in", "pin":"j13:1"},
+                {"direction": "in", "pin":"j13:2"},
+                {"direction": "in", "pin":"j13:4"},
+                {"direction": "in", "pin":"j13:5"},
+                {"direction": "in", "pin":"j13:6"},
+                {"direction": "out", "pin": "j3:0"},
+                {"direction": "out", "pin": "j3:1"},
+                {"direction": "out", "pin": "j3:2"},
+                {"direction": "out", "pin": "j3:4"},
+                {"direction": "out", "pin": "j3:5"},
+                {"direction": "out", "pin": "j3:6"},
+                {"direction": "out", "pin": "j4:0"},
+                {"direction": "out", "pin": "j4:1"},
+                {"direction": "out", "pin": "j4:2"},
+                {"direction": "out", "pin": "j4:4"},
+                {"direction": "out", "pin": "j4:5"},
+                {"direction": "out", "pin": "j4:6"}
+            ]
+        }
+    ]
+}
