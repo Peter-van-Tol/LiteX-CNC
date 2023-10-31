@@ -36,10 +36,12 @@ class GPIO_PinBase(ModuleInstanceBaseModel):
 
 class GPIO_PinIn(GPIO_PinBase):
     direction: Literal['in']
-    pins: ClassVar[List[str]] = [
+    hal_pins: ClassVar[List[str]] = [
         'in',
         'in-not',
     ]
+    hal_params: ClassVar[List[str]] = []
+
 
 
 class GPIO_PinOut(GPIO_PinBase):
@@ -53,10 +55,10 @@ class GPIO_PinOut(GPIO_PinBase):
         "governed by the `invert_output` parameter; this setting does not alter "
         "behavior when running LinuxCNC."
     )
-    pins: ClassVar[List[str]] = [
+    hal_pins: ClassVar[List[str]] = [
         'out',
     ]
-    params: ClassVar[List[str]] = [
+    hal_params: ClassVar[List[str]] = [
         'invert_output',
     ]
 

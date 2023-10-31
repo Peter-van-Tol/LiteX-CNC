@@ -61,7 +61,7 @@ class EncoderInstanceConfig(ModuleInstanceBaseModel):
         "LVCMOS33",
         description="The IO Standard (voltage) to use for the pins."
     )
-    pins: ClassVar[List[str]] = [
+    hal_pins: ClassVar[List[str]] = [
         "counts",
         "reset",
         "index-enable",
@@ -71,7 +71,7 @@ class EncoderInstanceConfig(ModuleInstanceBaseModel):
         "velocity-rpm",
         "overflow-occurred"
     ]
-    params: ClassVar[List[str]] = [
+    hal_params: ClassVar[List[str]] = [
         "position-scale",
         "x4-mode"
     ]
