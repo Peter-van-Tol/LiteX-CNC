@@ -134,6 +134,29 @@ class StepgenInstanceConfig(BaseModel):
         "disabled. When True, the stepgen will stop the machine with respect to the "
         "acceleration limits and then be disabled. Default value: False."
     )
+    hal_pins: ClassVar[List[str]] = [
+        'counts',
+        'position-feedback',
+        'position-prediction',
+        'velocity-feedback',
+        'velocity-prediction',
+        'enable',
+        'velocity-mode',
+        'position-cmd',
+        'velocity-cmd',
+        'acceleration-cmd',
+        'debug'
+    ]
+    hal_params: ClassVar[List[str]] = [
+        'frequency',
+        'max-acceleration',
+        'max-velocity',
+        'position-scale',
+        'steplen',
+        'stepspace',
+        'dir-setup-time',
+        'dir-hold-time',
+    ]
 
 
 class StepgenModuleConfig(ModuleBaseModel):
