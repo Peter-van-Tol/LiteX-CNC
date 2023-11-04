@@ -47,7 +47,7 @@ class LitexCncCLI(click.MultiCommand):
         try:
             with open(fn) as f:
                 code = compile(f.read(), fn, 'exec')
-                eval(code, ns, ns)
+                eval(code, ns, ns.update({"__file__": __file__}))
         except FileNotFoundError:
             # Return nothing, click will display a nice message for us
             return
