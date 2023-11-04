@@ -115,11 +115,13 @@ class Hub75Hat(colorlight_5a_75b.Platform):
             "j5:13",  # CLOCK
             "j5:11",  # CS
         ]
+        ena = ["j5:10"]
         return [
             ("j1", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in j1])),
             ("j2", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in j2])),
             ("j3", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in j3])),
             ("spi", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in spi])),
+            ("ena", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in ena])),
         ]
 
     def __init__(self, revision="7.0", toolchain="trellis"):
