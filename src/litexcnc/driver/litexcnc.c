@@ -704,6 +704,10 @@ void rtapi_app_exit(void) {
     rtapi_list_for_each(ptr, &litexcnc_list) {
         litexcnc_t* board = rtapi_list_entry(ptr, litexcnc_t, list);
         litexcnc_reset(board->fpga);
+        // Unload driver
+        if (board->fpga->terminate) {
+            board->fpga->terminate(board->fpga);
+        }
     }
 
     // Exit the component

@@ -30,7 +30,7 @@ class PWM_Instance(ModuleInstanceBaseModel):
         "LVCMOS33",
         description="The IO Standard (voltage) to use for the pin."
     )
-    pins: ClassVar[List[str]] = [
+    hal_pins: ClassVar[List[str]] = [
         'curr_dc',
         'curr_period',
         'curr_pwm_freq',
@@ -44,6 +44,7 @@ class PWM_Instance(ModuleInstanceBaseModel):
         'scale',
         'value'
     ]
+    hal_pins: ClassVar[List[str]] = []
 
 
 class PWM_ModuleConfig(ModuleBaseModel):

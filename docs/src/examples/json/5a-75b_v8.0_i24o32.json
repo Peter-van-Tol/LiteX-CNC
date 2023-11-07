@@ -2,10 +2,9 @@
     "board_name": "5A-75B:V8.0",
     "board_type": "5A-75B v8.0",
     "clock_frequency": 40000000,
-    "ethphy": {
-        "tx_delay": 0
-    },
-    "etherbone": {
+    "connection": {
+        "connection_type": "etherbone",
+        "tx_delay": 0,
         "ip_address": "10.0.0.10",
         "mac_address": "0x10e2d5000000"
     },

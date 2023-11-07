@@ -127,6 +127,7 @@ struct litexcnc_fpga_struct {
     // - on failure they return FALSE (0) and set *self->io_error (below) to TRUE
     int (*read)(litexcnc_fpga_t *self);
     int (*write)(litexcnc_fpga_t *self);
+    int (*terminate)(litexcnc_fpga_t *self);
     hal_bit_t *io_error;
 
     // Functions which will be called during various stages
