@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 from .etherbone import add_etherbone
 from .spi import add_spi
 
@@ -10,7 +12,10 @@ CONNECTION_MAPPING = {
 
 
 def add_connection(soc, config):
-    for connection in config.connections:
+    connections = config.connection
+    if not isinstance(config.connection, list):
+        connections = [connections]
+    for connection in connections:
         if connection.connection_type not in CONNECTION_MAPPING:
             raise KeyError(f"Unknown connection type '{config.connection.connection_type}'")
         CONNECTION_MAPPING[connection.connection_type](soc, connection)
