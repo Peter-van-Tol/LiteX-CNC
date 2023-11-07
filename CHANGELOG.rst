@@ -6,6 +6,21 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.0.3
+=============
+
+Bugfixes for several issues.
+
+* ``driver``:
+
+  * ``encoder``: calculation of average speed has been correctd (#50).
+
+* ``cli``:
+
+  * ``install_litex``: Solved bug which prevented installation without the option ``--user`` (#47).
+  * ``install_toolchain``: Auto-detection of both architecture and os. Command line options
+    are only required when installing specific versions.
+
 Version 1.0.2
 =============
 
