@@ -108,35 +108,62 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
         # Done!
         click.echo(click.style("INFO", fg="blue") + f": OSS-CAD-Suite successfully installed")
 
-# def _install_openocd(target: str, user: bool):
+def _install_openocd(target: str, user: bool):
+    """Installs the OpenOCD for Raspberry Pi"""
+    click.echo(click.style("INFO", fg="blue") + f": Installing OpenOCD for Raspberry Pi.")
 
-#     # Download and install the selected files
-#     with tempfile.TemporaryDirectory() as tempdirname:
-#         # Cloning OpenOCD
-#         click.echo(click.style("INFO", fg="blue") + f": Cloning OpenOCD ...")
-#         ret = subprocess.call(
-#             "git clone http://openocd.zylin.com/openocd", 
-#             cwd=tempdirname,
-#             shell=True
-#         )
-#         # Configure OpenOCD to include support for Raspberry Pi
-#         ret = subprocess.call(
-#             "./bootstrap && ./configure --enable-sysfsgpio --enable-bcm2835gpio && make", 
-#             cwd=os.path.join(tempdirname, "openocd"),
-#             shell=True
-#         )
-#         if user:
-#             ret = subprocess.call(
-#                 "make install", 
-#                 cwd=os.path.join(tempdirname, "openocd"),
-#                 shell=True
-#             ) 
-#         else:
-#             ret = subprocess.call(
-#                 "sudo make install", 
-#                 cwd=os.path.join(tempdirname, "openocd"),
-#                 shell=True
-#             )
+    # Removing installed version of OpenOCD from oss-cad-suite
+    if os.path.exists(f"{target}/oss-cad-suite/bin/openocd"):
+        os.remove(f"{target}/oss-cad-suite/bin/openocd")
+
+    # Install pre-requisites
+    click.echo(click.style("INFO", fg="blue") + f": Installing pre-requisites ...")
+    if subprocess.call(
+            "sudo apt-get update",
+            shell=True):
+        click.echo(click.style("ERROR", fg="red") + ": Cannot update system.")
+        return -1
+    if subprocess.call(
+            "sudo apt-get install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev",
+            shell=True):
+        click.echo(click.style("ERROR", fg="red") + ": Cannot install pre-requisites.")
+        return -1
+
+    # Download and install the selected files
+    with tempfile.TemporaryDirectory() as tempdirname:
+        # Cloning OpenOCD
+        click.echo(click.style("INFO", fg="blue") + f": Cloning OpenOCD ...")
+        if subprocess.call(
+                "git clone http://openocd.zylin.com/openocd", 
+                cwd=tempdirname,
+                shell=True
+            ):
+            click.echo(click.style("ERROR", fg="red") + ": Could not clone OpenOCD.")
+            return -1
+
+        # Configure OpenOCD to include support for Raspberry Pi
+        click.echo(click.style("INFO", fg="blue") + f": Configuring and making OpenOCD (this make take a while) ...")
+        command = f"./bootstrap && "
+        command += "./configure --enable-sysfsgpio --enable-bcm2835gpio && "
+        command += "make"
+        if subprocess.call(
+                command, 
+                cwd=os.path.join(tempdirname, "openocd"),
+                shell=True
+            ):
+            click.echo(click.style("ERROR", fg="red") + ": Could not make OpenOCD.")
+            return -1
+
+        # Installing OpenOCD
+        command = "sudo make install"
+        if subprocess.call(
+                "sudo make install", 
+                cwd=os.path.join(tempdirname, "openocd"),
+                shell=True
+            ):
+            click.echo(click.style("ERROR", fg="red") + ": Failed to install OpenOCD.")
+            return -1
+
 
 @click.command()
 @click.option('--user', is_flag=True)
@@ -153,8 +180,15 @@ def cli(user, directory, arch, os_):
     """Installs the Toolchain for ECP5 (oss-cad-suite)"""
     target = directory if directory else '/opt'
     if user and not directory:
-        target = str(Path.home())
+        target = str(Path.home() / "toolchain")
     
-    # Install the components of the toolchain
+    # # Install the components of the toolchain
     _install_litex(target, user)
     _install_oss_cad_suite(target, user, arch, os_)
+
+    # When this instance is on a Raspberry Pi, install a custom version
+    # of OpenOCD, which supports programming by the GPIO pins
+    if os.name == 'posix' and os.path.exists("/sys/firmware/devicetree/base/model"):
+        with open('/sys/firmware/devicetree/base/model', 'r') as m:
+            if 'raspberry pi' in m.read().lower():
+                _install_openocd(target, user)
