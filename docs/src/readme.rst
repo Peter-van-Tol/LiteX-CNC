@@ -50,6 +50,7 @@ drivers the included scripts:
     litexcnc install_litex 
     litexcnc install_toolchain
     litexcnc build_firmware
+    litexcnc flash_firmware
     litexcnc convert_bit_to_flash
 
 .. note::
@@ -88,29 +89,6 @@ The firmare can be created based with the following command:
 
         sudo -E env PATH=$PATH litexcnc install_driver
 
-Installing Litex
-----------------
-
-Both Litex and the toolchain (OSS-CAD-suite) will be installed by default be installed in the ``/opt``
-folder. Optionally the flag ``--user`` can be supplied to both ``install_litex`` and ``install_toolchain``, in
-which case the building environment is installed in ``HOME``-directory.
-
-Litex can be installed using:
-
-.. code-block:: shell
-
-    litexcnc install_litex
-
-Options for the command are:
-
---directory
-    Defines a specific directory to install Litex in. By default, Litex is installed
-    in `\opt` (regular install) or `~` (when using --user option). This option can be
-    used when you don't have rights to write in `\opt`.
---user
-    Installs Litex in the userspace site-packages. When this option has been selected,
-    Litex will be installed in ~/litex, unless another directory has been defined.
-
 Installing toolchain
 --------------------
 
@@ -120,22 +98,29 @@ The toolchain can be installed using:
 
     litexcnc install_toolchain
 
+.. note:: 
+    The commmand ``install_litex`` has been deprecated. The command ``install_toolchain``
+    includes Litex, OSS-CAD-suite, and OpenOCD (RaspberryPi only).
+
 Options for the command are:
 
 --user
     Installs Litethe toolchain for current user only. By default, the toolchain is installed
     in `\opt` (regular install) or `~` (when using --user option).
---architecture
-    The architecture (arm, arm64 or x64) to install the binaries for. Normally auto-detected
-    (see below)
---os
-    The Operating System (Darwin, Linux, or Windows) to install the binaries for. Normally
-    auto-detected (see below)
+--directory
+    Defines a specific directory to install the toolchain in. By default, the toolchain is
+    installed in `\opt` (regular install) or `~` (when using --user option). This option can
+    be used when you don't have rights to write in `\opt`.
 
+.. info::
 The command ``install_toolchain`` automatically detects which operating system (Darwin, Linux, or Windows)
 and architecture (arm, arm64 or x64) is used. The version is shown in the terminal while downloading the
 software. In case the detection is erronous, the correct OS and architecture can be chosen by using the
 ``--os`` and ``-architecture`` options of the command.
+
+On the RaspberryPi this command also installs OpenOCD, with the options for programming the FPGA
+using the GPIO pins. Installing OpenOCD requires privileges, you might be prompted for a password
+when this is required for ``sudo``.
 
 Configuration of the FPGA
 =========================
@@ -201,34 +186,46 @@ The firmare can be created based with the following command:
 
 Type ``litexcnc build_firmware --help`` for more options. 
 
-After building the firmware, all files will reside in the ``.\<FGPA_NAME\gateware`` directory. The ``.svf`` 
-in this directory can be flashed to your FPGA using a program such as OpenOCD (part of the OSS-CAD-suite
-which is by default installed as part of the toolchain). An example of such a command is:
+Flashing the firmware
+---------------------
+After building the firmware, all files will reside in the ``.\<FGPA_NAME>\gateware`` directory. For
+flashing the firmware, one can use the built-in command:
 
 .. code-block:: shell
+    litexcnc flash_firmware [OPTIONS] SVF-FILE
 
-    openocd \
-        -f interface/raspberrypi-native-mod.cfg \
-        -c "transport select jtag" \
-        -f fpga/lattice_ecp5.cfg \
-        -c "init; svf quiet progress colorlight_5a_75e.svf; exit"
+Options for the command are:
+
+--permanent
+    With this option the firmware will be written to flash and thus be persistent. By default, the 
+    .svf-file is not retained in th flash of the FPGA. When the card is power-cycled, the previous
+    program will run again. This makes it possible to test new version and features before making
+    them permanent. With this option the .svf-file (more correctly, the .bit-file which resides
+    in the same folder) is converted so it is programmed to flash memory.
+--programmer
+    By default the program uses the RaspberryPi GPIO as a programmer (see pin-out below). With this
+    option another programmer can be selected. See for supported adapters the `OpenOCD documentation <https://openocd.org/doc/html/Debug-Adapter-Configuration.html#Debug-Adapter-Configuration>`_.
+
+The default pinout of the JTAG header on the RaspberryPi using this command is:
+
++----------+------------+----------+----------+
+| GPIO num | Header pin | Function | LED-card |
++==========+============+==========+==========+
+| 16       | 36         | TCK      | J27      |
++----------+------------+----------+----------+
+| 6        | 31         | TMS      | J31      |
++----------+------------+----------+----------+
+| 19       | 35         | TDI      | J32      |
++----------+------------+----------+----------+
+| 26       | 37         | TDO      | J30      |
++----------+------------+----------+----------+
 
 .. info::
-    You can use the GPIO of your Raspberry Pi to flash the FPGA. The version of OpenOCD included with the
-    toolchain however, does not support teh GPIO. A good guide on how to install OpenOCD with support for
-    GPIO on your Rasberry Pi can be found `here <https://catleytech.com/?p=2679>`_.
+    There are multiple layouts used for programming with the RaspberryPi. This command uses a
+    custom layout of the pins, as it is designed to be used with the `HUB75HAT <https://github.com/Peter-van-Tol/LITEXCNC-HUB75HAT>`_. 
+    The layout has been designed to minimize conflicts with secondary functions of the pins,
+    such as UART5, which can be used to communicate with a VFD or other device over RS489.
 
-By default, the ``.svf``-file is not retained in th flash of the FPGA. When the card is power-cycled, the
-previous program will run again. This makes it possible to test new version and features before making them
-permanent. To make the program reside in the flash of the FPGA, the bit-file has to be converted with the
-``convert_bit_to_flash`` tool (NOTE: this command requires the ``.bit``-file, not the previously used 
-``.svf``-file):
-
-.. code-block:: shell
-
-    litexcnc convert_bit_to_flash colorlight_5a_75e.bit colorlight_5a_75e.flash
-
-The created ``.flash`` file can now be flashed to the FPGA using the same method as used before.
 
 Usage in HAL
 ============
