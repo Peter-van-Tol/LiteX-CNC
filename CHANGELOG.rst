@@ -6,6 +6,23 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.1.0
+=============
+
+Added new drivers for SPI communiction [48]. For current users this requires a minor modification in their
+configuration files. The connection entry in the config-file must be altered to include the field ``connection_type``.
+See for further guidelines on the parameters for the connection, including the new SPI connection, the
+updates help-files.
+
+Further minor changes:
+
+* ``cli``:
+
+  * ``install_litex``: DEPRECATED, the functionality has been transferred to ``install_toolchaing``.
+  * ``install_toolchain``: Also installs Litex, and on a RaspberryPi also OpenOCD.
+  * ``flash_firmware``: Flashes the firmware to the LED-card using OpenOCD. Designed for flashing
+    with a RaspberryPi, however other adapters can aslo be selected by their name.
+
 Version 1.0.3
 =============
 
@@ -13,7 +30,7 @@ Bugfixes for several issues.
 
 * ``driver``:
 
-  * ``encoder``: calculation of average speed has been correctd (#50).
+  * ``encoder``: calculation of average speed has been corrected (#50).
 
 * ``cli``:
 
