@@ -15,7 +15,7 @@ def _install_litex(target: str, user: bool) -> int:
     target = os.path.join(target, 'litex')
     
     if not os.path.exists(target):
-        os.mkdir(target)
+        os.makedirs(target)
 
     # Download the setup file
     response = requests.get(
@@ -60,12 +60,21 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
         click.echo(click.style("INFO", fg="blue") + f": Auto-detected architecture {arch}.")
     
     # Check whether the combination if supported by oss-cad-suite
+    supported = True
+    if arch == 'i386':
+        click.echo(click.style("ERROR", fg="red") + f": OSS-Cad-Suite does not support `i386` architecture.")
+        supported = False
     if os_ == 'darwin':
         if not arch.lower() in ['arm64', 'x64']:
             click.echo(click.style("ERROR", fg="red") + f": Darwin only supports arm64 and x64 as architecture.")
+            supported = False
     if os_ == 'windows':
         if not arch.lower() in ['x64']:
             click.echo(click.style("ERROR", fg="red") + f": Windows only supports x64 as architecture.")
+            supported = False
+    if not supported:
+        click.echo(click.style("ERROR", fg="red") + f": Please use a different system to build the firmware.")
+        return
     
     # Download and install the selected files
     with tempfile.TemporaryDirectory() as tempdirname:
@@ -107,6 +116,7 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
 
         # Done!
         click.echo(click.style("INFO", fg="blue") + f": OSS-CAD-Suite successfully installed")
+
 
 def _install_openocd(target: str, user: bool):
     """Installs the OpenOCD for Raspberry Pi"""
