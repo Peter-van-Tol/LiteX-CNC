@@ -6,6 +6,19 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.1.1
+=============
+
+Bugfixes for CLI-command.
+
+* ``cli``:
+
+    * ``install_toolchain``: Resolved issue creating nested directories.
+    * ``install_toolchain``: The architecture ``i386`` is not supported by OSS-cad-suite. When this
+      architecture is detected, a clear error message will be given and OSS-cad-suite is not
+      installed.
+
+
 Version 1.1.0
 =============
 
