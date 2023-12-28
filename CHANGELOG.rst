@@ -6,6 +6,25 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.2 (upcoming)
+======================
+
+Support for Raspberry Pi 5 added.
+
+* ``cli``:
+
+  * ``install_toolchain``: OpenOCD compiled with support for the  ``libgpiod``-driver. Required for support
+    of the Raspberry PI (#64).
+  * ``flash_firmware``: Added configuration for ``libgpiod``-driver. Auto-detects whether a Raspberry Pi 5 is
+    used and changes to the new configuration in that case (#64).
+
+* ``driver``:
+
+  * ``watchdog``: Watchdog requires configuration. Optional an enable out pin can be set for the Watchdog (#65).
+  * ``HUB75HAT``: Corrected pinout (#68)
+  * ``gpio``: Fixed issue with configurations with either all inputs or all outputs (#70)
+
+
 Version 1.1.1
 =============
 
