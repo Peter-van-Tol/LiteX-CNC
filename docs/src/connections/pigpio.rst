@@ -12,6 +12,10 @@ is laoded by Litex-CNC.
    :width: 600
    :alt: HUB-75 sinking input PCB - front
 
+.. warning::
+    This driver does not (yet) work with the Raspberry Pi 5. When using the Raspberry Pi 5, the
+    ``spidev`` should be used.
+
 .. info::
     SPI uses 4 separate connections to communicate with the target device. These connections
     are the serial clock (``CLK``), Master Input Slave Output (``MISO``), Master Output Slave
