@@ -2,18 +2,47 @@
 Watchdog
 ========
 
-The Linux-CNC firmware includes a watchdog Module by definition. This module cannot be removed.
-
 The watchdog must be petted by LinuxCNC periodically or it will bite. When the watchdog bites, all 
 the board’s I/O pins are pulled low and the stepgen will stop (optionally the stepgen can stop while
 respecting the acceleration limits, see description). Encoder instances keep counting quadrature pulses.
 
 Resetting the watchdog resumes normal operation of the FPGA.
 
+.. info::
+   The Watchdog is a module which must be present in the configuration of the FPGA. It is therefore
+   not part of the ``modules`` section; it is part of the card configuration.
+
 Configuration
 =============
 
-The watchdog does not have any configuration.
+.. info::
+   Changed in Litex-CNC version 1.2. 
+
+The configuration of the Watchdog consist of an optional Enable-pin. The Enable-pin is
+active high as long as the watchdog is happy (communications are working, watchdog did
+not bite). The enable pin can for example be used to disconnect all pins (high-Z) when
+the watchdog bites; this can ensure a safe-state of the machine when the communications
+are lost. 
+
+.. code-block:: json
+
+   ...
+   "watchdog": {
+      "pin":"ena:0"
+   },
+   ...
+
+One can opt not to define a Enable-pin, however this is not recommended as there is a
+risk of the machine staying active after disruption of the communications. Even when the
+enable pin is not defined, the configuration block is required, however it remains empty.
+
+.. code-block:: json
+
+   ...
+   "watchdog": {
+   },
+   ...
+
 
 Input pins
 ==========
