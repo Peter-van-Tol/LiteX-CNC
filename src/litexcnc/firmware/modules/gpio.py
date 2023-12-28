@@ -61,6 +61,17 @@ class GPIO_Module(Module, AutoDoc):
                 in enumerate([gpio for gpio in config.instances if gpio.direction == "out"])
             ])
             pads_out = soc.platform.request_all("gpio_out")
+            # Connect to the reset mechanism
+            soc.sync += [
+                soc.MMIO_inst.gpio_out.we.eq(0),
+                If(
+                    soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_has_bitten.status,
+                    soc.MMIO_inst.gpio_out.dat_w.eq(
+                        cls.gpio_out_safe_state(config)
+                    ),
+                    soc.MMIO_inst.gpio_out.we.eq(1)
+                )
+            ]
         # - input
         pads_in = None
         if any([instance.direction == "in" for instance in config.instances]):
@@ -70,18 +81,6 @@ class GPIO_Module(Module, AutoDoc):
                 in enumerate([gpio for gpio in config.instances if gpio.direction == "in"])
             ])
             pads_in = soc.platform.request_all("gpio_in")
-
-        # Connect to the reset mechanism
-        soc.sync += [
-            soc.MMIO_inst.gpio_out.we.eq(0),
-            If(
-                soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_has_bitten.status,
-                soc.MMIO_inst.gpio_out.dat_w.eq(
-                    cls.gpio_out_safe_state(config)
-                ),
-                soc.MMIO_inst.gpio_out.we.eq(1)
-            )
-        ]
         
         # Create the GPIO module
         gpio = cls(
@@ -101,7 +100,7 @@ class GPIO_Module(Module, AutoDoc):
         """
         # Don't create the registers when the config is empty (no GPIO 
         # defined in this case)
-        if not config:
+        if not config or all([instance.direction != "out" for instance in config.instances]):
             return
 
         mmio.gpio_out = CSRStorage(
@@ -122,7 +121,7 @@ class GPIO_Module(Module, AutoDoc):
         """
         # Don't create the registers when the config is empty (no GPIO 
         # defined in this case)
-        if not config:
+        if not config or all([instance.direction != "in" for instance in config.instances]):
             return
 
         mmio.gpio_in = CSRStatus(
