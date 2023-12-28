@@ -134,7 +134,7 @@ def _install_openocd(target: str, user: bool):
         click.echo(click.style("ERROR", fg="red") + ": Cannot update system.")
         return -1
     if subprocess.call(
-            "sudo apt-get install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev",
+            "sudo apt-get install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev gpiod libgpiod-dev",
             shell=True):
         click.echo(click.style("ERROR", fg="red") + ": Cannot install pre-requisites.")
         return -1
@@ -154,7 +154,7 @@ def _install_openocd(target: str, user: bool):
         # Configure OpenOCD to include support for Raspberry Pi
         click.echo(click.style("INFO", fg="blue") + f": Configuring and making OpenOCD (this make take a while) ...")
         command = f"./bootstrap && "
-        command += "./configure --enable-sysfsgpio --enable-bcm2835gpio && "
+        command += "./configure --enable-sysfsgpio --enable-bcm2835gpio --enable-libgpio && "
         command += "make"
         if subprocess.call(
                 command, 
