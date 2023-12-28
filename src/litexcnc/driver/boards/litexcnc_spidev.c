@@ -30,7 +30,7 @@
 #include "rtapi_app.h"
 #include "rtapi_string.h"
 
-#include "litexcnc_spi.h"
+#include "litexcnc_spidev.h"
 
 
 static char *connection_string[MAX_SPI_BOARDS];
