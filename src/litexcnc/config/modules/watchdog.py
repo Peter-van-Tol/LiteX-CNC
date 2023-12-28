@@ -19,6 +19,7 @@ class WatchdogModuleConfig(ModuleInstanceBaseModel):
     Model describing a pin of the GPIO.
     """
     pin: str = Field(
+        None,
         description="The pin on the FPGA-card."
     )
     io_standard: str = Field(

@@ -25,6 +25,9 @@ class WatchDogModule(Module, AutoCSR):
         self.enable  = Signal()
         self.timeout = timeout
         self.has_bitten = Signal()
+        
+        if enable_out is None:
+            enable_out = Signal()
 
         # Procedure of the watchdog
         sync = getattr(self.sync, clock_domain)
@@ -106,10 +109,12 @@ class WatchDogModule(Module, AutoCSR):
     def create_from_config(cls, soc, config: 'WatchdogModuleConfig'):
         
         # Create a pad for the enabled watchdog
-        soc.platform.add_extension([
-            ("watchdog", 0, Pins(config.pin), IOStandard(config.io_standard))
-        ])
-        soc.enable_out = soc.platform.request_all("watchdog").l[0]
+        soc.enable_out = None
+        if config.pin is not None:
+            soc.platform.add_extension([
+                ("watchdog", 0, Pins(config.pin), IOStandard(config.io_standard))
+            ])
+            soc.enable_out = soc.platform.request_all("watchdog").l[0]
 
         # Create the watchdog
         watchdog = WatchDogModule(
