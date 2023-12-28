@@ -2,7 +2,7 @@
 SPI using spidev
 ================
 
-The Rapsberry Pi has a SPI interface on its GPIO header. With the ``spidev`` driver the
+The Raspberry Pi has a SPI interface on its GPIO header. With the ``spidev`` driver the
 FPGA can be used by using only 4 wires (``MOSI``, ``MISO``, ``CLCK``, and ``CS``). This
 driver is designed to work with a variety of boards, as long as they expose the ``spidev``
 device.
@@ -12,7 +12,10 @@ device.
    :alt: HUB-75 sinking input PCB - front
 
 .. info::
-    Specifically for the Raspberry Pi there is also the driver ``pigpio`` is available. This
+    When using the Raspberry Pi 5 with SPI, this driver must be used.
+
+.. info::
+    Specifically for the Raspberry Pi 4 there is also the driver ``pigpio`` is available. This
     driver offers a better performance. It is faster and has less jitter, leading to a servo
     period which can be a factor 2 smaller (or even more). The configuration of the FPGA is
     independent of which SPI driver is used.
@@ -63,7 +66,7 @@ Use the following connection string for spidev:
 
 .. code-block::
 
-    loadrt litexcnc connections="spidev:\dev\spidev0.0"
+    loadrt litexcnc connections="spidev:/dev/spidev0.0"
 
 This will load spidev interface 0 with chip select 0. The available ``spidev`` devices 
 can be listed with the code below.
