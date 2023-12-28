@@ -32,6 +32,13 @@ def cli(file, permanent, programmer):
         programmer = f"interface/{programmer}.cfg"
     else:
         programmer = Path(__file__).parent / "config" / "hub75hat.cfg"
+        try:
+            with open('/proc/device-tree/model') as f:
+                model = f.read()
+            if model.startswith("Raspberry Pi 5"):
+                programmer = Path(__file__).parent / "config" / "hub75hat-rpi5.cfg"
+        except:
+            click.echo(click.style("INFO", fg="blue") + f": Could not determine version of Raspberry Pi, assuming Raspberry Pi 4.")
 
     # Flash the firmware to the board using OpenOCD
     command = [
