@@ -61,11 +61,11 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc) {
     // - time-out in nano-seconds (including setting the default value)
     rtapi_snprintf(name, sizeof(name), "%s.watchdog.timeout_ns", litexcnc->fpga->name); 
     r = hal_param_u32_new(name, HAL_RW, &(litexcnc->watchdog->hal.param.timeout_ns), litexcnc->fpga->comp_id);
-    if (r < 0) { goto fail_pins; }
+    if (r < 0) { goto fail_params; }
     // - time-out in cycles (read-only)
     rtapi_snprintf(name, sizeof(name), "%s.watchdog.timeout_cycles", litexcnc->fpga->name); 
     r = hal_param_u32_new(name, HAL_RO, &(litexcnc->watchdog->hal.param.timeout_cycles), litexcnc->fpga->comp_id);
-    if (r < 0) { goto fail_pins; }
+    if (r < 0) { goto fail_params; }
 
     // Success
     return 0;
@@ -74,10 +74,9 @@ fail_pins:
     LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s', aborting\n", name);
     return r;
 
-// NOTE: Include the code below in case params areadded to the watchdog
-// fail_params:
-//     LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
-//     return r;
+fail_params:
+    LITEXCNC_ERR_NO_DEVICE("Error adding param '%s', aborting\n", name);
+    return r;
 }
 
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period) {
@@ -116,7 +115,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
 
     // Store the parameter on the FPGA (also set the enable bit)
     litexcnc_watchdog_data_write_t output;
-    output.timeout_cycles = htobe32(litexcnc->watchdog->hal.param.timeout_cycles + 0x80000000); 
+    output.timeout_cycles = htobe32(litexcnc->watchdog->hal.param.timeout_cycles + (0x80000000 * (~*(litexcnc->watchdog->hal.pin.has_bitten)))); 
         
     // Copy the data to the output and advance the pointer  
     memcpy(*data, &output, LITEXCNC_WATCHDOG_DATA_WRITE_SIZE);
@@ -129,7 +128,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
 uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
     // Check whether the watchdog did bite
-    if (*(*data)) {
+    if (*(*data+3)) {
         LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten.");
         *(litexcnc->watchdog->hal.pin.has_bitten) = 1;
     }
@@ -137,7 +136,6 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     // Proceed the buffer to the next element (note: 4-byte Words!)
     (*data)+=4; 
 
-    
     // Success
     return 0;
 }

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, validator
 
 # Local imports
 from litexcnc.config.modules import ModuleBaseModel, module_registry
+from litexcnc.config.modules.watchdog import WatchdogModuleConfig
 from litexcnc.config.connections import EtherboneConnection, SPIboneConnection
 
 # Registry which holds all the sub-classes of modules
@@ -26,6 +27,10 @@ class LitexCNC_Firmware(BaseModel):
     )
     clock_frequency: int = Field(
       50e6  
+    )
+    watchdog: WatchdogModuleConfig = Field(
+        ...,
+        description="Configuration of the watchdog."
     )
     modules: List[ModuleBaseModel] = Field(
         [],
@@ -101,15 +106,7 @@ class LitexCNC_Firmware(BaseModel):
         soc.submodules.MMIO_inst = MMIO(config=self)
 
         # Create watchdog
-        watchdog = WatchDogModule(timeout=soc.MMIO_inst.watchdog_data.storage[:31], with_csr=False)
-        soc.submodules += watchdog
-        soc.sync+=[
-            # Watchdog input (fixed values)
-            watchdog.enable.eq(soc.MMIO_inst.watchdog_data.storage[31]),
-            # Watchdog output (status whether the dog has bitten)
-            soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
-            # self.MMIO_inst.watchdog_has_bitten.we.eq(True)
-        ]
+        watchdog = self.watchdog.create_from_config(soc)
 
         # Create a wall-clock
         soc.sync+=[

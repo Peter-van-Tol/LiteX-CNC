@@ -130,24 +130,14 @@ class MMIO(Module, AutoCSR):
 
         # OUTPUT (as seen from the PC!)
         # - Watchdog
-        self.watchdog_data = CSRStorage(
-            size=32, 
-            description="Watchdog data.\nByte containing the enabled flag (bit 31) and the time (bit 30 - 0)."
-            "out in cpu cycles.", 
-            name='watchdog_data',
-            write_from_dev=True
-        )
+        config.watchdog.add_mmio_write_registers(self)
         # - Modules
         for module in config.modules:
             module.add_mmio_write_registers(self)
  
         # INPUT (as seen from the PC!)
         # - Watchdog
-        self.watchdog_has_bitten = CSRStatus(
-            size=1, 
-            description="Watchdog has bitten.\nFlag which is set when timeout has occurred.", 
-            name='watchdog_has_bitten'
-        )
+        config.watchdog.add_mmio_read_registers(self)
         # - Wall-clock
         self.wall_clock = CSRStatus(
             size=64, 
