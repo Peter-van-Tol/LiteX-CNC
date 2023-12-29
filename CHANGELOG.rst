@@ -6,15 +6,21 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
-Version 1.2 (upcoming)
-======================
+Version 1.2
+===========
 
-Support for Raspberry Pi 5 added.
+Support for Raspberry Pi 5 added (using ``spidev`` only at this moment).
+
+.. info::
+  For this version the configuration file has to be changed. The section ``watchdog: {}`` has to be
+  added to the configuration in order to compile the firmware. Optionally, one can specify an enable
+  out pin. See for more information the `watchdog documentation <https://litex-cnc.readthedocs.io/en/latest/modules/watchdog.html>`_ 
 
 * ``cli``:
 
   * ``install_toolchain``: OpenOCD compiled with support for the  ``libgpiod``-driver. Required for support
     of the Raspberry PI (#64).
+  * ``install_toolchain``: Fixed issue with 64-bit OS on RaspberryPi.
   * ``flash_firmware``: Added configuration for ``libgpiod``-driver. Auto-detects whether a Raspberry Pi 5 is
     used and changes to the new configuration in that case (#64).
 
