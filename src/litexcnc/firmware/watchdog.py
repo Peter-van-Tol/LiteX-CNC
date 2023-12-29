@@ -129,4 +129,6 @@ class WatchDogModule(Module, AutoCSR):
             soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
             soc.MMIO_inst.watchdog_has_bitten.we.eq(True)
         ]
+
+        return watchdog
         
