@@ -1,6 +1,6 @@
 for f in ./*.json; 
 do 
-    mkdir ./build/${f%.*}
+    mkdir ./build/$(basename -- ${f%.*})
     litexcnc build_firmware $f -a --build -o build 2>&1 | tee -a ./build/${f%.*}/${f%.*}.log;
     pattern=./build/${f%.*}/gateware/colorlight_5a_75?.bit
     bit_file=($pattern)
