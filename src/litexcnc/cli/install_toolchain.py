@@ -53,7 +53,7 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
         os_ = platform.system().lower()
         click.echo(click.style("INFO", fg="blue") + f": Auto-detected os {os_}.")
     if not arch:
-        if platform.machine().startswith('arm'):
+        if platform.machine().startswith('arm') or platform.machine().startswith('aarch'):
             arch = 'arm64' if sys.maxsize > 2**32 else 'arm'
         else:
             arch = 'i386' if sys.maxsize > 2**32 else 'x64'
