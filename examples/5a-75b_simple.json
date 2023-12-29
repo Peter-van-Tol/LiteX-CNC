@@ -9,12 +9,14 @@
         "ip_address": "192.168.0.50",
         "mac_address": "0x10e2d5000000"
     },
+    "watchdog": {
+        "pin":"j5:0"
+    },
     "modules": [
         {
             "module_type": "gpio",
             "instances": [
-                {"direction": "in", "pin":"j5:0", "name": "optional_name_unique"},
-                {"direction": "in", "pin":"j5:1"},
+                {"direction": "in", "pin":"j5:1", "name": "optional_name_unique"},
                 {"direction": "in", "pin":"j5:2"},
                 {"direction": "in", "pin":"j5:4"},
                 {"direction": "in", "pin":"j5:5"},

@@ -9,6 +9,9 @@
         "ip_address": "10.0.0.10",
         "mac_address": "0x10e2d5000000"
     },
+    "watchdog": {
+        "pin":"j2:0"
+    },
     "modules": [
         {
             "module_type": "gpio",
@@ -28,7 +31,7 @@
             "instances": [
                 {"pin_A":"j3:0", "pin_B":"j3:1"},
                 {"pin_A":"j3:2", "pin_B":"j3:4"},
-                {"pin_A":"j3:5", "pin_B":"j3:6"},
+                {"pin_A":"j3:5", "pin_B":"j3:6"}
             ]
         }, {
             "module_type": "stepgen",

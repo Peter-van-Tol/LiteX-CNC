@@ -8,11 +8,13 @@
         "ip_address": "10.0.0.10",
         "mac_address": "0x10e2d5000000"
     },
+    "watchdog": {
+        "pin":"j1:8"
+    },
     "modules": [
         {
             "module_type": "gpio",
             "instances": [
-                {"direction": "out", "pin":"j1:7",  "name":"j1:8" },
                 {"direction": "out", "pin":"j1:8",  "name":"j1:9" },
                 {"direction": "out", "pin":"j1:9",  "name":"j1:10"},
                 {"direction": "out", "pin":"j1:10", "name":"j1:11"},
