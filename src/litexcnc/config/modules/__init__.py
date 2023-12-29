@@ -75,10 +75,12 @@ class ModuleBaseModel(BaseModel):
             # Create aliases
             pin_alias = partial(self._create_pin_alias, board_name, index, instance.name)
             param_alias = partial(self._create_param_alias, board_name, index, instance.name)
-            for pin in instance.hal_pins:
-                aliases.append(pin_alias(pin))
-            for param in instance.hal_params:
-                aliases.append(param_alias(param))
+            if hasattr(instance, 'hal_pins'):
+                for pin in instance.hal_pins:
+                    aliases.append(pin_alias(pin))
+            if hasattr(instance, 'hal_params'):
+                for param in instance.hal_params:
+                    aliases.append(param_alias(param))
         return aliases
 
     @property
