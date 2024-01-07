@@ -16,6 +16,7 @@ Contents
    Connections <connections/index>
    Modules <modules/index>
    Examples <examples/index>
+   Installing on a RaspberryPi <raspberrypi>
    License <license>
    Changelog <changelog>
 
