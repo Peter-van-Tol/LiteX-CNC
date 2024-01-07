@@ -30,16 +30,18 @@ LitexCNC can be installed using pip:
 
 .. code-block:: shell
 
-    pip install litexcnc[cli]
-
-.. note::
-    The suffix [cli] is required to install the command-line interface. Without this suffix the scripts
-    referenced in this documentation will not work.
+    pip install litexcnc
 
 .. note::
     LitexCNC requires Python 3.7 or above. The `pip`-command might refer to the Python 2 installation on
     the system, which will lead to errors in the installation process. In this case, use `pip3` in the
     command above and `python3` in all commands in the examples.
+
+.. info::
+    More information on the usage of LitexCNC on a Raspberry Pi can be found in the :ref:`RasberryPiImages`.
+
+Installed scripts
+-----------------
 
 After installation of LitexCNC, one can setup building environment for the firmware and install the
 drivers the included scripts:
@@ -47,7 +49,6 @@ drivers the included scripts:
 .. code-block:: shell
 
     litexcnc install_driver
-    litexcnc install_litex 
     litexcnc install_toolchain
     litexcnc build_firmware
     litexcnc flash_firmware
@@ -113,10 +114,10 @@ Options for the command are:
     be used when you don't have rights to write in `\opt`.
 
 .. info::
-The command ``install_toolchain`` automatically detects which operating system (Darwin, Linux, or Windows)
-and architecture (arm, arm64 or x64) is used. The version is shown in the terminal while downloading the
-software. In case the detection is erronous, the correct OS and architecture can be chosen by using the
-``--os`` and ``-architecture`` options of the command.
+    The command ``install_toolchain`` automatically detects which operating system (Darwin, Linux, or Windows)
+    and architecture (arm, arm64 or x64) is used. The version is shown in the terminal while downloading the
+    software. In case the detection is erronous, the correct OS and architecture can be chosen by using the
+    ``--os`` and ``-architecture`` options of the command.
 
 On the RaspberryPi this command also installs OpenOCD, with the options for programming the FPGA
 using the GPIO pins. Installing OpenOCD requires privileges, you might be prompted for a password
