@@ -6,6 +6,16 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.2.1
+=============
+
+Bugfix version for CLI on RPi images from LinuxCNC.
+
+* ``cli``:
+
+  * ``install_toolchain``: The path variable is now persisted in ``.bashrc`` instead of ``.profile``. This will
+    make the toolchain available in the terminal when using from desktop. Previously only SSH was working.
+
 Version 1.2
 ===========
 
