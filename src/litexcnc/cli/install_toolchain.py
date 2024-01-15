@@ -96,9 +96,9 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
 
         # Determine which file to write the settings to
         click.echo(click.style("INFO", fg="blue") + f": Writing config ...")
-        config_file = '/etc/profile'
+        config_file = '/etc/bash.bashrc'
         if user:
-            config_file = f'{str(Path.home())}/.profile'
+            config_file = f'{str(Path.home())}/.bashrc'
         # Determine whether it is a new file or not
         append_write = 'w'
         if os.path.exists(config_file):

@@ -47,8 +47,13 @@ After configuring the RaspberryPi, LinuxCNC can be installed with the following 
     sudo apt-get update && sudo apt-get -y upgrade
     sudo apt-get install python3-pip python3-wheel python3-venv
     python3 -m venv ~/.local --system-site-packages
-    ~/.local/bin/pip install litexcnc
-    ~/.local/bin/litexcnc install_toolchain --user -a arm64
-    sudo env "PATH=$PATH" ~/.local/bin/litexcnc install_driver
-
-After installation of LitexCNC, its driver and the toolchain a reboot is required.
+    echo -e "" >> ~/.bashrc
+    echo -e "# set PATH so it includes user's private bin if it exists" >> ~/.bashrc
+    echo -e "if [ -d \"$HOME/.local/bin\" ] ; then" >> ~/.bashrc
+    echo -e "    PATH=\"$HOME/.local/bin:$PATH\"" >> ~/.bashrc
+    echo -e "fi" >> ~/.bashrc
+    . ~/.bashrc
+    pip install litexcnc
+    litexcnc install_toolchain --user -a arm64
+    sudo env "PATH=$PATH" litexcnc install_driver
+    . ~/.bashrc
