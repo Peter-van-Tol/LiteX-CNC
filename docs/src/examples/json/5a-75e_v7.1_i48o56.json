@@ -21,7 +21,6 @@
                 {"direction": "in",  "pin":"j1:4",  "name":"j1:5"},
                 {"direction": "in",  "pin":"j1:5",  "name":"j1:6"},
                 {"direction": "in",  "pin":"j1:6",  "name":"j1:7"},
-                {"direction": "out", "pin":"j1:8" , "name":"j1:9" },
                 {"direction": "out", "pin":"j1:9" , "name":"j1:10"},
                 {"direction": "out", "pin":"j1:10", "name":"j1:11"},
                 {"direction": "out", "pin":"j1:11", "name":"j1:12"},
