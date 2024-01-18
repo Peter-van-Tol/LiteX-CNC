@@ -132,11 +132,11 @@ typedef struct {
 
     /** This struct holds data from previous cycles, so changes can be detected */
     struct {
+        hal_s32_t position_reset;
         hal_float_t position_scale;
         hal_float_t velocity[LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE];
         size_t velocity_pointer;
     } memo;
-
 
 
 } litexcnc_encoder_instance_t;

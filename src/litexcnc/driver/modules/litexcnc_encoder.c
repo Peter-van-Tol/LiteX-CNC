@@ -158,7 +158,7 @@ size_t litexcnc_encoder_init(litexcnc_module_instance_t **module, litexcnc_t *li
 
         // Create the pins
         LITEXCNC_CREATE_HAL_PIN("counts", s32, HAL_OUT, &(instance->hal.pin.counts))
-        LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IN, &(instance->hal.pin.reset))
+        LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IO, &(instance->hal.pin.reset))
         LITEXCNC_CREATE_HAL_PIN("index-enable", bit, HAL_IN, &(instance->hal.pin.index_enable))
         LITEXCNC_CREATE_HAL_PIN("index-pulse", bit, HAL_OUT, &(instance->hal.pin.index_pulse))
         LITEXCNC_CREATE_HAL_PIN("position", float, HAL_OUT, &(instance->hal.pin.position))
@@ -254,12 +254,23 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
         *data += sizeof(litexcnc_encoder_instance_read_data_t);
 
         // - store the counts from the FPGA to the driver (keep in mind the endianess).
-        *(instance->hal.pin.raw_counts) = (int32_t)be32toh((uint32_t)instance_data.counts)
+        *(instance->hal.pin.raw_counts) = (int32_t)be32toh((uint32_t)instance_data.counts);
 
         // - take into account whether we are in x4_mode or not.
         *(instance->hal.pin.counts) = *(instance->hal.pin.raw_counts);
         if (!instance->hal.param.x4_mode) {
             *(instance->hal.pin.counts) = *(instance->hal.pin.counts) / 4;
+        }
+
+        // Reset mechanisme
+        if (*(instance->hal.pin.reset)) {
+            // Store the position where the reset occurred and clear any overflow flags
+            *(instance->hal.pin.overflow_occurred) = false;
+            instance->memo.position_reset = *(instance->hal.pin.counts);
+            // Ensure that a new roll-over does not happen in this step
+            counts_old = *(instance->hal.pin.raw_counts);
+            // Reset the reset pin
+            *(instance->hal.pin.reset) = 0;
         }
 
         // Calculate the new position based on the counts
@@ -300,7 +311,6 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
             } else {
                 *(instance->hal.pin.position) = *(instance->hal.pin.counts) * instance->data.position_scale_recip;
             }
-
         }
 
         // Calculate the new speed based on the new position (running average). The
