@@ -247,18 +247,19 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
 
         // Read the data and store it on the instance
         // - store the previous counts (required for roll-over detection)
-        int32_t counts_old = *(instance->hal.pin.counts);
+        int32_t counts_old = *(instance->hal.pin.raw_counts);
         // - convert received data to struct
         litexcnc_encoder_instance_read_data_t instance_data;
         memcpy(&instance_data, *data, sizeof(litexcnc_encoder_instance_read_data_t));
         *data += sizeof(litexcnc_encoder_instance_read_data_t);
 
-        // - store the counts from the FPGA to the driver (keep in mind the endianess). Also
-        //   take into account whether we are in x4_mode or not.
-        if (instance->hal.param.x4_mode) {
-            *(instance->hal.pin.counts) = (int32_t)be32toh((uint32_t)instance_data.counts);
-        } else {
-            *(instance->hal.pin.counts) = ((int32_t)be32toh((uint32_t)instance_data.counts)) / 4;
+        // - store the counts from the FPGA to the driver (keep in mind the endianess).
+        *(instance->hal.pin.raw_counts) = (int32_t)be32toh((uint32_t)instance_data.counts)
+
+        // - take into account whether we are in x4_mode or not.
+        *(instance->hal.pin.counts) = *(instance->hal.pin.raw_counts);
+        if (!instance->hal.param.x4_mode) {
+            *(instance->hal.pin.counts) = *(instance->hal.pin.counts) / 4;
         }
 
         // Calculate the new position based on the counts
@@ -277,7 +278,7 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
             // less accurate then the absolute calculation of the position. Once overflow has
             // occurred, the only way to reset to absolute calculation is by the occurrence of a
             // index_pulse.
-            int64_t difference = (int64_t) *(instance->hal.pin.counts) - counts_old;
+            int64_t difference = (int64_t) *(instance->hal.pin.raw_counts) - counts_old;
             if ((difference < INT_MIN) || (difference > INT_MAX)) {
                 // When overflow occurs, the difference will be in order magnitude of 2^32-1, however
                 // a signed integer can only allow for changes of half that size. Because we calculate
@@ -289,6 +290,10 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
                 } else {
                     difference -= UINT_MAX;
                 }
+                // Compensation if not in X4 mode
+                if (!instance->hal.param.x4_mode) {
+                    difference = difference / 4;
+                }  
             }
             if (*(instance->hal.pin.overflow_occurred)) {
                 *(instance->hal.pin.position) = *(instance->hal.pin.position) + difference * instance->data.position_scale_recip;

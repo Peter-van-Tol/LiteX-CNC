@@ -70,7 +70,14 @@ typedef struct {
     struct {
 
         struct {
-            /* Position in encoder counts. */
+            /* Position in encoder counts, reflects the current state of the registers in the
+             *FPGA. Is not affected by a reset. Can roll-over when a roll-over happens in the
+             *FPGA. 
+             */
+            hal_s32_t *raw_counts; 
+            /* Position in encoder counts. Can be reset using the `reset` pin. Is compensated
+             * for roll-overs in the FPGA.
+             */
             hal_s32_t *counts; 
             /* When true, counts and position are reset to zero on the next rising edge of
              * Phase-Z. At the same time, index-enable is reset to zero to indicate that
