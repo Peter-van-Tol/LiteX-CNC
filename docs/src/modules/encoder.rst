@@ -165,8 +165,7 @@ the correct version of your board.
     .. code-tab:: json
         :caption: digital potentiometer
 
-        loadrt litexcnc
-        loadrt litexcnc_eth connection_string="<ip_address>"
+        loadrt litexcnc connections="<connnection_string>"
         loadrt threads name1=test-thread period1=10000000
 
         # SETUP WATCHDOG

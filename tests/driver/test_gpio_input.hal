@@ -10,8 +10,7 @@
 
 # LOAD LITEXCNC AND THREADS
 # =========================
-loadrt litexcnc
-loadrt litexcnc_eth config_file="/home/litexcnc/5a-75e_v6.0_i48o56.json"
+loadrt litexcnc connections="<connection_string>"
 loadrt threads name1=test-thread period1=10000000
 
 # SETUP WATCHDOG

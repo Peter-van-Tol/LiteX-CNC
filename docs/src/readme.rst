@@ -220,21 +220,14 @@ The default pinout of the JTAG header on the RaspberryPi using this command is:
 
 Usage in HAL
 ============
-Typically main litexcnc driver is loaded first:
-
-.. code-block::
-
-    loadrt litexcnc
-
-After loading the main driver, the board-driver can be loaded. At this moment only ethernet cards 
-are supported using the ``litexcnc_eth`` board-driver. All the board-driver modules accept a load-time 
-modparam of type string array, named ``connections``. This array has one ip-addreess string for each 
-board the driver should use. The default port the driver will connect to is ``1234``. When another port
-should be used, the port can be supplied in the ``connections``, i.e. ``eth:10.0.0.10:456``.
+The litexcnc driver is loaded with:
 
 .. code-block:: shell
 
-    loadrt litexcnc_eth connections="eth:10.0.0.10"
+    loadrt litexcnc_eth connections="<connection_string>"
+
+The placeholder ``<connection_string>`` should be replaced with the `connection <./connection/index>`_
+for your machine. Supported connections at this moment are Ethernet and SPI.
 
 .. info::
 

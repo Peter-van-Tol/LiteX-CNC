@@ -70,8 +70,7 @@ Example
 .. code-block::
 
     loadrt threads name1=servo-thread period1=10000000
-    loadrt litexcnc
-    loadrt litexcnc_eth config_file="<path-to-configuration.json>"
+    loadrt litexcnc connections="<connnection_string>"
     loadrt estop_latch
     
     # Add the functions to the HAL

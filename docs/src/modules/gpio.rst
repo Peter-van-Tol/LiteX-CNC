@@ -96,8 +96,7 @@ correct version of your board.
 
 .. code-block::
 
-    loadrt litexcnc
-    loadrt litexcnc_eth connection_string="<ip_address>"
+    loadrt litexcnc connections="connection_string"
     loadrt threads name1=test-thread period1=10000000
 
     # SETUP WATCHDOG

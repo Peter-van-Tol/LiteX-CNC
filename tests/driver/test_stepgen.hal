@@ -4,8 +4,7 @@
 #
 # USAGE:
 #    halrun -I test_Stepgen.hal
-loadrt litexcnc
-loadrt litexcnc_eth config_file="/home/litexcnc/5a-75e-stepgen-test.json"
+loadrt litexcnc connections="<connnection_string>"
 loadrt threads name1=test-thread period1=10000000
 
 # Add litexcnc to the thread
