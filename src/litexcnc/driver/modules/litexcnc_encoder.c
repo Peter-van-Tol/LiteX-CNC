@@ -157,6 +157,7 @@ size_t litexcnc_encoder_init(litexcnc_module_instance_t **module, litexcnc_t *li
         LITEXCNC_CREATE_BASENAME("encoder", i)
 
         // Create the pins
+        LITEXCNC_CREATE_HAL_PIN("raw-counts", s32, HAL_OUT, &(instance->hal.pin.raw_counts))
         LITEXCNC_CREATE_HAL_PIN("counts", s32, HAL_OUT, &(instance->hal.pin.counts))
         LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IO, &(instance->hal.pin.reset))
         LITEXCNC_CREATE_HAL_PIN("index-enable", bit, HAL_IN, &(instance->hal.pin.index_enable))
@@ -262,7 +263,7 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
             *(instance->hal.pin.counts) = *(instance->hal.pin.counts) / 4;
         }
 
-        // Reset mechanisme
+        // Reset mechanism
         if (*(instance->hal.pin.reset)) {
             // Store the position where the reset occurred and clear any overflow flags
             *(instance->hal.pin.overflow_occurred) = false;
@@ -272,6 +273,9 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
             // Reset the reset pin
             *(instance->hal.pin.reset) = 0;
         }
+
+        // Apply the reset offset
+        *(instance->hal.pin.counts) -= instance->memo.position_reset;
 
         // Calculate the new position based on the counts
         // - store the previous position (requered for the velocity calculation)
