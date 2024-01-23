@@ -338,7 +338,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
         return -1;
     }
     // - version
-    if ((header_data.version_major != LITEXCNC_VERSION_MAJOR) || (header_data.version_major != LITEXCNC_VERSION_MINOR ))  {
+    if ((header_data.version_major != LITEXCNC_VERSION_MAJOR) || (header_data.version_minor != LITEXCNC_VERSION_MINOR ))  {
         // Incompatible versiheader_dataon
         LITEXCNC_ERR_NO_DEVICE(
             "Version of firmware (%u.%u.%u) is incompatible with the version of the driver (%u.%u.%u) \n",
