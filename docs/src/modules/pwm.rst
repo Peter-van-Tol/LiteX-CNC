@@ -101,7 +101,8 @@ Output pins
 Parameters
 ----------
 
-The module ``PWM`` does not have parameters.
+<board-name>.pwm.<n>.invert_output / <board-name>.pwm.<name>.invert_output (HAL_BIT)
+    Inverts an output pin.
 
 Example
 -------
