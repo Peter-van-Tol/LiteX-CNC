@@ -14,4 +14,4 @@
 # 
 # In all cases, the version must also be modified in the header-file `litexcnc.h`
 # of the driver. 
-__version__ = "1.1.0"
+__version__ = "1.2.2"
