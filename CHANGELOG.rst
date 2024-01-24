@@ -11,6 +11,7 @@ Version 1.2.2 (upcoming)
 ========================
 
 * ``driver``:
+
   * ``encoder``: counts and position of encoder can be reset (#74)
 
 
