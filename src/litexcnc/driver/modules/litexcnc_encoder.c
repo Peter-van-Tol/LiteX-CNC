@@ -157,8 +157,9 @@ size_t litexcnc_encoder_init(litexcnc_module_instance_t **module, litexcnc_t *li
         LITEXCNC_CREATE_BASENAME("encoder", i)
 
         // Create the pins
+        LITEXCNC_CREATE_HAL_PIN("raw-counts", s32, HAL_OUT, &(instance->hal.pin.raw_counts))
         LITEXCNC_CREATE_HAL_PIN("counts", s32, HAL_OUT, &(instance->hal.pin.counts))
-        LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IN, &(instance->hal.pin.reset))
+        LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IO, &(instance->hal.pin.reset))
         LITEXCNC_CREATE_HAL_PIN("index-enable", bit, HAL_IN, &(instance->hal.pin.index_enable))
         LITEXCNC_CREATE_HAL_PIN("index-pulse", bit, HAL_OUT, &(instance->hal.pin.index_pulse))
         LITEXCNC_CREATE_HAL_PIN("position", float, HAL_OUT, &(instance->hal.pin.position))
@@ -247,19 +248,34 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
 
         // Read the data and store it on the instance
         // - store the previous counts (required for roll-over detection)
-        int32_t counts_old = *(instance->hal.pin.counts);
+        int32_t counts_old = *(instance->hal.pin.raw_counts);
         // - convert received data to struct
         litexcnc_encoder_instance_read_data_t instance_data;
         memcpy(&instance_data, *data, sizeof(litexcnc_encoder_instance_read_data_t));
         *data += sizeof(litexcnc_encoder_instance_read_data_t);
 
-        // - store the counts from the FPGA to the driver (keep in mind the endianess). Also
-        //   take into account whether we are in x4_mode or not.
-        if (instance->hal.param.x4_mode) {
-            *(instance->hal.pin.counts) = (int32_t)be32toh((uint32_t)instance_data.counts);
-        } else {
-            *(instance->hal.pin.counts) = ((int32_t)be32toh((uint32_t)instance_data.counts)) / 4;
+        // - store the counts from the FPGA to the driver (keep in mind the endianess).
+        *(instance->hal.pin.raw_counts) = (int32_t)be32toh((uint32_t)instance_data.counts);
+
+        // - take into account whether we are in x4_mode or not.
+        *(instance->hal.pin.counts) = *(instance->hal.pin.raw_counts);
+        if (!instance->hal.param.x4_mode) {
+            *(instance->hal.pin.counts) = *(instance->hal.pin.counts) / 4;
         }
+
+        // Reset mechanism
+        if (*(instance->hal.pin.reset)) {
+            // Store the position where the reset occurred and clear any overflow flags
+            *(instance->hal.pin.overflow_occurred) = false;
+            instance->memo.position_reset = *(instance->hal.pin.counts);
+            // Ensure that a new roll-over does not happen in this step
+            counts_old = *(instance->hal.pin.raw_counts);
+            // Reset the reset pin
+            *(instance->hal.pin.reset) = 0;
+        }
+
+        // Apply the reset offset
+        *(instance->hal.pin.counts) -= instance->memo.position_reset;
 
         // Calculate the new position based on the counts
         // - store the previous position (requered for the velocity calculation)
@@ -277,7 +293,7 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
             // less accurate then the absolute calculation of the position. Once overflow has
             // occurred, the only way to reset to absolute calculation is by the occurrence of a
             // index_pulse.
-            int64_t difference = (int64_t) *(instance->hal.pin.counts) - counts_old;
+            int64_t difference = (int64_t) *(instance->hal.pin.raw_counts) - counts_old;
             if ((difference < INT_MIN) || (difference > INT_MAX)) {
                 // When overflow occurs, the difference will be in order magnitude of 2^32-1, however
                 // a signed integer can only allow for changes of half that size. Because we calculate
@@ -289,13 +305,16 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
                 } else {
                     difference -= UINT_MAX;
                 }
+                // Compensation if not in X4 mode
+                if (!instance->hal.param.x4_mode) {
+                    difference = difference / 4;
+                }  
             }
             if (*(instance->hal.pin.overflow_occurred)) {
                 *(instance->hal.pin.position) = *(instance->hal.pin.position) + difference * instance->data.position_scale_recip;
             } else {
                 *(instance->hal.pin.position) = *(instance->hal.pin.counts) * instance->data.position_scale_recip;
             }
-
         }
 
         // Calculate the new speed based on the new position (running average). The
