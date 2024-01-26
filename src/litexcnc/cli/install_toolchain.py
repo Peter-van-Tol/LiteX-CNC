@@ -17,6 +17,12 @@ def _install_litex(target: str, user: bool) -> int:
     if not os.path.exists(target):
         os.makedirs(target)
 
+    if subprocess.call(
+            "sudo apt-get -y install git",
+            shell=True):
+        click.echo(click.style("ERROR", fg="red") + ": Cannot install pre-requisites.")
+        return -1
+
     # Download the setup file
     response = requests.get(
         'https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py'
