@@ -32,7 +32,8 @@ class WatchDogModule(Module, AutoCSR):
         # Procedure of the watchdog
         sync = getattr(self.sync, clock_domain)
         sync += [
-            If(self.enable,
+            If(
+                self.enable,
                 If(self.timeout > 0,
                     # Still some time left before freaking out
                     self.timeout.eq(self.timeout-1),
@@ -127,7 +128,11 @@ class WatchDogModule(Module, AutoCSR):
             watchdog.enable.eq(soc.MMIO_inst.watchdog_data.storage[31]),
             # Watchdog output (status whether the dog has bitten)
             soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
-            soc.MMIO_inst.watchdog_has_bitten.we.eq(True)
+            soc.MMIO_inst.watchdog_has_bitten.we.eq(True),
+            If(
+                soc.MMIO_inst.reset.storage,
+                soc.MMIO_inst.watchdog_data.storage.eq(0)
+            )
         ]
 
         return watchdog
