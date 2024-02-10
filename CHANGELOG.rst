@@ -13,7 +13,8 @@ Version 1.2.2 (upcoming)
 * ``driver``:
 
   * ``encoder``: counts and position of encoder can be reset (#74)
-
+  * ``watchdog``: the watchdog is reset when the card is reset. Prevents the ``has_bitten`` message when LinuxCNC
+    is restarted without power-cycling the card. (#80)
 
 Version 1.2.1
 =============
