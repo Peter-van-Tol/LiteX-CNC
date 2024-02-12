@@ -113,7 +113,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
 
         mmio.pwm_enable = CSRStorage(
             size=int(math.ceil(float(len(pwm_config.instances))/32))*32,
-            name='gpio_out',
+            name='pwm_enable',
             description="Register containing the bits to be written to the GPIO out pins.", 
             write_from_dev=True
         )
