@@ -119,7 +119,7 @@ size_t required_read_buffer(void *instance) {
     // (32 bits). When there are more then 32 encoders, another DWORD is added to the 
     // registers. For each encoder there is also a struct with the number of counts 
     // retrieved.
-    return single_dword_buffer(encoder) + num_instances * sizeof(litexcnc_encoder_instance_read_data_t);
+    return single_dword_buffer(encoder) + encoder->num_instances * sizeof(litexcnc_encoder_instance_read_data_t);
 }
 
 
