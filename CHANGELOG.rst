@@ -10,11 +10,15 @@ is a safeguard to prevent miscommunication.
 Version 1.2.2 (upcoming)
 ========================
 
+Bugfix version for ``stepgen`` module, which was affected by an error in the ``encoder`` module.
+
 * ``driver``:
 
   * ``encoder``: counts and position of encoder can be reset (#74)
+  * ``encoder``: incorrect required read buffer reported has been corrected. This affected the module ``stepgen`` (#79)
   * ``watchdog``: the watchdog is reset when the card is reset. Prevents the ``has_bitten`` message when LinuxCNC
     is restarted without power-cycling the card. (#80)
+
 
 Version 1.2.1
 =============
