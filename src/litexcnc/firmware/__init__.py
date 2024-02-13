@@ -14,4 +14,22 @@
 # 
 # In all cases, the version must also be modified in the header-file `litexcnc.h`
 # of the driver. 
-__version__ = "1.1.0"
+import sys
+
+from hwl_datamodel import settings
+from hwl_datamodel.utils.compat import import_optional_dependency_factory
+
+if sys.version_info[:2] >= (3, 8):
+    # TODO: Import directly (no need for conditional) when `python_requires = >= 3.8`
+    from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
+else:
+    from importlib_metadata import PackageNotFoundError, version  # pragma: no cover
+
+try:
+    # Change here if project is renamed and does not equal the package name
+    dist_name = __name__  # pylint: disable=invalid-name
+    __version__ = version(dist_name)
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "0.0.0"
+finally:
+    del version, PackageNotFoundError
