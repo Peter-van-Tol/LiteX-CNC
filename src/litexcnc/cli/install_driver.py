@@ -10,6 +10,11 @@ import subprocess
 import sys
 import tempfile
 import click
+from packaging.version import Version
+
+# Local imports
+from . import __version__
+version = Version(__version__)
 
 import sys
 if sys.version_info[:2] >= (3, 8):
@@ -109,6 +114,9 @@ def cli(modules, rtlib):
         print("#define __INCLUDE_LITEXCNC_CONFIG_H__", file=f)
         print("", file=f)
         print(f"#define EMC2_RTLIB_DIR \"{rtlib}\"", file=f)
+        print(f"#define LITEXCNC_VERSION_MAJOR {version.major}", file=f)
+        print(f"#define LITEXCNC_VERSION_MINOR {version.minor}", file=f)
+        print(f"#define LITEXCNC_VERSION_PATCH {version.micro}", file=f)
         print("", file=f)
         print("#endif /* __INCLUDE_LITEXCNC_CONFIG_H__ */", file=f)
         f.close()

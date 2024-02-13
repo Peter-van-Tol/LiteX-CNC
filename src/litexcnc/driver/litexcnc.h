@@ -28,10 +28,6 @@ typedef struct litexcnc_struct litexcnc_t;
 #include "watchdog.h"
 
 #define LITEXCNC_NAME    "litexcnc"
-#define LITEXCNC_VERSION_MAJOR 1
-#define LITEXCNC_VERSION_MINOR 2
-#define LITEXCNC_VERSION_PATCH 2
-
 #define MAX_RESET_RETRIES      5  
 
 #define MAX_EXTRAS             32
