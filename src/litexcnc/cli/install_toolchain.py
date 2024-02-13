@@ -17,6 +17,12 @@ def _install_litex(target: str, user: bool) -> int:
     if not os.path.exists(target):
         os.makedirs(target)
 
+    if subprocess.call(
+            "sudo apt-get -y install git",
+            shell=True):
+        click.echo(click.style("ERROR", fg="red") + ": Cannot install pre-requisites.")
+        return -1
+
     # Download the setup file
     response = requests.get(
         'https://raw.githubusercontent.com/enjoy-digital/litex/master/litex_setup.py'
@@ -118,7 +124,7 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
         click.echo(click.style("INFO", fg="blue") + f": OSS-CAD-Suite successfully installed")
 
 
-def _install_openocd(target: str, user: bool):
+def _install_openocd_rpi(target: str, user: bool):
     """Installs the OpenOCD for Raspberry Pi"""
     click.echo(click.style("INFO", fg="blue") + f": Installing OpenOCD for Raspberry Pi.")
 
@@ -134,7 +140,7 @@ def _install_openocd(target: str, user: bool):
         click.echo(click.style("ERROR", fg="red") + ": Cannot update system.")
         return -1
     if subprocess.call(
-            "sudo apt-get install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev gpiod libgpiod-dev",
+            "sudo apt-get -y install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev gpiod libgpiod-dev",
             shell=True):
         click.echo(click.style("ERROR", fg="red") + ": Cannot install pre-requisites.")
         return -1
@@ -201,4 +207,14 @@ def cli(user, directory, arch, os_):
     if os.name == 'posix' and os.path.exists("/sys/firmware/devicetree/base/model"):
         with open('/sys/firmware/devicetree/base/model', 'r') as m:
             if 'raspberry pi' in m.read().lower():
-                _install_openocd(target, user)
+                _install_openocd_rpi(target, user)
+                return
+    
+    # When this instance is Linux, install the default version of
+    # OpenOCD using apt-get.
+    if (not os_ and platform.system().lower() == 'linux') or os_ == 'linux':
+        if subprocess.call(
+            "sudo apt-get -y install openocd",
+            shell=True):
+        click.echo(click.style("ERROR", fg="red") + ": Cannot install OpenOCD (sudo apt-get install failed).")
+        return -1
