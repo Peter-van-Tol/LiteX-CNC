@@ -13,7 +13,7 @@ import click
 from packaging.version import Version
 
 # Local imports
-from . import __version__
+from litexcnc.firmware import __version__
 version = Version(__version__)
 
 import sys
