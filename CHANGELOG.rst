@@ -6,7 +6,6 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
-
 Version 1.2.2
 =============
 
@@ -30,7 +29,8 @@ protocol and thus requires an update of the firmware.
 
 * ``cli``:
 
-  * ``install_toolchain``: Fixed issue with detection of OS on desktop (#78).
+  * ``install_toolchain``: Fixed issue with detection of OS on desktop. Also ``git`` and ``openocd`` are installed
+    on x64-architecture systems (#78).
 
 
 Version 1.2.1
