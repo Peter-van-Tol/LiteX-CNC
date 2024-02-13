@@ -23,9 +23,7 @@ else:
     from importlib_metadata import PackageNotFoundError, version  # pragma: no cover
 
 try:
-    # Change here if project is renamed and does not equal the package name
-    dist_name = __name__  # pylint: disable=invalid-name
-    __version__ = version(dist_name)
+    __version__ = version("litexcnc")
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
 finally:
