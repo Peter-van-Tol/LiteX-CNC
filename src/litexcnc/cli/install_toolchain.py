@@ -214,7 +214,7 @@ def cli(user, directory, arch, os_):
     # OpenOCD using apt-get.
     if (not os_ and platform.system().lower() == 'linux') or os_ == 'linux':
         if subprocess.call(
-            "sudo apt-get -y install openocd",
-            shell=True):
-        click.echo(click.style("ERROR", fg="red") + ": Cannot install OpenOCD (sudo apt-get install failed).")
-        return -1
+                "sudo apt-get -y install openocd",
+                shell=True):
+            click.echo(click.style("ERROR", fg="red") + ": Cannot install OpenOCD (sudo apt-get install failed).")
+            return -1
