@@ -6,6 +6,11 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.2.3
+=============
+
+Quick bugfix to solve an identation error in the ``cli``. 
+
 Version 1.2.2
 =============
 
