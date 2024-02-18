@@ -303,10 +303,10 @@ int litexcnc_stepgen_prepare_write(void *module, uint8_t **data, int period) {
             instance->hal.param.max_velocity = 0.0;
         } else {
             // Maximum speed is positive and no zero, compare with maximum frequency
-	        if (instance->hal.param.max_velocity > (stepgen->data.max_frequency * fabs(instance->hal.param.position_scale))) {
+	        if (instance->hal.param.max_velocity > (stepgen->data.max_frequency * fabs(instance->data.scale_recip))) {
                 // Limit speed to the maximum. This will lead to joint follow error when the higher speeds are commanded
                 float max_speed_desired = instance->hal.param.max_velocity;
-                instance->hal.param.max_velocity = stepgen->data.max_frequency * fabs(instance->hal.param.position_scale);
+                instance->hal.param.max_velocity = stepgen->data.max_frequency * fabs(instance->data.scale_recip);
 		        // Maximum speed is too high, complain about it and modify the value
 		        if (!instance->memo.error_max_speed_printed) {
 		            LITEXCNC_ERR_NO_DEVICE(
