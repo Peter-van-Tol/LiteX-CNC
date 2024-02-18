@@ -210,7 +210,7 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
         dirsetup_cycles = (1 << 13) - 1;
     }
     // - convert the timings to the data to be sent to the FPGA
-    config_data.timings = htobe32((steplen_cycles << 22) + (dirhold_cycles << 12) + (dirsetup_cycles << 0));
+    config_data.timings = htobe32((dirsetup_cycles << 20) + (dirhold_cycles << 10) + (steplen_cycles << 0));
 
     // Put the data on the data-stream and advance the pointer
     memcpy(*data, &config_data, required_config_buffer(stepgen));
