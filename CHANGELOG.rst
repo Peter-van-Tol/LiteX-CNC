@@ -14,6 +14,8 @@ Bugfix version to fix timings for stepgen.
 * ``driver``:
 
   * ``stepgen``: Fix timings (#59). Thanks to *hmnijp* for testing the ``stepgen`` module with a scope.
+  * ``stepgen``: Fix check on maximum speed obeys the maximum step frequency (#59).
+
 
 Version 1.2.3
 =============
