@@ -19,12 +19,6 @@ and velocity mode during operations.
     position to veloctiy, you can keep your current setup when you explicitly set te pin ``velocity-mode``
     to TRUE.
 
-.. note::
-    At this moment the timings can be set for each stepgen channel. At start up these timings are 
-    aggregated to a single timing which is applied to the whole stepgen. This means that the slowest 
-    drive will determine the maximum speed of the machine. In future release of LitexCNC this behavior
-    will be changed and timings will be applied independently.
-
 Step types
 ==========
 
