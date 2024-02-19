@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 from . import ModuleBaseModel, ModuleInstanceBaseModel
 
 
-
 class ShiftOutInstanceConfig(ModuleInstanceBaseModel):
     pin_clock: str = Field(
         description="The pin on the FPGA-card."
@@ -26,6 +25,10 @@ class ShiftOutInstanceConfig(ModuleInstanceBaseModel):
     )
     pin_latch: str = Field(
         description="The pin on the FPGA-card."
+    )
+    pin_clear: str = Field(
+        ...,
+        description="The pin on the FPGA-card"
     )
     data_width: int = Field(
         ...,
@@ -52,7 +55,7 @@ class ShiftOutModuleConfig(ModuleBaseModel):
     Module describing the PWM module
     """
     module_type: Literal['shift_out'] = 'shift_out'
-    module_id: ClassVar[int] = 0x656e635f  # The string `enc_` in hex, must be equal to litexcnc_pwm.h
+    module_id: ClassVar[int] = 0x2d2d2d3e  # The string `--->` in hex, must be equal to litexcnc_shift_out.h
     driver_files: ClassVar[List[str]] = [
         os.path.dirname(__file__) + '/../../driver/modules/litexcnc_shift_out.c',
         os.path.dirname(__file__) + '/../../driver/modules/litexcnc_shift_out.h'
