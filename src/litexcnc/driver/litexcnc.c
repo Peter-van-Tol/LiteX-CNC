@@ -338,8 +338,26 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
         return -1;
     }
     // - version
-    if ((header_data.version_major != LITEXCNC_VERSION_MAJOR) || (header_data.version_minor != LITEXCNC_VERSION_MINOR ))  {
-        // Incompatible versiheader_dataon
+    // =====================
+    // Bugfix for version 1.2 for detecting the correct version
+    // =====================
+    if ((LITEXCNC_VERSION_MAJOR == 1) && (LITEXCNC_VERSION_MINOR == 2) && ((header_data.version_major != LITEXCNC_VERSION_MAJOR) || (header_data.version_minor != LITEXCNC_VERSION_MINOR ))) {
+        if ((header_data.version_major == 1) || (header_data.version_minor == 1 )) {
+            LITEXCNC_PRINT_NO_DEVICE(
+                "INFO: Version of firmware (%u.%u.%u) is different with the version of the driver (%u.%u.%u). Communication is still possible, although the firmware could use an update for the best experience. \n",
+                header_data.version_major, header_data.version_minor, header_data.version_patch, 
+                LITEXCNC_VERSION_MAJOR, LITEXCNC_VERSION_MINOR, LITEXCNC_VERSION_PATCH);
+        } else {
+            // Incompatible version
+            LITEXCNC_ERR_NO_DEVICE(
+                "Version of firmware (%u.%u.%u) is incompatible with the version of the driver (%u.%u.%u) \n",
+                header_data.version_major, header_data.version_minor, header_data.version_patch, 
+                LITEXCNC_VERSION_MAJOR, LITEXCNC_VERSION_MINOR, LITEXCNC_VERSION_PATCH);
+            return -1;
+        }
+    // ===================== 
+    } else if ((header_data.version_major != LITEXCNC_VERSION_MAJOR) || (header_data.version_minor != LITEXCNC_VERSION_MINOR ))  {
+        // Incompatible version
         LITEXCNC_ERR_NO_DEVICE(
             "Version of firmware (%u.%u.%u) is incompatible with the version of the driver (%u.%u.%u) \n",
             header_data.version_major, header_data.version_minor, header_data.version_patch, 

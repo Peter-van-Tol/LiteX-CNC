@@ -210,7 +210,7 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
         dirsetup_cycles = (1 << 13) - 1;
     }
     // - convert the timings to the data to be sent to the FPGA
-    config_data.timings = htobe32((steplen_cycles << 22) + (dirhold_cycles << 12) + (dirsetup_cycles << 0));
+    config_data.timings = htobe32((dirsetup_cycles << 20) + (dirhold_cycles << 10) + (steplen_cycles << 0));
 
     // Put the data on the data-stream and advance the pointer
     memcpy(*data, &config_data, required_config_buffer(stepgen));
@@ -303,10 +303,10 @@ int litexcnc_stepgen_prepare_write(void *module, uint8_t **data, int period) {
             instance->hal.param.max_velocity = 0.0;
         } else {
             // Maximum speed is positive and no zero, compare with maximum frequency
-	        if (instance->hal.param.max_velocity > (stepgen->data.max_frequency * fabs(instance->hal.param.position_scale))) {
+	        if (instance->hal.param.max_velocity > (stepgen->data.max_frequency * fabs(instance->data.scale_recip))) {
                 // Limit speed to the maximum. This will lead to joint follow error when the higher speeds are commanded
                 float max_speed_desired = instance->hal.param.max_velocity;
-                instance->hal.param.max_velocity = stepgen->data.max_frequency * fabs(instance->hal.param.position_scale);
+                instance->hal.param.max_velocity = stepgen->data.max_frequency * fabs(instance->data.scale_recip);
 		        // Maximum speed is too high, complain about it and modify the value
 		        if (!instance->memo.error_max_speed_printed) {
 		            LITEXCNC_ERR_NO_DEVICE(

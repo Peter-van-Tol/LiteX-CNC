@@ -14,4 +14,17 @@
 # 
 # In all cases, the version must also be modified in the header-file `litexcnc.h`
 # of the driver. 
-__version__ = "1.2.2"
+import sys
+
+if sys.version_info[:2] >= (3, 8):
+    # TODO: Import directly (no need for conditional) when `python_requires = >= 3.8`
+    from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
+else:
+    from importlib_metadata import PackageNotFoundError, version  # pragma: no cover
+
+try:
+    __version__ = version("litexcnc")
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "0.0.0"
+finally:
+    del version, PackageNotFoundError

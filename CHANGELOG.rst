@@ -6,6 +6,49 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.2.4
+=============
+
+Bugfix version to fix timings for stepgen.
+
+* ``driver``:
+
+  * ``stepgen``: Fix timings (#59). Thanks to *hmnijp* for testing the ``stepgen`` module with a scope.
+  * ``stepgen``: Fix check on maximum speed obeys the maximum step frequency (#59).
+
+
+Version 1.2.3
+=============
+
+Quick bugfix to solve an identation error in the ``cli``. 
+
+Version 1.2.2
+=============
+
+Bugfix version for ``stepgen`` module, which was affected by an error in the ``encoder`` module. 
+
+Due to an upgrade in the detection / comparison of the version of the firmware this version will show a 
+warning message if older firmware is used (NOTE: the communication has not changed, thus re-compilation is
+not required). In the next minor release (i.e. version 1.3) this change will correctly enforce recompilation
+of the firmware. A change in minor version (i.e. 1.2 -> 1.3) indicates a modification in communication
+protocol and thus requires an update of the firmware.
+
+* ``driver``:
+
+  * ``encoder``: counts and position of encoder can be reset (#74)
+  * ``encoder``: incorrect required read buffer reported has been corrected. This affected the module ``stepgen`` (#79)
+  * ``watchdog``: the watchdog is reset when the card is reset. Prevents the ``has_bitten`` message when LinuxCNC
+    is restarted without power-cycling the card. (#80)
+  * Fixed showing the correct version of LitexCNC in HAL.
+  * Temporary fixed comparison between version of FPGA and driver. When the minor version changes in an upcoming
+    release, the driver will now correctly enforce a recompilation of the firmware.
+
+* ``cli``:
+
+  * ``install_toolchain``: Fixed issue with detection of OS on desktop. Also ``git`` and ``openocd`` are installed
+    on x64-architecture systems (#78).
+
+
 Version 1.2.1
 =============
 
