@@ -7,17 +7,22 @@ from migen.genlib.cdc import MultiReg
 from litex.build.generic_platform import IOStandard, Pins, Subsignal
 from litex.soc.interconnect.csr import CSRStatus, CSRStorage
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
+from litex.soc.integration.soc import SoC
 
 
 class ShiftOutModule(Module, AutoDoc):
 
     def __init__(self, data_width, cycle_counter, pads=None):
         
+        # Round the datawidth up to the nearest multiple of 8. This prevents
+        # accidental data being retained on the MSB pins of a shift register
+        data_width = math.ceil(math.ceil(data_width / 8) * 8)
+
+        self.start = Signal()
         self.enable = Signal()
-        self.enable_delayed = Signal()
         self.data = Signal(data_width)
-        self.data_counter = Signal(max=data_width)
-        self.counter = Signal(max=cycle_counter)
+        self.data_counter = Signal(max=data_width+1)  # NOTE: the maximum is not inclusive, therefore +1
+        self.counter = Signal(max=2*cycle_counter+1)  # NOTE: the maximum is not inclusive, therefore +1
 
         # Signals for the shift register
         self.clock = Signal()
@@ -45,10 +50,12 @@ class ShiftOutModule(Module, AutoDoc):
             "IDLE",
             If(
                 ~self.enable,
-                NextValue(self.counter, 2 * cycle_counter)
+                NextValue(self.counter, 2 * cycle_counter),
                 NextState("DISABLE"),
             ).Elif(
-                data_counter > 0,
+                self.start,
+                NextValue(self.data_counter, data_width),
+                NextValue(self.start, 0),
                 NextState("SHIFT_OUT")
             )
         )
@@ -61,23 +68,20 @@ class ShiftOutModule(Module, AutoDoc):
                 If(
                     self.data_counter == 0,
                     NextValue(self.serial, 0),
-                    NextValue(self.counter, cycle_counter),
+                    NextValue(self.counter, 2 * cycle_counter),
                     NextState("LATCH")
                 ).Else(
                     NextValue(self.data_counter, self.data_counter-1),
                     NextValue(self.clear, 1),
-                    NextValue(self.serial, self.data[0]),
-                    NextValue(self.data, self.data >> 1),
-                    NextValue(self.counter, cycle_counter),
+                    NextValue(self.serial, self.data[-1]),
+                    NextValue(self.data, self.data << 1),
+                    NextValue(self.counter, 2 * cycle_counter),
+                    NextValue(self.clock, 0),
                 )
             ).Else(
                 If(
-                    self.counter > cycle_counter,
-                    NextValue(self.clock, 0),
-                    NextValue(self.data, self.data[0]),
-                ).Else(
+                    self.counter <= cycle_counter,
                     NextValue(self.clock, 1),
-                    NextValue(self.data, self.data[0]),
                 ),
                 NextValue(self.counter, self.counter-1)
             )
@@ -89,7 +93,7 @@ class ShiftOutModule(Module, AutoDoc):
             If(
                 # Don't latch when the enable signal is low
                 ~self.enable,
-                NextValue(self.counter, cycle_counter),
+                NextValue(self.counter, 2 * cycle_counter),
                 NextState("DISABLE")
             ).Elif(
                 # Latch is finished, proceed to idle state
@@ -101,7 +105,7 @@ class ShiftOutModule(Module, AutoDoc):
                     NextValue(self.latch, 1)
                 ).Else(
                     NextValue(self.latch, 0)
-                )
+                ),
                 NextValue(self.counter, self.counter-1)
             )
         )
@@ -111,7 +115,7 @@ class ShiftOutModule(Module, AutoDoc):
             "DISABLE",
             If(
                 self.counter == 0,
-                NextValue(self.latch, 1),
+                NextValue(self.latch, 0),
                 NextValue(self.clear, 1),
                 If(
                     self.enable,
@@ -125,7 +129,7 @@ class ShiftOutModule(Module, AutoDoc):
                 ).Else(
                     NextValue(self.latch, 1),
                     NextValue(self.clear, 0)
-                )
+                ),
                 NextValue(self.counter, self.counter-1)
             )            
         )
@@ -176,7 +180,8 @@ class ShiftOutModule(Module, AutoDoc):
                  index,
                  Subsignal("clock", Pins(config.pin_clock), IOStandard(config.io_standard)),
                  Subsignal("data", Pins(config.pin_data), IOStandard(config.io_standard)),
-                 Subsignal("latch", Pins(config.pin_latch), IOStandard(config.io_standard))
+                 Subsignal("latch", Pins(config.pin_latch), IOStandard(config.io_standard)),
+                 Subsignal("clear", Pins(config.pin_clear), IOStandard(config.io_standard))
                 )
             ])
 
@@ -199,7 +204,7 @@ class ShiftOutModule(Module, AutoDoc):
                     # Wait until the data has been received
                     If(
                         getattr(soc.MMIO_inst, f'shift_out_{index}_data').re,
-                        _shift_out.data_counter.eq(config.data_width),
+                        _shift_out.start.eq(1),
                         _shift_out.data.eq(getattr(soc.MMIO_inst, f'shift_out_{index}_data').storage)                       
                     )
                 )
@@ -214,27 +219,31 @@ if __name__ == "__main__":
         i = 0
         # Setup the stepgen
         yield (shift_out.enable.eq(1))
-        print("Clock;Serial;Latch;Clear")
+        print("Step;Clock;Serial;Latch;Clear")
 
         while(1):
             # After 10 cycles set the data
             if i == 10:
-                yield (shift_out.data_counter.eq(4))
+                yield (shift_out.start.eq(1))
                 yield (shift_out.data.eq(0b1010))
             
             # In each step, print out the state of each parameter
+            enable = (yield shift_out.enable)
             clock = (yield shift_out.clock)
             serial = (yield shift_out.serial)
             latch = (yield shift_out.latch)
             clear = (yield shift_out.clear)
-            print(f"{clock};{serial};{latch};{clear}")
+            data_counter = (yield shift_out.data_counter)
+            data = (yield shift_out.data)
+            counter = (yield shift_out.counter)
+            print(f"{i};{clock};{serial};{latch};{clear};{data_counter};{data};{counter}")
 
             # Wait for the next cycle
             yield
             i+=1
 
             # Stop after 100 cycles, should be enough for a nibble to be shifted out
-            if i > 100000:
+            if i > 100:
                 break
 
     stepgen = ShiftOutModule(data_width=4, cycle_counter=3, pads=None)
