@@ -6,6 +6,21 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.3.0 (under development)
+=================================
+
+Updated ``stepgen`` module to support individual timings for each stepgen. This allows for more flexibility in
+the configuration of the stepgens. One can now combine high perfomance drivers (for example Leadshine or Lichuan
+stepper drivers which support up to 400 kHz) with low performance drivers (DRV8825?) the same card.
+
+.. info::
+  For this version a recompilation of the firmware is required. There are no changes to the configuration file.
+
+* ``driver``:
+
+  * ``stepgen``: Individual timings for each stepgen. This allows for more flexibility in the configuration of
+    the stepgens.
+
 Version 1.2.4
 =============
 
