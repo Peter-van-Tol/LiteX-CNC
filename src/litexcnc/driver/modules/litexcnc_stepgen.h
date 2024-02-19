@@ -111,6 +111,7 @@ typedef struct {
         hal_u32_t stepspace_cycles;
         hal_u32_t dirsetup_cycles;
         hal_u32_t dirhold_cycles;
+        float max_frequency;
         // The data being send to the FPGA (as calculated)
         float flt_acc;
         float flt_speed;
@@ -164,7 +165,6 @@ typedef struct {
         size_t pick_off_pos;
         size_t pick_off_vel;
         size_t pick_off_acc;
-        float max_frequency;
     } data;
 
 } litexcnc_stepgen_t;

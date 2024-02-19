@@ -106,7 +106,7 @@ size_t required_config_buffer(void *module) {
     if (stepgen_module->num_instances == 0) {
         return 0;
     }
-    return sizeof(litexcnc_stepgen_config_data_t);
+    return stepgen_module->num_instances * sizeof(litexcnc_stepgen_config_data_t);
 }
 
 
@@ -151,20 +151,11 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
 
     // Timings
     // ===============
-    // All stepgens will use the same values for steplen, dir_hold_time and dir_setup_time.
-    // The maximum value is governing, so we start with the value 0. For each instance
-    // it is checked whether the value has changed. If it has changed, the time is
-    // converted to cycles.
-    // NOTE: all timings are in nano-seconds (1E-9), so the timing is multiplied with
-    // the clock-frequency and divided by 1E9. However, this might lead to issues
-    // with roll-over of the 32-bit integer. 
-    // TODO: Make the timings settings per stepgen unit
+    // CHANGED 19-02-2022: The timings are now set per stepgen instance. This is done to
+    // allow for different timings for different stepgen instances. This is especially
+    // useful when different stepgens are used, which have different requirements for the
+    // timings.
     litexcnc_stepgen_config_data_t config_data = {0};
-    uint32_t stepspace_cycles = 0;
-    uint32_t steplen_cycles = 0;
-    uint32_t dirhold_cycles = 0;
-    uint32_t dirsetup_cycles = 0;
-
     for (size_t i=0; i<stepgen->num_instances; i++) {
         // Get pointer to the stepgen instance
         litexcnc_stepgen_instance_t *instance = &(stepgen->instances[i]);
@@ -172,49 +163,41 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
         // Calculate the timings
         // - steplen
         instance->data.steplen_cycles = ceil((float) instance->hal.param.steplen * (*(stepgen->data.clock_frequency)) * 1e-9);
-        instance->memo.steplen = instance->hal.param.steplen; 
-        if (instance->data.steplen_cycles > steplen_cycles) {steplen_cycles = instance->data.steplen_cycles;};
+        instance->memo.steplen = instance->hal.param.steplen;
         // - stepspace
         instance->data.stepspace_cycles = ceil((float) instance->hal.param.stepspace * (*(stepgen->data.clock_frequency)) * 1e-9);
         instance->memo.stepspace = instance->hal.param.stepspace; 
-        if (instance->data.stepspace_cycles > stepspace_cycles) {stepspace_cycles = instance->data.stepspace_cycles;};
         // - dir_hold_time
         instance->data.dirhold_cycles = ceil((float) instance->hal.param.dir_hold_time * (*(stepgen->data.clock_frequency)) * 1e-9);
         instance->memo.dir_hold_time = instance->hal.param.dir_hold_time; 
-        if (instance->data.dirhold_cycles > dirhold_cycles) {dirhold_cycles = instance->data.dirhold_cycles;};
         // - dir_setup_time
         instance->data.dirsetup_cycles = ceil((float) instance->hal.param.dir_setup_time * (*(stepgen->data.clock_frequency)) * 1e-9);
         instance->memo.dir_setup_time = instance->hal.param.dir_setup_time; 
-        if (instance->data.dirsetup_cycles > dirsetup_cycles) {dirsetup_cycles = instance->data.dirsetup_cycles;};
-    }
 
-    // Calculate the maximum frequency for stepgen (in if statement to prevent division)
-    if ((stepgen->memo.stepspace_cycles != stepspace_cycles) || (stepgen->memo.steplen_cycles != steplen_cycles)) {
-        stepgen->data.max_frequency = fmin(stepgen->data.max_frequency, (double) (*(stepgen->data.clock_frequency)) / (steplen_cycles + stepspace_cycles));
-        stepgen->memo.steplen_cycles = steplen_cycles;
-        stepgen->memo.stepspace_cycles = stepspace_cycles;
-    }
+        // Calculate the maximum frequency for stepgen (in if statement to prevent division)
+        instance->data.max_frequency = (double) (*(stepgen->data.clock_frequency)) / (instance->data.steplen_cycles + instance->data.stepspace_cycles));
 
-    // Convert the general data to the correct byte order
-    // - check whether the parameters fits in the space
-    if (steplen_cycles >= 1 << 11) {
-        LITEXCNC_ERR("Parameter `steplen` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
-        steplen_cycles = (1 << 11) - 1;
-    }
-    if (dirhold_cycles >= 1 << 11) {
-        LITEXCNC_ERR("Parameter `dir_hold_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
-        dirhold_cycles = (1 << 11) - 1;
-    }
-    if (dirsetup_cycles >= 1 << 13) {
-        LITEXCNC_ERR("Parameter `dir_setup_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
-        dirsetup_cycles = (1 << 13) - 1;
-    }
-    // - convert the timings to the data to be sent to the FPGA
-    config_data.timings = htobe32((dirsetup_cycles << 20) + (dirhold_cycles << 10) + (steplen_cycles << 0));
+        // Convert the general data to the correct byte order
+        // - check whether the parameters fits in the space
+        if (steplen_cycles >= 1 << 11) {
+            LITEXCNC_ERR("Parameter `steplen` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
+            steplen_cycles = (1 << 11) - 1;
+        }
+        if (dirhold_cycles >= 1 << 11) {
+            LITEXCNC_ERR("Parameter `dir_hold_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
+            dirhold_cycles = (1 << 11) - 1;
+        }
+        if (dirsetup_cycles >= 1 << 13) {
+            LITEXCNC_ERR("Parameter `dir_setup_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
+            dirsetup_cycles = (1 << 13) - 1;
+        }
+        // - convert the timings to the data to be sent to the FPGA
+        config_data.timings = htobe32((dirsetup_cycles << 20) + (dirhold_cycles << 10) + (steplen_cycles << 0));
 
-    // Put the data on the data-stream and advance the pointer
-    memcpy(*data, &config_data, required_config_buffer(stepgen));
-    *data += required_config_buffer(stepgen);
+        // Put the data on the data-stream and advance the pointer
+        memcpy(*data, &config_data, sizeof(litexcnc_stepgen_config_data_t));
+        *data += sizeof(litexcnc_stepgen_config_data_t);
+    }
 
     return 0;
 }

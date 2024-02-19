@@ -201,16 +201,26 @@ class StepgenModule(Module, AutoDoc):
         TODO: in the next iteration of the stepgen timing configs should be for each
         stepgen individually.
         """
-        mmio.stepgen_stepdata = CSRStorage(
-            fields=[
-                CSRField("steplen", size=10, offset=0, description="The length of the step pulse in clock cycles"),
-                CSRField("dir_hold_time", size=10, offset=10, description="The minimum delay (in clock cycles) after a step pulse before "),
-                CSRField("dir_setup_time", size=12, offset=20, description="The minimum delay (in clock cycles) after a direction change and before the next step - may be longer"),
-            ],
-            name=f'stepgen_stepdata',
-            description=f'The length of the step pulse in clock cycles',
-            write_from_dev=False
-        )
+        # Don't create the registers when the config is empty (no stepgens
+        # defined in this case)
+        if not config:
+            return
+
+        for index, _ in enumerate(config.instances):
+            setattr(
+                mmio,
+                f'stepgen_{index}_stepdata',
+                CSRStorage(
+                    fields=[
+                    CSRField("steplen", size=10, offset=0, description="The length of the step pulse in clock cycles"),
+                    CSRField("dir_hold_time", size=10, offset=10, description="The minimum delay (in clock cycles) after a step pulse before "),
+                    CSRField("dir_setup_time", size=12, offset=20, description="The minimum delay (in clock cycles) after a direction change and before the next step - may be longer"),
+                ],
+                name=f'stepgen_{index}_stepdata',
+                description=f'The length of the step pulse in clock cycles',
+                write_from_dev=False
+                )
+            )
     
     @classmethod
     def add_mmio_read_registers(cls, mmio, config: StepgenModuleConfig):
