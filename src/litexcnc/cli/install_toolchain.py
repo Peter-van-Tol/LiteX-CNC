@@ -88,7 +88,7 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
         click.echo(click.style("INFO", fg="blue") + f": Downloading OSS-CAD-Suite ({os_}/{arch}) ...")
         download = os.path.join(tempdirname, f'oss-cad-suite-{os_}-{arch}-20220227.tgz')
         response = requests.get(
-            f'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-07/oss-cad-suite-{os_}-{arch}-20221207.tgz'
+            f'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2024-02-14/oss-cad-suite-{os_}-{arch}-20240214.tgz'
         )
         response.raise_for_status()
         open(download, 'wb').write(response.content)
