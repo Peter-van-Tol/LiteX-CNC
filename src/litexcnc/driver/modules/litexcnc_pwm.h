@@ -74,6 +74,7 @@ typedef struct {
         } pin;
         /** Structure defining the HAL params */
         struct {
+            hal_bit_t invert_output;    /** When set, the output is inverted (i.e. active low) */
             hal_float_t scale_recip;    /* Reciprocal of the scale, not exported */
             hal_float_t period_recip;   /* Reciprocal of the width, not exported */
         } param;

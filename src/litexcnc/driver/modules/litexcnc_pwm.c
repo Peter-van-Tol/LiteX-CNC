@@ -99,6 +99,11 @@ size_t required_enable_write_buffer(litexcnc_pwm_t *pwm_module) {
 }
 
 
+size_t required_invert_output_write_buffer(litexcnc_pwm_t *pwm_module) {
+    return (((pwm_module->num_instances)>>5) + ((pwm_module->num_instances & 0x1F)?1:0)) * 4;
+}
+
+
 size_t required_write_buffer(void *module) {
     static litexcnc_pwm_t *pwm_module;
     pwm_module = (litexcnc_pwm_t *) module;
@@ -108,7 +113,9 @@ size_t required_write_buffer(void *module) {
       a single instance, the width is increased with 32 bit steps;
     - the data of each PWM pin (size of litexcnc_pwm_data_t)
     */
-    return required_enable_write_buffer(pwm_module) + (pwm_module->num_instances * sizeof(litexcnc_pwm_data_t));
+    return required_enable_write_buffer(pwm_module) + 
+        required_invert_output_write_buffer(pwm_module) + 
+        (pwm_module->num_instances * sizeof(litexcnc_pwm_data_t));
 }
 
 
@@ -121,7 +128,6 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
     static litexcnc_pwm_t *pwm;
     pwm = (litexcnc_pwm_t *) module;
 
-
     // Process enable signal
     static uint8_t mask;
     mask = 0x80;
@@ -130,6 +136,23 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
         // should add data from existing pins
         if (i <= pwm->num_instances) {
             *(*data) |= (*(pwm->instances[i-1].hal.pin.enable))?mask:0;
+        }
+        // Modify the mask for the next. When the mask is zero (happens in case of a 
+        // roll-over), we should proceed to the next byte and reset the mask.
+        mask >>= 1;
+        if (!mask) {
+            mask = 0x80;  // Reset the mask
+            (*data)++; // Proceed the buffer to the next element
+        }
+    }
+
+    // Process invert-ouput signal
+    mask = 0x80;
+    for (size_t i=required_invert_output_write_buffer(pwm)*8; i>0; i--) {
+        // The counter i can have a value outside the range of possible pins. We only
+        // should add data from existing pins
+        if (i <= pwm->num_instances) {
+            *(*data) |= (pwm->instances[i-1].hal.param.invert_output)?mask:0;
         }
         // Modify the mask for the next. When the mask is zero (happens in case of a 
         // roll-over), we should proceed to the next byte and reset the mask.
@@ -283,6 +306,7 @@ size_t litexcnc_pwm_init(litexcnc_module_instance_t **module, litexcnc_t *litexc
         LITEXCNC_CREATE_BASENAME("pwm", i);
 
         // Create the pins
+        // - pins
         LITEXCNC_CREATE_HAL_PIN("enable", bit, HAL_IN, &(instance->hal.pin.enable))
         LITEXCNC_CREATE_HAL_PIN("value", float, HAL_IN, &(instance->hal.pin.value))
         LITEXCNC_CREATE_HAL_PIN("scale", float, HAL_IN, &(instance->hal.pin.scale))
@@ -295,6 +319,8 @@ size_t litexcnc_pwm_init(litexcnc_module_instance_t **module, litexcnc_t *litexc
         LITEXCNC_CREATE_HAL_PIN("curr_pwm_freq", float, HAL_OUT, &(instance->hal.pin.curr_pwm_freq))
         LITEXCNC_CREATE_HAL_PIN("curr_period", u32, HAL_OUT, &(instance->hal.pin.curr_period))
         LITEXCNC_CREATE_HAL_PIN("curr_width", u32, HAL_OUT, &(instance->hal.pin.curr_width))
+        // - params
+        LITEXCNC_CREATE_HAL_PARAM("invert_output", bit, HAL_RW, &(instance->hal.param.invert_output));
 
         // Set default values for the instance (PWM is disabled by default: SAFETY!)
         *(instance->hal.pin.enable) = 0;
