@@ -70,7 +70,7 @@ class ModuleBaseModel(BaseModel):
         aliases = []
         for index, instance in enumerate(self.instances):
             # If name is not given, no alias will be created
-            if instance.name is None:
+            if not hasattr(instance, "name") or instance.name is None:
                 continue
             # Create aliases
             pin_alias = partial(self._create_pin_alias, board_name, index, instance.name)
