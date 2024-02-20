@@ -72,11 +72,7 @@ EXPORT_SYMBOL_GPL(register_stepgen_module);
 size_t required_config_buffer(void *module) {
     static litexcnc_stepgen_t *stepgen_module;
     stepgen_module = (litexcnc_stepgen_t *) module;
-    // Safeguard for empty modules
-    if (stepgen_module->num_instances == 0) {
-        return 0;
-    }
-    return sizeof(litexcnc_stepgen_config_data_t);
+    return sizeof(litexcnc_stepgen_config_data_t) * stepgen_module->num_instances;
 }
 
 
@@ -133,49 +129,42 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
         // - steplen
         instance->data.steplen_cycles = ceil((float) instance->hal.param.steplen * (*(stepgen->data.clock_frequency)) * 1e-9);
         instance->memo.steplen = instance->hal.param.steplen; 
-        if (instance->data.steplen_cycles > steplen_cycles) {steplen_cycles = instance->data.steplen_cycles;};
         // - stepspace
         instance->data.stepspace_cycles = ceil((float) instance->hal.param.stepspace * (*(stepgen->data.clock_frequency)) * 1e-9);
         instance->memo.stepspace = instance->hal.param.stepspace; 
-        if (instance->data.stepspace_cycles > stepspace_cycles) {stepspace_cycles = instance->data.stepspace_cycles;};
         // - dir_hold_time
         instance->data.dirhold_cycles = ceil((float) instance->hal.param.dir_hold_time * (*(stepgen->data.clock_frequency)) * 1e-9);
         instance->memo.dir_hold_time = instance->hal.param.dir_hold_time; 
-        if (instance->data.dirhold_cycles > dirhold_cycles) {dirhold_cycles = instance->data.dirhold_cycles;};
         // - dir_setup_time
         instance->data.dirsetup_cycles = ceil((float) instance->hal.param.dir_setup_time * (*(stepgen->data.clock_frequency)) * 1e-9);
-        instance->memo.dir_setup_time = instance->hal.param.dir_setup_time; 
-        if (instance->data.dirsetup_cycles > dirsetup_cycles) {dirsetup_cycles = instance->data.dirsetup_cycles;};
-    }
+        instance->memo.dir_setup_time = instance->hal.param.dir_setup_time;
+        
+        // Convert the general data to the correct byte order
+        // - check whether the parameters fits in the space
+        if (instance->data.steplen_cycles >= 1 << 11) {
+            LITEXCNC_ERR("Stepgen channel %zu: Parameter `steplen` too large and is clipped. Consider lowering the frequency of the FPGA.\n", i, stepgen->data.fpga_name);
+            instance->data.steplen_cycles = (1 << 11) - 1;
+        }
+        if (instance->data.dirhold_cycles >= 1 << 11) {
+            LITEXCNC_ERR("Stepgen channel %zu: Parameter `dir_hold_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", i, stepgen->data.fpga_name);
+            instance->data.dirhold_cycles = (1 << 11) - 1;
+        }
+        if (instance->data.dirsetup_cycles >= 1 << 13) {
+            LITEXCNC_ERR("Stepgen channel %zu: Parameter `dir_setup_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", i, stepgen->data.fpga_name);
+            instance->data.dirsetup_cycles = (1 << 13) - 1;
+        }
 
-    // Calculate the maximum frequency for stepgen (in if statement to prevent division)
-    if ((stepgen->memo.stepspace_cycles != stepspace_cycles) || (stepgen->memo.steplen_cycles != steplen_cycles)) {
-        // Temporary removed, as aboce will also be individual timings
-        // stepgen->data.max_frequency = fmin(stepgen->data.max_frequency, (double) (*(stepgen->data.clock_frequency)) / (steplen_cycles + stepspace_cycles));
-        stepgen->memo.steplen_cycles = steplen_cycles;
-        stepgen->memo.stepspace_cycles = stepspace_cycles;
+        // Put the data on the data-stream and advance the pointer
+        // - convert the timings to the data to be sent to the FPGA
+        config_data.timings = htobe32((dirsetup_cycles << 20) + (dirhold_cycles << 10) + (steplen_cycles << 0));
+        // - send the data
+        memcpy(*data, &config_data, sizeof(litexcnc_stepgen_config_data_t));
+        // - proceed to the next data
+        *data += sizeof(litexcnc_stepgen_config_data_t);
+        
+        // Calculate the maximum frequency
+        instance->hal.param.max_frequency = fmin(instance->hal.param.max_frequency, (double) (*(stepgen->data.clock_frequency)) / (instance->data.steplen_cycles + instance->data.stepspace_cycles));
     }
-
-    // Convert the general data to the correct byte order
-    // - check whether the parameters fits in the space
-    if (steplen_cycles >= 1 << 11) {
-        LITEXCNC_ERR("Parameter `steplen` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
-        steplen_cycles = (1 << 11) - 1;
-    }
-    if (dirhold_cycles >= 1 << 11) {
-        LITEXCNC_ERR("Parameter `dir_hold_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
-        dirhold_cycles = (1 << 11) - 1;
-    }
-    if (dirsetup_cycles >= 1 << 13) {
-        LITEXCNC_ERR("Parameter `dir_setup_time` too large and is clipped. Consider lowering the frequency of the FPGA.\n", stepgen->data.fpga_name);
-        dirsetup_cycles = (1 << 13) - 1;
-    }
-    // - convert the timings to the data to be sent to the FPGA
-    config_data.timings = htobe32((dirsetup_cycles << 20) + (dirhold_cycles << 10) + (steplen_cycles << 0));
-
-    // Put the data on the data-stream and advance the pointer
-    memcpy(*data, &config_data, required_config_buffer(stepgen));
-    *data += required_config_buffer(stepgen);
 
     return 0;
 }

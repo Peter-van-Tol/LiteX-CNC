@@ -201,16 +201,21 @@ class StepgenModule(Module, AutoDoc):
         TODO: in the next iteration of the stepgen timing configs should be for each
         stepgen individually.
         """
-        mmio.stepgen_stepdata = CSRStorage(
-            fields=[
-                CSRField("steplen", size=10, offset=0, description="The length of the step pulse in clock cycles"),
-                CSRField("dir_hold_time", size=10, offset=10, description="The minimum delay (in clock cycles) after a step pulse before "),
-                CSRField("dir_setup_time", size=12, offset=20, description="The minimum delay (in clock cycles) after a direction change and before the next step - may be longer"),
-            ],
-            name=f'stepgen_stepdata',
-            description=f'The length of the step pulse in clock cycles',
-            write_from_dev=False
-        )
+        for index, _ in enumerate(config.instances):
+            setattr(
+                mmio,
+                f'stepgen_{index}_stepdata',
+                CSRStorage(
+                    fields=[
+                        CSRField("steplen", size=10, offset=0, description="The length of the step pulse in clock cycles"),
+                        CSRField("dir_hold_time", size=10, offset=10, description="The minimum delay (in clock cycles) after a step pulse before "),
+                        CSRField("dir_setup_time", size=12, offset=20, description="The minimum delay (in clock cycles) after a direction change and before the next step - may be longer"),
+                    ],
+                    name=f'stepgen_{index}_stepdata',
+                    description=f'The length of the step pulse in clock cycles',
+                    write_from_dev=False
+                )
+            )
     
     @classmethod
     def add_mmio_read_registers(cls, mmio, config: StepgenModuleConfig):
@@ -324,9 +329,9 @@ class StepgenModule(Module, AutoDoc):
                 # Data from MMIO to stepgen
                 stepgen.reset.eq(soc.MMIO_inst.reset.storage),
                 stepgen.enable.eq(~watchdog.has_bitten),
-                stepgen.steplen.eq(soc.MMIO_inst.stepgen_stepdata.fields.steplen),
-                stepgen.dir_hold_time.eq(soc.MMIO_inst.stepgen_stepdata.fields.dir_hold_time),
-                stepgen.dir_setup_time.eq(soc.MMIO_inst.stepgen_stepdata.fields.dir_setup_time),
+                stepgen.steplen.eq(getattr(soc.MMIO_inst, f"stepgen_{index}_stepdata").fields.steplen),
+                stepgen.dir_hold_time.eq(getattr(soc.MMIO_inst, f"stepgen_{index}_stepdata").fields.dir_hold_time),
+                stepgen.dir_setup_time.eq(getattr(soc.MMIO_inst, f"stepgen_{index}_stepdata").fields.dir_setup_time),
             ]
             soc.sync += [
                 # Position and feedback from stepgen to MMIO
