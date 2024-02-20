@@ -304,12 +304,6 @@ class StepgenModule(Module, AutoDoc):
         if not config:
             return
 
-        # Determine the pick-off for the velocity. This one is based on the clock-frequency
-        # and the step frequency to be obtained
-        shift = 0
-        while (soc.clock_frequency / (1 << (shift + 1)) > 400e3):
-            shift += 1
-
         for index, stepgen_config in enumerate(config.instances):
             soc.platform.add_extension([
                 ("stepgen", index,
@@ -317,6 +311,7 @@ class StepgenModule(Module, AutoDoc):
                 )
             ])
             # Create the stepgen and add to the system
+            shift = stepgen_config.calculate_shift(soc.MMIO_inst)
             stepgen = cls(
                 pads=soc.platform.request('stepgen', index),
                 pick_off=(32, 32 + shift, 32 + shift + 8),
