@@ -544,7 +544,7 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
         instance->data.pick_off_pos = 32;
         instance->data.pick_off_vel = instance->data.pick_off_pos + shift;
         instance->data.pick_off_acc = instance->data.pick_off_vel + 8;
-        instance->hal.param.max_frequency = (float) *(stepgen->data.clock_frequency) / (1 << (shift + 1));
+        instance->hal.param.max_frequency = (float) *(stepgen->data.clock_frequency) / (1 << (shift + 1)) - 1;
         (*config)++;
         
         // Create the basename
