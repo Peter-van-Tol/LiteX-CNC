@@ -105,7 +105,7 @@ class ShiftOutModuleConfig(ModuleBaseModel):
         # Calculate the config bits
         config = len(self.instances) << (self.config_size * 8 - 8)
         for index, instance in enumerate(self.instances):
-            config += ((instance.data_width - 1) << index)
+            config += ((instance.data_width - 1) << (self.config_size * 8 - 8 * (2 + index)))
         # Create the register
         mmio.shift_out_config_data =  CSRStatus(
             size=self.config_size*8,
