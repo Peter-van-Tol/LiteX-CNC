@@ -667,6 +667,7 @@ int rtapi_app_main(void) {
     LITEXCNC_LOAD_MODULE("pwm")
     LITEXCNC_LOAD_MODULE("encoder")
     LITEXCNC_LOAD_MODULE("stepgen")
+    LITEXCNC_LOAD_MODULE("shift_out")
     for(i = 0, ret = 0; ret == 0 && i<MAX_EXTRAS && extra_modules[i] && *extra_modules[i]; i++) {
         LITEXCNC_LOAD_MODULE(extra_modules[i])
     }
