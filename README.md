@@ -29,4 +29,4 @@ litexcnc install_toolchain
 litexcnc build_driver
 ```
 
-For a full overview on how to use the commands, please refer to the `documentation <https://litex-cnc.readthedocs.io/en/stable/>`_.
+For a full overview on how to use the commands, please refer to the [documentation](https://litex-cnc.readthedocs.io/en/stable/).
