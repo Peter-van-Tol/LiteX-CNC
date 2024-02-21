@@ -106,20 +106,11 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
     stepgen->data.cycles_per_period = stepgen->data.period_s * (*(stepgen->data.clock_frequency));
 
     // Timings
-    // ===============
-    // All stepgens will use the same values for steplen, dir_hold_time and dir_setup_time.
-    // The maximum value is governing, so we start with the value 0. For each instance
-    // it is checked whether the value has changed. If it has changed, the time is
-    // converted to cycles.
+    // =======
     // NOTE: all timings are in nano-seconds (1E-9), so the timing is multiplied with
     // the clock-frequency and divided by 1E9. However, this might lead to issues
     // with roll-over of the 32-bit integer. 
-    // TODO: Make the timings settings per stepgen unit
     litexcnc_stepgen_config_data_t config_data = {0};
-    uint32_t stepspace_cycles = 0;
-    uint32_t steplen_cycles = 0;
-    uint32_t dirhold_cycles = 0;
-    uint32_t dirsetup_cycles = 0;
 
     for (size_t i=0; i<stepgen->num_instances; i++) {
         // Get pointer to the stepgen instance
@@ -156,7 +147,7 @@ int litexcnc_stepgen_config(void *module, uint8_t **data, int period) {
 
         // Put the data on the data-stream and advance the pointer
         // - convert the timings to the data to be sent to the FPGA
-        config_data.timings = htobe32((dirsetup_cycles << 20) + (dirhold_cycles << 10) + (steplen_cycles << 0));
+        config_data.timings = htobe32((instance->data.dirsetup_cycles << 20) + (instance->data.dirhold_cycles << 10) + (instance->data.steplen_cycles << 0));
         // - send the data
         memcpy(*data, &config_data, sizeof(litexcnc_stepgen_config_data_t));
         // - proceed to the next data
