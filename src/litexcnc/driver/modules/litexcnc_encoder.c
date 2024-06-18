@@ -208,7 +208,7 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
     for (size_t i=single_dword_buffer(encoder)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible instances. We only
         // should add data to existing instances
-        if (i < encoder->num_instances) {
+        if (i <= encoder->num_instances) {
             index_pulse = (*(*data) & mask)?1:0;
             // Reset the index enable on positive edge of the index pulse
             // NOTE: the FPGA only sets the index pulse when a raising flank has been detected
@@ -367,7 +367,7 @@ int litexcnc_encoder_prepare_write(void *module, uint8_t **data, int period) {
     for (size_t i=single_dword_buffer(encoder)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible instances. We only
         // should add data from existing instances
-        if (i < encoder->num_instances) {
+        if (i <= encoder->num_instances) {
             *(*data) |= *(encoder->instances[i-1].hal.pin.index_enable)?mask:0;
         }
         // Modify the mask for the next. When the mask is zero (happens in case of a 
@@ -384,7 +384,7 @@ int litexcnc_encoder_prepare_write(void *module, uint8_t **data, int period) {
     for (size_t i=single_dword_buffer(encoder)*8; i>0; i--) {
         // The counter i can have a value outside the range of possible instances. We only
         // should add data from existing instances
-        if (i < encoder->num_instances) {
+        if (i <= encoder->num_instances) {
             *(*data) |= *(encoder->instances[i-1].hal.pin.index_pulse)?mask:0;
         }
         // Modify the mask for the next. When the mask is zero (happens in case of a 
