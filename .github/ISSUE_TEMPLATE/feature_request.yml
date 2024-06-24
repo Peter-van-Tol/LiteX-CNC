@@ -15,8 +15,7 @@ body:
       description: |
         Just a few checks to make sure you need to create a feature request.
 
-        _Sorry to sound so draconian 👿; but every second spent replying to issues is time not
-        spent improving Litex-CNC 🙇._
+        _Sorry to sound so draconian 👿; but every second spent replying to issues is time not spent improving Litex-CNC 🙇._
       options:
         - label: I have searched Google & GitHub for similar requests and couldn't find anything
           required: true
@@ -33,8 +32,7 @@ body:
         You might like to add:
         * A demo of how code might look when using the feature
         * Your use case(s) for the feature
-        * Why the feature should be added to Litex-CNC (as opposed to another library or just 
-          implemented in your code)
+        * Why the feature should be added to Litex-CNC (as opposed to another library or just implemented in your code)
     validations:
       required: true
 
