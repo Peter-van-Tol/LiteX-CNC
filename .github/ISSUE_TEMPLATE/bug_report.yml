@@ -25,8 +25,8 @@ body:
       description: >
         If applicable, please add a self-contained,
         [minimal, reproducible, example](https://stackoverflow.com/help/minimal-reproducible-example)
-        demonstrating the bug. Also, when available, please share your configuration file and HAL-file
-        as attachment to the issue.
+        demonstrating the bug. Please share your configuration file as attachment to the issue. If the
+        bug can only be reproduced using the HAL, please also attach a HAL-file with a minimal example.
 
       placeholder: |
         
