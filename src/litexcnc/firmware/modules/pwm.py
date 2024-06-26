@@ -21,7 +21,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
     Pulse Width Modulation can be useful for various purposes: dim leds, regulate a fan, control
     an oscillator. Software can configure the PWM width and period and enable/disable it.
     """
-    def __init__(self, pwm=None, clock_domain="sys", with_csr=True,
+    def __init__(self, pads=None, clock_domain="sys", with_csr=True,
         default_enable = 0,
         default_invert_output=0,
         default_width  = 0,
@@ -30,8 +30,9 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         # AutoDoc implementation
         self.intro = ModuleDoc(self.__class__.__doc__)
 
-        if pwm is None:
-            self.pwm = pwm = Signal()
+        if pads is None:
+            pads = Record([("pwm", 1),])
+        
         self.enable = Signal(reset=default_enable)
         self.invert_output = Signal(reset=default_invert_output)
         self.width  = Signal(32, reset=default_width)
@@ -52,9 +53,9 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
                     # PWM mode
                     counter.eq(counter + 1),
                     If(counter < self.width,
-                        pwm.eq(1 ^ self.invert_output)
+                        pads.pwm.eq(1 ^ self.invert_output)
                     ).Else(
-                        pwm.eq(0 ^ self.invert_output)
+                        pads.pwm.eq(0 ^ self.invert_output)
                     ),
                     If(counter >= (self.period - 1),
                         counter.eq(0)
@@ -65,17 +66,17 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
                     error_1.eq(error - self.width[:16] + (2**16 - 1)),
                     If(
                         self.width[:16] > error,
-                        pwm.eq(1 ^ self.invert_output),
+                        pads.pwm.eq(1 ^ self.invert_output),
                         error.eq(error_1)
                     ).Else(
-                        pwm.eq(0 ^ self.invert_output),
+                        pads.pwm.eq(0 ^ self.invert_output),
                         error.eq(error_0)
                     )
                 )
             ).Else(
                 # Inactive
                 counter.eq(0),
-                pwm.eq(0 ^ self.invert_output)
+                pads.pwm.eq(0 ^ self.invert_output)
             )
         ]
 
@@ -165,14 +166,12 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         if not pwm_config:
             return
 
-        # Add module and create the pads
         soc.platform.add_extension([
-            ("pwm", index, Pins(pwm_instance.pin), IOStandard(pwm_instance.io_standard))
+            ("pwm", index, *pwm_instance.pins.convert_to_signal())
             for index, pwm_instance 
             in enumerate(pwm_config.instances)
         ])
-        soc.pwm_outputs = [pad for pad in soc.platform.request_all("pwm").l]
-
+        
         # Turn the PWM off when the card is reset or watchdog has bitten
         # Connect to the reset mechanism
         soc.sync += [
@@ -187,7 +186,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         # Create the generators
         for index in range(len(pwm_config.instances)):
             # Add the PWM-module to the platform
-            _pwm = PwmPdmModule(soc.pwm_outputs[index], with_csr=False)
+            _pwm = PwmPdmModule(soc.platform.request('pwm', index), with_csr=False)
             soc.submodules += _pwm
             soc.comb += [
                 _pwm.enable.eq(soc.MMIO_inst.pwm_enable.storage[index] & ~watchdog.has_bitten),
