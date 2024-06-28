@@ -38,6 +38,19 @@ class PWM_SinglePin(BaseModel):
         return (
             Subsignal("pwm", Pins(self.pwm), IOStandard(self.io_standard)),
         )
+    
+    @staticmethod
+    def output_pwm(pads, value, direction, invert):
+        # Deferred imports to prevent importing Litex while installing the driver
+        from migen import If
+        return (
+            If(
+                direction == 0,
+                pads.pwm.eq(value ^ invert),
+            ).Else(
+                pads.pwm.eq(0 ^ invert),
+            ), 
+        )
 
 
 class PWM_PWMDirectionPins(BaseModel):
@@ -66,7 +79,14 @@ class PWM_PWMDirectionPins(BaseModel):
         from litex.build.generic_platform import IOStandard, Pins, Subsignal
         return (
             Subsignal("pwm", Pins(self.pwm), IOStandard(self.io_standard)),
-            Subsignal("direction", Pins(self.pwm), IOStandard(self.io_standard)),
+            Subsignal("direction", Pins(self.direction), IOStandard(self.io_standard)),
+        )
+
+    @staticmethod
+    def output_pwm(pads, value, direction, invert):
+        return (
+            pads.pwm.eq(value ^ invert),
+            pads.direction.eq(direction ^ invert),
         )
 
 
@@ -96,10 +116,23 @@ class PWM_UpDownPins(BaseModel):
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.build.generic_platform import IOStandard, Pins, Subsignal
         return (
-            Subsignal("up", Pins(self.pwm), IOStandard(self.io_standard)),
-            Subsignal("down", Pins(self.pwm), IOStandard(self.io_standard)),
+            Subsignal("up", Pins(self.up), IOStandard(self.io_standard)),
+            Subsignal("down", Pins(self.down), IOStandard(self.io_standard)),
         )
 
+    @staticmethod
+    def output_pwm(pads, value, direction, invert):
+        from migen import If
+        return (
+            If(
+                direction == 0,
+                pads.up.eq(value ^ invert),
+                pads.down.eq(0 ^ invert),
+            ).Else(
+                pads.up.eq(0 ^ invert),
+                pads.down.eq(value ^ invert),
+            ),
+        )
         
 class PWM_Instance(ModuleInstanceBaseModel):
     """

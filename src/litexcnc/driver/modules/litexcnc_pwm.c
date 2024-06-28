@@ -125,6 +125,7 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
     // - period (Signal(32): 32-bit unsigned integer)
     // - width  (Signal(32): 32-bit unsigned integer)
     static double duty_cycle;
+    static uint32_t direction;
     static litexcnc_pwm_t *pwm;
     pwm = (litexcnc_pwm_t *) module;
 
@@ -218,7 +219,10 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
         duty_cycle = *(pwm_instance->hal.pin.value) * pwm_instance->hal.param.scale_recip + *(pwm_instance->hal.pin.offset);
         // - unidirectional mode, no negative output
         if ( duty_cycle < 0.0 ) {
-            duty_cycle = 0.0;
+            duty_cycle = -1 * duty_cycle;
+            direction = 0x80000000;
+        } else {
+            direction = 0;
         }
         // - limit the duty-cylce 
         if ( duty_cycle > *(pwm_instance->hal.pin.max_dc) ) {
@@ -242,18 +246,21 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
                 pwm_instance->hal.param.period_recip = 1.0 / *(pwm_instance->hal.pin.curr_period);
             }
             // - convert duty-cycle to period -> round to the nearest duty cycle
-            *(pwm_instance->hal.pin.curr_width) = (*(pwm_instance->hal.pin.curr_period) * duty_cycle) + 0.5;
+            *(pwm_instance->hal.pin.curr_width) = 0x7FFFFFFF & ((uint32_t) ((*(pwm_instance->hal.pin.curr_period) * duty_cycle) + 0.5));
+            *(pwm_instance->hal.pin.curr_width) += direction;
             // - save rounded value to curr_dc pin
-            if ( duty_cycle >= 0 ) {
-                *(pwm_instance->hal.pin.curr_dc) = *(pwm_instance->hal.pin.curr_width) * pwm_instance->hal.param.period_recip;
-            } else {
-                *(pwm_instance->hal.pin.curr_dc) = -*(pwm_instance->hal.pin.curr_width) * pwm_instance->hal.param.period_recip;
-            }
+            // if ( duty_cycle >= 0 ) {
+            *(pwm_instance->hal.pin.curr_dc) = *(pwm_instance->hal.pin.curr_width) * pwm_instance->hal.param.period_recip;
+           
+            // } else {
+                // *(pwm_instance->hal.pin.curr_dc) = -*(pwm_instance->hal.pin.curr_width) * pwm_instance->hal.param.period_recip;
+            // }
         } else {
             // PDM mode
             *(pwm_instance->hal.pin.curr_period) = 0;
             // In PDM mode, the duty cycle is store as a 16-bit integer which is send as the width
             *(pwm_instance->hal.pin.curr_width) = (0xFFFF * duty_cycle);
+            *(pwm_instance->hal.pin.curr_width) += direction;
         }
 
         // Add the PWM generator to the data
