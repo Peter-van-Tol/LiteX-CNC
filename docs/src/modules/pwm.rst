@@ -14,40 +14,126 @@ although this module only supports a single output.
   | between on and off every other cycle. The average is 50% for both waveforms, but the PDM signal 
   | switches more often. For 100% or 0% level, they are the same.
 
-From the definition above it is important to not that although the resolution of PDM is better, the frequency
+From the definition above it is important to note that although the resolution of PDM is better, the frequency
 is much higher. When using PDM it is important that the hardware can handle these frequencies, which may be
 up to 50% of the board frequency.
+
+.. info::
+  Starting from version 1.3 Litex-CNC supports three types of PWM outputs:
+
+  1. Single output. A single output pin, pwm, whose duty cycle is determined by the input value for
+     positive inputs, and which is off (or at min-dc) for negative inputs. Suitable for single ended
+     circuits.
+  2. pwm/direction. Two output pins, **pwm** and **dir**. The duty cycle on **pwm** varies as a function
+     of the input0 value. **dir** is low for positive inputs and high for negative inputs.
+  3. up/down. Two output pins, **up** and **down**. For positive inputs, the PWM/PDM waveform appears on
+     **up**, while **down** is low. For negative inputs, the waveform appears on **down**, while **up** is
+     low. Suitable for driving the two sides of an H-bridge to generate a bipolar output.
 
 Configuration
 =============
 
-The code-block belows gives an example for the configuration of ``PWM``.
-
-.. code-block:: json
-
-  ...
-  "modules": [
-    ...,
-    {
-      "module_type": "pwm",
-      "instances": [
-        {"pin": "j2:0"},
-        {
-          "pin":"j2:1",
-          "name": "optional_name_input"
-        },
-        ...,
-        {"pin": "j2:5"}
-      ]
-    },
-    ...
-  ]
-  ...
+The code-block belows gives an example for the configuration of the different ``PWM`` types.
 
 
-Defining the pin is required in the configuration. Optionally one can give the pin a name which
-will be used as an alias in HAL. When no name is given, no entry in the file containnig the
-aliases will be generated. 
+.. tabs::
+
+    .. code-tab:: json
+        :caption: Single output
+        
+        ...
+        "modules": [
+          ...,
+          {
+            "module_type": "pwm",
+            "instances": [
+              {
+                "pins": {
+                    "output_type": "single",
+                    "pwm": "j2:0"
+                }
+              },
+              {
+                "pins": {
+                    "output_type": "single",
+                    "pwm": "j2:1"
+                }
+                "name": "optional_name_input"
+              },
+              ...,
+            ]
+          },
+          ...
+        ]
+        ...
+
+    .. code-tab:: json
+        :caption: PWM/Direction
+        
+        ...
+        "modules": [
+          ...,
+          {
+            "module_type": "pwm",
+            "instances": [
+              {
+                "pins": {
+                    "output_type": "pwmdirection",
+                    "pwm": "j2:0",
+                    "direction": "j2:1"
+                }
+              },
+              {
+                "pins": {
+                    "output_type": "pwmdirection",
+                    "pwm": "j2:2"
+                    "direction": "j2:3"
+                }
+                "name": "optional_name_input"
+              },
+              ...,
+            ]
+          },
+          ...
+        ]
+        ...
+
+    .. code-tab:: json
+        :caption: Up/Down
+        
+        ...
+        "modules": [
+          ...,
+          {
+            "module_type": "pwm",
+            "instances": [
+              {
+                "pins": {
+                    "output_type": "updown",
+                    "up": "j2:0",
+                    "down": "j2:1"
+                }
+              },
+              {
+                "pins": {
+                    "output_type": "updown",
+                    "up": "j2:2"
+                    "down": "j2:3"
+                }
+                "name": "optional_name_input"
+              },
+              ...,
+            ]
+          },
+          ...
+        ]
+        ...
+
+Defining the pins is required in the configuration. Optionally one can give the pwm instance
+a name which will be used as an alias in HAL. When no name is given, no entry in the file
+containnig the aliases will be generated.
+
+Different types of PWM can be combined within a single configuration.
 
 .. warning::
   When *inserting* new pins in the list and the firmware is re-compiled, this will lead to a renumbering
@@ -72,7 +158,7 @@ Input pins
     Commanded value. When value = 0.0, duty cycle is 0%, and when value = ±scale, duty cycle is
     ± 100%. (Subject to min-dc and max-dc limitations.)
 <board-name>.pwm.<n>.scale / <board-name>.pwm.<name>.scale (HAL_FLOAT)
-    ..
+    See offset
 <board-name>.pwm.<n>.offset / <board-name>.pwm.<name>.offset (HAL_FLOAT)
     These parameters provide a scale and offset from the value pin to the actual duty cycle. 
     The duty cycle is calculated according to duty_cycle = (value/scale) + offset, with 1.0
@@ -93,6 +179,9 @@ Input pins
 Output pins
 -----------
 
+<board-name>.pwm.<n>.direction / <board-name>.pwm.<name>.direction (HAL_BIT)
+    Indicates which direction the PWM is running. A value of **0** for a positive duty
+    cycle and **1** for negative duty cycle.
 <board-name>.pwm.<n>.curr_period / <board-name>.pwm.<name>.curr_period (HAL_INT)
     The current PWM period in clock-cycles (DEBUG)
 <board-name>.pwm.<n>.curr_width / <board-name>.pwm.<name>.curr_width (HAL_INT)
@@ -103,6 +192,8 @@ Parameters
 
 <board-name>.pwm.<n>.invert_output / <board-name>.pwm.<name>.invert_output (HAL_BIT)
     Inverts an output pin.
+<board-name>.pwm.<n>.invert_output / <board-name>.pwm.<name>.type (HAL_UINT)
+    The type of the PWM. **0**: Single output, **1**: PWM/direction, **2**: Up/Down.
 
 Example
 -------
