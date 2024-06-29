@@ -1,4 +1,5 @@
 # Default imports
+import math
 import os
 try:
     from typing import ClassVar, List, Literal, Union
@@ -12,6 +13,12 @@ from pydantic import BaseModel, Field
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
+
+OUTPUT_TYPE_ENUM = {
+    'single': 0,
+    'pwmdirection': 1,
+    'updown': 2
+}
 
 class PWM_SinglePin(BaseModel):
     """Single output. A single output pin, pwm, whose duty cycle is
@@ -202,13 +209,27 @@ class PWM_ModuleConfig(ModuleBaseModel):
 
     @property
     def config_size(self):
-        return 4
+        """
+        The config data is packed as follows:
+        - first byte: the number of PWM instances
+        - the following bytes contain the data on the type of PWM
+
+        The data tightly packed with the config. Each WORD can take 16 instances of PWM, however
+        due to the first byte being used for the number of PWM, the first WORD # can only take 12.
+        """
+        if len(self.instances) <= 12:
+            return 4
+        return 4 + int(math.ceil(float(len(self.instances-12))/32))*32
+
 
     def store_config(self, mmio):
         # Deferred imports to prevent importing Litex while installing the driver
+        value = len(self.instances) << ((self.config_size - 1) * 8)
+        for index, instance in enumerate(self.instances, start=1):
+            value += (OUTPUT_TYPE_ENUM[instance.pins.output_type] << (self.config_size - 1) * 8 - index * 2)
         from litex.soc.interconnect.csr import CSRStatus
         mmio.pwm_config_data =  CSRStatus(
             size=self.config_size*8,
-            reset=len(self.instances),
-            description=f"The config of the GPIO module."
+            reset=value,
+            description=f"The config of the PWM module."
         )

@@ -125,7 +125,6 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
     // - period (Signal(32): 32-bit unsigned integer)
     // - width  (Signal(32): 32-bit unsigned integer)
     static double duty_cycle;
-    static uint32_t direction;
     static litexcnc_pwm_t *pwm;
     pwm = (litexcnc_pwm_t *) module;
 
@@ -219,10 +218,17 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
         duty_cycle = *(pwm_instance->hal.pin.value) * pwm_instance->hal.param.scale_recip + *(pwm_instance->hal.pin.offset);
         // - unidirectional mode, no negative output
         if ( duty_cycle < 0.0 ) {
-            duty_cycle = -1 * duty_cycle;
-            direction = 0x80000000;
+            if (pwm_instance->hal.param.type > 0) {
+                // i.e. PWM/Direction (type 1) and Up/Down (type 2)
+                duty_cycle = -1 * duty_cycle;
+                *(pwm_instance->hal.pin.direction) = 1;
+            } else {
+                // Single direction (only positive values are taken into account)
+                 duty_cycle = 0;
+                *(pwm_instance->hal.pin.direction) = 0;
+            }
         } else {
-            direction = 0;
+            *(pwm_instance->hal.pin.direction) = 0;
         }
         // - limit the duty-cylce 
         if ( duty_cycle > *(pwm_instance->hal.pin.max_dc) ) {
@@ -247,26 +253,22 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
             }
             // - convert duty-cycle to period -> round to the nearest duty cycle
             *(pwm_instance->hal.pin.curr_width) = 0x7FFFFFFF & ((uint32_t) ((*(pwm_instance->hal.pin.curr_period) * duty_cycle) + 0.5));
-            *(pwm_instance->hal.pin.curr_width) += direction;
             // - save rounded value to curr_dc pin
-            // if ( duty_cycle >= 0 ) {
             *(pwm_instance->hal.pin.curr_dc) = *(pwm_instance->hal.pin.curr_width) * pwm_instance->hal.param.period_recip;
-           
-            // } else {
-                // *(pwm_instance->hal.pin.curr_dc) = -*(pwm_instance->hal.pin.curr_width) * pwm_instance->hal.param.period_recip;
-            // }
         } else {
             // PDM mode
             *(pwm_instance->hal.pin.curr_period) = 0;
             // In PDM mode, the duty cycle is store as a 16-bit integer which is send as the width
             *(pwm_instance->hal.pin.curr_width) = (0xFFFF * duty_cycle);
-            *(pwm_instance->hal.pin.curr_width) += direction;
         }
 
         // Add the PWM generator to the data
         litexcnc_pwm_data_t output;
         output.period = htobe32(*(pwm_instance->hal.pin.curr_period));
-        output.width = htobe32(*(pwm_instance->hal.pin.curr_width));
+        output.width = htobe32(
+            *(pwm_instance->hal.pin.direction) * 0x80000000 +   // Flag for the direction
+            *(pwm_instance->hal.pin.curr_width)                 // The 31-bit wide width of the PWM pulse
+        );
 
         // Copy the data to the output and advance the pointer
         memcpy(*data, &output, sizeof(litexcnc_pwm_data_t));
@@ -274,6 +276,16 @@ int litexcnc_pwm_prepare_write(void *module, uint8_t **data, int period) {
     }
 
     return 0;
+}
+
+
+size_t required_config_buffer(void *module) {
+    static litexcnc_pwm_t *pwm;
+    pwm = (litexcnc_pwm_t *) module;
+    if (pwm->num_instances <= 12) {
+        return 4;
+    }
+    return 4 + ((((pwm->num_instances - 12) * 2)>>5) + ((((pwm->num_instances - 12) * 2) & 0x1F)?1:0)) * 4;
 }
 
 
@@ -297,13 +309,31 @@ size_t litexcnc_pwm_init(litexcnc_module_instance_t **module, litexcnc_t *litexc
     pwm->data.clock_frequency = &(litexcnc->clock_frequency);
 
     // Store the amount of pwm instances on this board and allocate HAL shared memory
-    pwm->num_instances = be32toh(*(uint32_t*)*config);
+    // - get num of instances and create space in the memory
+    pwm->num_instances = *(*config);
     pwm->instances = (litexcnc_pwm_instance_t *)hal_malloc(pwm->num_instances * sizeof(litexcnc_pwm_instance_t));
     if (pwm->instances == NULL) {
         LITEXCNC_ERR_NO_DEVICE("Out of memory!\n");
         return -ENOMEM;
     }
-    (*config) += 4;
+    (*config)++;
+    // - read the PWM type of each of the PWMs
+    uint8_t mask = 0xF0;
+    uint8_t shift = 6; 
+    for (size_t i=0; i < (required_config_buffer(pwm)-1)*4; i++) {
+        if (i <= pwm->num_instances) {
+            pwm->instances[i].hal.param.type = (*(*config) & mask) >> shift;
+        }
+        // Modify the mask and shift for the next. When the mask is zero (happens in 
+        // case of a roll-over), we should proceed to the next byte and reset the mask.
+        mask >>= 2;
+        shift -= 2;
+        if (!mask) {
+            mask = 0xF0;  // Reset the mask
+            shift = 6; // Reset the shift
+            (*config)++; // Proceed the buffer to the next element
+        }
+    }
 
     // Create the pins and params in the HAL
     for (size_t i=0; i<pwm->num_instances; i++) {
@@ -326,8 +356,10 @@ size_t litexcnc_pwm_init(litexcnc_module_instance_t **module, litexcnc_t *litexc
         LITEXCNC_CREATE_HAL_PIN("curr_pwm_freq", float, HAL_OUT, &(instance->hal.pin.curr_pwm_freq))
         LITEXCNC_CREATE_HAL_PIN("curr_period", u32, HAL_OUT, &(instance->hal.pin.curr_period))
         LITEXCNC_CREATE_HAL_PIN("curr_width", u32, HAL_OUT, &(instance->hal.pin.curr_width))
+        LITEXCNC_CREATE_HAL_PIN("direction", bit, HAL_OUT, &(instance->hal.pin.direction))
         // - params
         LITEXCNC_CREATE_HAL_PARAM("invert_output", bit, HAL_RW, &(instance->hal.param.invert_output));
+        LITEXCNC_CREATE_HAL_PARAM("type", u32, HAL_RO, &(instance->hal.param.type));
 
         // Set default values for the instance (PWM is disabled by default: SAFETY!)
         *(instance->hal.pin.enable) = 0;
