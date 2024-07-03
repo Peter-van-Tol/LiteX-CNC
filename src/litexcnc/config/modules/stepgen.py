@@ -1,4 +1,5 @@
 # Imports for creating a json-definition
+import math
 import os
 try:
     from typing import ClassVar, List, Literal, Union
@@ -128,6 +129,14 @@ class StepgenInstanceConfig(BaseModel):
         ...,
         description="The configuration of the stepper type and pin-out."
     )
+    max_frequency: bool = Field(
+        400e3,
+        description="The guaranteed maximum frequency the stepgen can generate in Hz. "
+        "The actual value can be larger then this value, as this is dependent on "
+        "the clock-frequency and scaling. Choosing a smaller value, close to the "
+        "limits of your drivers, gives a higher resolution in the velocity. Default "
+        "value is 400,000 Hz (400 kHz)."
+    )
     soft_stop: bool = Field(
         False,
         description="When False, the stepgen will directly stop when the stepgen is "
@@ -157,6 +166,13 @@ class StepgenInstanceConfig(BaseModel):
         'dir-setup-time',
         'dir-hold-time',
     ]
+
+    def calculate_shift(self, mmio):
+        clock_frequency = mmio.clock_frequency.status.reset.value
+        shift = 0
+        while (clock_frequency / (1 << (shift+2)) > self.max_frequency):
+            shift += 1
+        return shift
 
 
 class StepgenModuleConfig(ModuleBaseModel):
@@ -197,14 +213,30 @@ class StepgenModuleConfig(ModuleBaseModel):
 
     @property
     def config_size(self):
-        return 4
+        """Calculates the number DWORDS required to store the shift data
+        of the stepgen instances. The first byte is the number of instances,
+        followed by the shifts required for each instance to get the desired
+        maximum frequency.
+        """
+        return math.ceil((1 + len(self.instances)) / 4) * 4
 
     def store_config(self, mmio):
+        """Calculates the shift for each instance and stores them in the
+        MMIO. To calculate the shift, the clock-frequency is required. This
+        is taken from the MMIO register, not to break with current design
+        of this module.
+        """
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.soc.interconnect.csr import CSRStatus
+        # - store the number of instances
+        config = len(self.instances) << (self.config_size * 8 - 8)
+        # - calculate and store the shift for each instance
+        clock_frequency = mmio.clock_frequency.status.reset.value
+        for index, instance in enumerate(self.instances):
+            config += instance.calculate_shift(mmio) << (self.config_size * 8 - (2 + index) * 8) 
         mmio.stepgen_config_data =  CSRStatus(
             size=self.config_size*8,
-            reset=len(self.instances),
+            reset=config,
             description=f"The config of the Stepgen module."
         )
 
