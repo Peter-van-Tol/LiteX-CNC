@@ -26,14 +26,18 @@ class EncoderInstanceConfig(ModuleInstanceBaseModel):
         description="The pin on the FPGA-card for Encoder A-signal."
     )
     pin_B: str = Field(
-        description="The pin on the FPGA-card for Encoder B-signal."
+        None,
+        description="The pin on the FPGA-card for Encoder B-signal. This pin is optional, "
+        "when not set the encoder will be in `counter-mode`. In this mode the encoder will "
+        "increment on the rising edge of the A-signal."
     )
     pin_Z: str = Field(
         None,
         description="The pin on the FPGA-card for Encoder Z-signal. This pin is optional, "
-    "when not set the Z-pulse register on the FPGA will not be set, but it will be created. "
-    "In the driver the phase-Z bit will not be exported and the function `index-enable` will "
-    "be disabled when there is no Z-signal."
+        "when not set the Z-pulse register on the FPGA will not be set, but it will be created. "
+        "In the driver the phase-Z bit will not be exported and the function `index-enable` will "
+        "be disabled when there is no Z-signal. NOTE: the Z-signal cannot be used when the B-signal "
+        "is not defined (i.e. counter-mode)."	
     )
     min_value: int = Field(
         None,
@@ -104,6 +108,22 @@ class EncoderInstanceConfig(ModuleInstanceBaseModel):
             if max_value == min_value:
                 warnings.warn('Minimum and maximum value are equal! The counter will not work '
                 'because its value is fixed. It is recommended to change the values.')
+        # Everything OK, pass on the values
+        return values
+    
+    @root_validator(skip_on_failure=True)
+    def check_B_pin_defined_when_Z_index_is_defined(cls, values):
+        """
+        Check whether the B-pin is defined when the Z-index is defined.
+
+        Raises:
+            ValueError: When the Z-index is defined, but the B-pin is not defined.
+        """
+        z_pin = values.get('pin_Z', None)
+        if z_pin:
+            b_pin = values.get('pin_B', None)
+            if not b_pin:
+                raise ValueError('The B-pin should be defined when the Z-pin is defined.')
         # Everything OK, pass on the values
         return values
 

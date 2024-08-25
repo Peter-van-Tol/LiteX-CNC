@@ -10,6 +10,8 @@ with some extra functions.  Differences are:
   the HAL-pin ``min-speed-estimate`` is no longer used.
 * To be able to simulate a (digital) potentiometer, the HAL-parameter ``position-scale`` is
   supplemented with ``position-offset``.
+* The encoder can be configured to run in `counter-mode`, however this has to be done in the
+  firmware. Enabling `counter-mode` is as easy as only defining the A pin in the configuration.
 * The encoder can be configured to:
   
   * Have a custom reset-value (default=0)
@@ -54,6 +56,23 @@ both a simple encoder and encoders with an index pulse.
                 {"pin_A":"j3:0", "pin_B":"j3:1", "pin_Z":"j3:2"},
                 ...,
                 {"pin_A":"j3:4", "pin_B":"j3:5", "pin_Z":"j3:6"}
+            ]
+            },
+            ...
+        ]
+
+    .. code-tab:: json
+        :caption: counter-mode
+        
+        ...
+        "modules": [
+            ...,
+            {
+            "module_type": "encoder",
+            "instances": [
+                {"pin_A":"j3:0"},
+                ...,
+                {"pin_A":"j3:2"}
             ]
             },
             ...
