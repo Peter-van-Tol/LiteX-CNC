@@ -138,6 +138,7 @@ typedef struct {
     struct {
         hal_s32_t position_reset;
         hal_float_t position_scale;
+        hal_float_t position_offset;
         hal_float_t velocity[LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE];
         size_t velocity_pointer;
     } memo;
