@@ -169,6 +169,7 @@ size_t litexcnc_encoder_init(litexcnc_module_instance_t **module, litexcnc_t *li
 
         // Create the params
         LITEXCNC_CREATE_HAL_PARAM("position-scale", float, HAL_RW, &(instance->hal.param.position_scale))
+        LITEXCNC_CREATE_HAL_PARAM("position-offset", float, HAL_RW, &(instance->hal.param.position_offset))
         LITEXCNC_CREATE_HAL_PARAM("x4-mode", bit, HAL_RW, &(instance->hal.param.x4_mode))
     }
 
@@ -284,7 +285,7 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
         //   as it is known the encoder is reset to 0 and it is not possible to roll-over
         //   within one period (assumption is that the period is less then 15 minutes).
         if (*(instance->hal.pin.index_pulse)) {
-            *(instance->hal.pin.position) = *(instance->hal.pin.counts) * instance->data.position_scale_recip;
+            *(instance->hal.pin.position) = instance->data.position_offset + *(instance->hal.pin.counts) * instance->data.position_scale_recip;
             *(instance->hal.pin.overflow_occurred) = false;
         } else {
             // Roll-over detection; it assumed when the the difference between previous value
@@ -311,9 +312,11 @@ int litexcnc_encoder_process_read(void *module, uint8_t **data, int period) {
                 }  
             }
             if (*(instance->hal.pin.overflow_occurred)) {
+                // Determine the position relative to previous position
                 *(instance->hal.pin.position) = *(instance->hal.pin.position) + difference * instance->data.position_scale_recip;
             } else {
-                *(instance->hal.pin.position) = *(instance->hal.pin.counts) * instance->data.position_scale_recip;
+                // Determine the position absolute
+                *(instance->hal.pin.position) = instance->data.position_offset  + *(instance->hal.pin.counts) * instance->data.position_scale_recip;
             }
         }
 
