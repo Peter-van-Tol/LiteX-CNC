@@ -115,7 +115,21 @@ class StepgenModule(Module, AutoDoc):
             reset=self.speed_reset_val
         )
         self.max_acceleration = Signal(32)
+        self.index_enable = Signal()
 
+        # Create the registers for index_enable (if pin is set)
+        if hasattr(pads, 'index'):
+            index_delayed = Signal(3)
+            self.index_position = Signal(64 + (self.pick_off_vel - self.pick_off_pos))
+            self.sync += [
+                index_delayed.eq(Cat((pads.index, index_delayed[:2]))),
+                If(
+                    self.index_enable & index_delayed[1] & ~index_delayed[2],
+                    self.index_position.eq(self.position),
+                    self.index_enable.eq(0)
+                )
+            ]
+        
         # Optionally, use a different clock domain
         sync = self.sync
 
@@ -280,15 +294,25 @@ class StepgenModule(Module, AutoDoc):
             )
             setattr(
                 mmio,
-                f'stepgen_{index}_max_acceleration',
+                f'stepgen_{index}_acceleration_index_enable',
                 CSRStorage(
-                    size=32,
-                    name=f'stepgen_{index}_max_acceleration1',
-                    description=f'The maximum acceleration for stepper {index}. The storage contains a '
-                    'fixed point value, with 16 bits before and 16 bits after the point. Each '
-                    'clock cycle, this value will be added or subtracted from the stepgen speed '
-                    'until the target speed is acquired.',
-                    write_from_dev=False
+                    fields=[
+                        CSRField(
+                            "index_enable",
+                            size=1,
+                            offset=31,
+                            description="Flag whether the counter should be reset when the index signal is high."
+                        ),
+                        CSRField(
+                            "max_acceleration",
+                            size=31,
+                            offset=0,
+                            description=
+                                f'The maximum acceleration for stepper {index}. The storage contains a '
+                                'fixed point value, with 16 bits before and 16 bits after the point. Each '
+                                'clock cycle, this value will be added or subtracted from the stepgen speed '
+                                'until the target speed is acquired.')
+                    ]
                 )
             )
 
@@ -333,9 +357,29 @@ class StepgenModule(Module, AutoDoc):
                 stepgen.dir_hold_time.eq(soc.MMIO_inst.stepgen_stepdata.fields.dir_hold_time),
                 stepgen.dir_setup_time.eq(soc.MMIO_inst.stepgen_stepdata.fields.dir_setup_time),
             ]
+            if stepgen_config.pins.index:
+                soc.sync += [
+                    getattr(
+                        soc.MMIO_inst, 
+                        f'stepgen_{index}_position'
+                    ).status.eq(
+                        stepgen.position[(stepgen.pick_off_vel - stepgen.pick_off_pos):] - 
+                        stepgen.index_position[(stepgen.pick_off_vel - stepgen.pick_off_pos):]
+                    )
+                ]
+            else:
+                # Case: no index signal is 
+                soc.sync += [
+                    getattr(
+                        soc.MMIO_inst, 
+                        f'stepgen_{index}_position'
+                    ).status.eq(
+                        stepgen.position[(stepgen.pick_off_vel - stepgen.pick_off_pos):]
+                    )
+                ]
+
             soc.sync += [
                 # Position and feedback from stepgen to MMIO
-                getattr(soc.MMIO_inst, f'stepgen_{index}_position').status.eq(stepgen.position[(stepgen.pick_off_vel - stepgen.pick_off_pos):]),
                 getattr(soc.MMIO_inst, f'stepgen_{index}_speed').status.eq(stepgen.speed[(stepgen.pick_off_acc - stepgen.pick_off_vel):])
             ]
             # Add speed target and the max acceleration in the protected sync
@@ -343,7 +387,8 @@ class StepgenModule(Module, AutoDoc):
                 If(
                     soc.MMIO_inst.wall_clock.status >= soc.MMIO_inst.stepgen_apply_time.storage,
                     stepgen.speed_target.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target').storage)),
-                    stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
+                    stepgen.index_enable.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_acceleration_index_enable').fields.index_enable),
+                    stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_acceleration_index_enable').fields.max_acceleration),
                 )
             ]
             # Add reset logic to stop the motion after reboot of LinuxCNC
@@ -454,8 +499,7 @@ if __name__ == "__main__":
         # Setup the stepgen
         yield(stepgen.enable.eq(1))
         # yield(stepgen.speed_target.eq(0x80000000 - int(2**28 / 128)))
-        yield(stepgen.speed.eq(0x8000_0000_0000 + (0 << 16)))
-        yield(stepgen.speed_test.eq(0x8000_0000 + (0x53E)))
+        yield(stepgen.speed_target.eq(0x8000_0000 + (100000)))
         yield(stepgen.max_acceleration.eq(0x36F))
         yield(stepgen.steplen.eq(16))
         yield(stepgen.dir_hold_time.eq(16))
@@ -468,17 +512,18 @@ if __name__ == "__main__":
             position = (yield stepgen.position)
             step = (yield stepgen.step)
             dir = (yield stepgen.dir)
-            speed = (yield stepgen.speed_reported - 0x8000_0000)
+            speed = (yield stepgen.speed - 0x8000_0000)
             counter = (yield stepgen.dir_hold_counter.counter)
-            if speed != speed_prev:
-                print("speed = %d, position = %d @step %d @dir %d @dir_counter %d @clk %d"%(speed, position, step, dir, counter, i))
-                speed_prev = speed
+            index_enable = (yield stepgen.index_enable)
+            # if speed != speed_prev:
+            print("speed = %d, position = %d @step %d @dir %d @dir_counter %d @clk %d"%(speed, position, step, dir, counter, i))
+                # speed_prev = speed
             yield
             i+=1
-            if i > 100000:
+            if i > 100:#000:
                 break
 
-    stepgen = StepgenModule(pads=None, pick_off=32, soft_stop=True)
+    stepgen = StepgenModule(pads=Record([("step", 1), ("dir", 1), ("index", 1)]), pick_off=32, soft_stop=True, create_pads=lambda __, _: None)
     print("\nRunning Sim...\n")
     # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
     run_simulation(stepgen, test_stepgen(stepgen))

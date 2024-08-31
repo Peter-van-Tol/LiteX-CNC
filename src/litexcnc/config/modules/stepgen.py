@@ -1,7 +1,7 @@
 # Imports for creating a json-definition
 import os
 try:
-    from typing import ClassVar, List, Literal, Union
+    from typing import ClassVar, List, Literal, Optional, Union
 except ImportError:
     # Imports for Python <3.8
     from typing import ClassVar, List, Union
@@ -15,16 +15,9 @@ from . import ModuleBaseModel, ModuleInstanceBaseModel
 
 
 class StepGenPinoutStepDirBaseConfig(ModuleInstanceBaseModel):
-    ...
-    
-class StepGenPinoutStepDirConfig(StepGenPinoutStepDirBaseConfig):
-    stepgen_type: Literal['step_dir']
-    step_pin: str = Field(
-        description="The pin on the FPGA-card for the step signal."
-    )
-    dir_pin: str = Field(
+    index_pin: Optional[str] = Field(
         None,
-        description="The pin on the FPGA-card for the dir signal."
+        description="The pin on the FPGA-card for the index signal for the stepgen."
     )
     io_standard: str = Field(
         "LVCMOS33",
@@ -38,6 +31,28 @@ class StepGenPinoutStepDirConfig(StepGenPinoutStepDirBaseConfig):
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.build.generic_platform import IOStandard, Pins, Subsignal
         return (
+            Subsignal("index", Pins(self.index_pin), IOStandard(self.io_standard)),
+        )
+
+
+    
+class StepGenPinoutStepDirConfig(StepGenPinoutStepDirBaseConfig):
+    stepgen_type: Literal['step_dir']
+    step_pin: str = Field(
+        description="The pin on the FPGA-card for the step signal."
+    )
+    dir_pin: str = Field(
+        None,
+        description="The pin on the FPGA-card for the dir signal."
+    )
+    
+    def convert_to_signal(self):
+        """
+        Creates the pins for this layout.
+        """
+        # Deferred imports to prevent importing Litex while installing the driver
+        from litex.build.generic_platform import IOStandard, Pins, Subsignal
+        return super().convert_to_signal() + (
             Subsignal("step", Pins(self.step_pin), IOStandard(self.io_standard)),
             Subsignal("dir", Pins(self.dir_pin), IOStandard(self.io_standard))
         )
@@ -75,10 +90,6 @@ class StepGenPinoutStepDirDifferentialConfig(StepGenPinoutStepDirBaseConfig):
         None,
         description="The pin on the FPGA-card for the dir- signal."
     )
-    io_standard: str = Field(
-        "LVCMOS33",
-        description="The IO Standard (voltage) to use for the pins."
-    )
 
     def convert_to_signal(self):
         """
@@ -86,7 +97,7 @@ class StepGenPinoutStepDirDifferentialConfig(StepGenPinoutStepDirBaseConfig):
         """
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.build.generic_platform import IOStandard, Pins, Subsignal
-        return (
+        return super().convert_to_signal() + (
             Subsignal("step_pos", Pins(self.step_pos_pin), IOStandard(self.io_standard)),
             Subsignal("step_neg", Pins(self.step_neg_pin), IOStandard(self.io_standard)),
             Subsignal("dir_pos", Pins(self.dir_pos_pin), IOStandard(self.io_standard)),
