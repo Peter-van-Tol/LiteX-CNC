@@ -586,15 +586,17 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
     stepgen->hal.param.max_driver_freq = 400e3;
 
     // Store the amount of stepgen instances on this board and allocate HAL shared memory
-    stepgen->num_instances = be32toh(*(uint32_t*)*config);
+    stepgen->num_instances = *(*config);
     stepgen->instances = (litexcnc_stepgen_instance_t *)hal_malloc(stepgen->num_instances * sizeof(litexcnc_stepgen_instance_t));
     if (stepgen->instances == NULL) {
         LITEXCNC_ERR_NO_DEVICE("Out of memory!\n");
         return -ENOMEM;
     }
-    (*config) += 4;
+    (*config)++;
 
     // Create the pins and params in the HAL
+    uint8_t mask = 0x80;
+    size_t buffer_size = (((stepgen->num_instances + 8)>>5) + (((stepgen->num_instances + 8) & 0x1F)?1:0)) * 4 - 1;
     for (size_t i=0; i<stepgen->num_instances; i++) {
         litexcnc_stepgen_instance_t *instance = &(stepgen->instances[i]);
         
@@ -623,6 +625,25 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
         LITEXCNC_CREATE_HAL_PIN("velocity-cmd", float, HAL_IN, &(instance->hal.pin.velocity_cmd));
         LITEXCNC_CREATE_HAL_PIN("acceleration-cmd", float, HAL_IN, &(instance->hal.pin.acceleration_cmd));
         LITEXCNC_CREATE_HAL_PIN("debug", bit, HAL_IN, &(instance->hal.pin.debug));
+
+        // Create the pin for index-enable, only when the pin is defined for this instance
+        if (*(*data) & mask) {
+            LITEXCNC_CREATE_HAL_PIN("index-enable", bit, HAL_IN, &(instance->hal.pin.index_enable));
+        }
+
+        // Modify the mask for the next. When the mask is zero (happens in case of a 
+        // roll-over), we should proceed to the next byte and reset the mask.
+        mask >>= 1;
+        if (!mask) {
+            mask = 0x80;  // Reset the mask
+            (*data)++; // Proceed the buffer to the next element
+            buffer_size--; // Decrease the buffer size
+        }
+    }
+
+    // Proceed the buffer to the next element, so the next module can be initialized
+    while (buffer_size--) {
+        (*config)++;
     }
 
     return 0;
