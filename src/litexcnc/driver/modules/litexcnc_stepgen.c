@@ -334,7 +334,7 @@ int litexcnc_stepgen_prepare_write(void *module, uint8_t **data, int period) {
         instance->data.fpga_time = instance->data.flt_time * (*(stepgen->data.clock_frequency));
 
         // Convert the integers used and scale it to the FPGA
-        instance_data.speed_target = htobe32(instance->data.fpga_speed & 0x7FFFFFFF);
+        instance_data.speed_target = htobe32(instance->data.fpga_speed & 0x7FFFFFFF + instance->hal.pin.index_enable * 1 << 31);
         instance_data.acceleration = htobe32(instance->data.fpga_acc);
 
         // Put the data on the data-stream and advance the pointer
