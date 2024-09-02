@@ -1,4 +1,5 @@
 # Imports for creating a json-definition
+import math
 import os
 try:
     from typing import ClassVar, List, Literal, Optional, Union
@@ -169,6 +170,18 @@ class StepgenInstanceConfig(BaseModel):
         'dir-hold-time',
     ]
 
+    def calculate_shift(self, clock_frequency):
+        """Calculates the shift required to get the desired maximum frequency
+        for the stepgen instance. The shift is maximum 4 bits, so the maximum
+        frequency division is 16 times the clock frequency. 
+
+        Args:
+            clock_frequency (int): The clock frequency of the FPGA.
+
+        Returns:
+            int: The shift required to get the desired maximum frequency.
+        """
+        return (int(math.log2(clock_frequency / self.max_frequency)) - 1) & 0x0F
 
 class StepgenModuleConfig(ModuleBaseModel):
     """
@@ -208,14 +221,27 @@ class StepgenModuleConfig(ModuleBaseModel):
 
     @property
     def config_size(self):
-        return 4
+        """Calculates the number DWORDS required to store the shift data
+        of the stepgen instances. The first byte is the number of instances,
+        followed by the shifts required for each instance to get the desired
+        maximum frequency.
+        """
+        return math.ceil((1 + len(self.instances)) / 4) * 4
 
     def store_config(self, mmio):
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.soc.interconnect.csr import CSRStatus
+        # - store the number of instances
+        config = len(self.instances) << ((self.config_size - 1) * 8)
+        # - calculate and store the shift for each instance plus the other settings
+        clock_frequency = mmio.clock_frequency.status.reset.value
+        for index, instance in enumerate(self.instances):
+            config_byte = instance.calculate_shift(clock_frequency)
+            config_byte += (1 if instance.pins.index_pin is not None else 0) << 7
+            config += config_byte << ((self.config_size - 2 - index) * 8)
+        # Store the config
         mmio.stepgen_config_data =  CSRStatus(
             size=self.config_size*8,
             reset=len(self.instances),
             description=f"The config of the Stepgen module."
         )
-
