@@ -364,7 +364,7 @@ class StepgenModule(Module, AutoDoc):
             shift = stepgen_config.calculate_shift(soc.clock_frequency)
             stepgen = cls(
                 pads=soc.platform.request('stepgen', index),
-                pick_off=(32, 32 + shift, 32 + shift + 8),
+                pick_off=(32, 32 + shift, 32 + shift + 16),
                 soft_stop=stepgen_config.soft_stop,
                 create_pads=stepgen_config.pins.create_pads
             )
