@@ -334,7 +334,7 @@ int litexcnc_stepgen_prepare_write(void *module, uint8_t **data, int period) {
         instance->data.fpga_time = instance->data.flt_time * (*(stepgen->data.clock_frequency));
 
         // Convert the integers used and scale it to the FPGA
-        instance_data.speed_target = htobe32(instance->data.fpga_speed & 0x7FFFFFFF + instance->hal.pin.index_enable * 1 << 31);
+        instance_data.speed_target = htobe32(instance->data.fpga_speed & 0x7FFFFFFF + *(instance->hal.pin.index_enable) * 1 << 31);
         instance_data.acceleration = htobe32(instance->data.fpga_acc);
 
         // Put the data on the data-stream and advance the pointer
@@ -415,7 +415,7 @@ int litexcnc_stepgen_process_read(void *module, uint8_t **data, int period) {
         *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
         memcpy(&speed, *data, sizeof speed);
         instance->data.speed = (int64_t) (be32toh(speed) & 0x7FFFFFFF) -  0x40000000;
-        instance->hal.pin.index_pulse = (be32toh(speed) & 0xF0000000) ? true : false;
+        *(instance->hal.pin.index_pulse) = (be32toh(speed) & 0xF0000000) ? true : false;
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
         // Convert the received position to HAL pins for counts and floating-point position
         *(instance->hal.pin.counts) = instance->data.position >> instance->data.pick_off_pos;

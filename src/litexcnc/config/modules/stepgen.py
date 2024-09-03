@@ -140,6 +140,14 @@ class StepgenInstanceConfig(BaseModel):
         ...,
         description="The configuration of the stepper type and pin-out."
     )
+    max_frequency: int = Field(
+        400e3,
+        description="The guaranteed maximum frequency the stepgen can generate in Hz. "
+        "The actual value can be larger then this value, as this is dependent on "
+        "the clock-frequency and scaling. Choosing a smaller value, close to the "
+        "limits of your drivers, gives a higher resolution in the velocity. Default "
+        "value is 400,000 Hz (400 kHz)."
+    )
     soft_stop: bool = Field(
         False,
         description="When False, the stepgen will directly stop when the stepgen is "
