@@ -1,7 +1,7 @@
 # Imports for defining the board
 from litex.soc.integration.soc_core import *
 from litex_boards.targets.colorlight_5a_75x import _CRG
-from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
+from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e, colorlight_i5
 
 
 class Hub75Hat(colorlight_5a_75b.Platform):
@@ -149,14 +149,16 @@ class ColorLightBase(SoCMini):
 
         # Get the correct board type
         board = board.lower()
-        assert board in ["5a-75b", "5a-75e", "hub75hat",]
         if board == "5a-75b":
             platform = colorlight_5a_75b.Platform(revision=revision)
         elif board == "5a-75e":
             platform = colorlight_5a_75e.Platform(revision=revision)
         elif board == "hub75hat":
             platform = Hub75Hat(revision=revision)
-
+        elif board == "i5" or board == "i9":
+            platform = colorlight_i5.Platform(board=board, revision=revision)
+        else:
+            raise ValueError(f"Unknown board type: {board}")
 
         # SoCMini ----------------------------------------------------------------------------------
         self.clock_frequency = config.clock_frequency
