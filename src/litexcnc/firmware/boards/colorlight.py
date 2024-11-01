@@ -1,7 +1,10 @@
 # Imports for defining the board
 from litex.soc.integration.soc_core import *
 from litex_boards.targets.colorlight_5a_75x import _CRG
-from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
+from litex_boards.platforms import (
+    colorlight_5a_75b,
+    colorlight_5a_75e
+)
 
 
 class Hub75Hat(colorlight_5a_75b.Platform):
@@ -116,13 +119,21 @@ class Hub75Hat(colorlight_5a_75b.Platform):
             "j5:11",  # CS
         ]
         ena = ["j5:10"]
-        return [
+        connectors = [
             ("j1", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in j1])),
             ("j2", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in j2])),
             ("j3", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in j3])),
             ("spi", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in spi])),
             ("ena", " ".join([Hub75Hat.definition_to_pad(pin, hub75_connectors) for pin in ena])),
         ]
+        # Add the UserLED
+        hub75_io = {
+            "6.1": colorlight_5a_75b._io_v6_1, 
+            "7.0": colorlight_5a_75b._io_v7_0,
+            "8.0": colorlight_5a_75b._io_v8_0}[revision]
+        move_user_led_and_btn_to_connector({"": hub75_io}, {"": connectors})
+        # Return the completed translation
+        return connectors
 
     def __init__(self, revision="7.0", toolchain="trellis"):
         self.revision = revision
@@ -138,6 +149,25 @@ class Hub75Hat(colorlight_5a_75b.Platform):
         colorlight_5a_75b.LatticePlatform.__init__(self, device, io, connectors=connectors, toolchain=toolchain)
 
 
+def move_user_led_and_btn_to_connector(ios, connectors):
+    for rev, io in ios.items():
+        definition_led = "-"
+        definition_btn = "-"
+        removed = 0
+        for index in range(len(io)):
+            item = io[index - removed] 
+            if item[0] == 'user_led_n':
+                definition_led = f"{definition_led} {' '.join(item[2].identifiers)}"
+                io.remove(item)
+                removed += 1
+            if item[0] == 'user_btn_n':
+                definition_btn = f"{definition_btn} {' '.join(item[2].identifiers)}"
+                io.remove(item)
+                removed += 1
+        connectors[rev].append(('user_led', definition_led))
+        connectors[rev].append(('user_btn', definition_btn))
+
+
 class ColorLightBase(SoCMini):
 
     def __init__(
@@ -151,12 +181,31 @@ class ColorLightBase(SoCMini):
         board = board.lower()
         assert board in ["5a-75b", "5a-75e", "hub75hat",]
         if board == "5a-75b":
+            ios = {
+                "6.1": colorlight_5a_75b._io_v6_1, 
+                "7.0": colorlight_5a_75b._io_v7_0,
+                "8.0": colorlight_5a_75b._io_v8_0
+            }
+            connectors = {
+                "6.1": colorlight_5a_75b._connectors_v6_1, 
+                "7.0": colorlight_5a_75b._connectors_v7_0,
+                "8.0": colorlight_5a_75b._connectors_v8_0
+            }
+            move_user_led_and_btn_to_connector(ios, connectors)
             platform = colorlight_5a_75b.Platform(revision=revision)
         elif board == "5a-75e":
+            ios = {
+                "6.0": colorlight_5a_75e._io_v6_0, 
+                "7.1": colorlight_5a_75e._io_v7_1,
+            }
+            connectors = {
+                "6.0": colorlight_5a_75e._connectors_v6_0, 
+                "7.1": colorlight_5a_75e._connectors_v7_1,
+            }
+            move_user_led_and_btn_to_connector(ios, connectors)
             platform = colorlight_5a_75e.Platform(revision=revision)
         elif board == "hub75hat":
             platform = Hub75Hat(revision=revision)
-
 
         # SoCMini ----------------------------------------------------------------------------------
         self.clock_frequency = config.clock_frequency
