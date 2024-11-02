@@ -9,7 +9,7 @@ except ImportError:
 from typing_extensions import Annotated
 
 # Imports for the configuration
-from pydantic import Field
+from pydantic import Field, validator
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
@@ -42,6 +42,11 @@ class GPIO_PinIn(GPIO_PinBase):
     ]
     hal_params: ClassVar[List[str]] = []
 
+    @validator("pin")
+    def user_led_not_allowed(cls, v: str):
+        if v.startswith("user_led"):
+            raise ValueError("The user LED is no valid pin for GPIO In.")
+        return v
 
 
 class GPIO_PinOut(GPIO_PinBase):
@@ -61,6 +66,12 @@ class GPIO_PinOut(GPIO_PinBase):
     hal_params: ClassVar[List[str]] = [
         'invert_output',
     ]
+
+    @validator("pin")
+    def user_button_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user Button is no valid pin for GPIO Out.")
+        return v
 
 
 GPIO_Pin = Annotated[

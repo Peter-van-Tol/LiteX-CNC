@@ -8,7 +8,7 @@ except ImportError:
 import warnings
 
 # Imports for creating a json-definition
-from pydantic import  Field, root_validator
+from pydantic import  Field, root_validator, validator
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
@@ -106,6 +106,12 @@ class EncoderInstanceConfig(ModuleInstanceBaseModel):
                 'because its value is fixed. It is recommended to change the values.')
         # Everything OK, pass on the values
         return values
+
+    @validator("pin_A", "pin_B", "pin_Z")
+    def user_led_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user LED is no valid pin for Encoder.")
+        return v
 
 
 class EncoderModuleConfig(ModuleBaseModel):
