@@ -8,7 +8,7 @@ except ImportError:
     from typing_extensions import Literal
 
 # Imports for the configuration
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
@@ -30,6 +30,12 @@ class StepGenPinoutStepDirConfig(StepGenPinoutStepDirBaseConfig):
         "LVCMOS33",
         description="The IO Standard (voltage) to use for the pins."
     )
+
+    @validator("step_pin", "dir_pin")
+    def user_button_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user button is no valid pin for Stepgen.")
+        return v
 
     def convert_to_signal(self):
         """
@@ -79,6 +85,12 @@ class StepGenPinoutStepDirDifferentialConfig(StepGenPinoutStepDirBaseConfig):
         "LVCMOS33",
         description="The IO Standard (voltage) to use for the pins."
     )
+    
+    @validator("step_pos_pin", "step_neg_pin", "dir_pos_pin", "dir_neg_pin")
+    def user_button_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user button is no valid pin for Stepgen.")
+        return v
 
     def convert_to_signal(self):
         """
