@@ -159,6 +159,7 @@ class PWM_Instance(ModuleInstanceBaseModel):
         'curr_period',
         'curr_pwm_freq',
         'curr_width',
+        'direction',
         'dither_pwm',
         'enable',
         'max_dc',
@@ -168,7 +169,10 @@ class PWM_Instance(ModuleInstanceBaseModel):
         'scale',
         'value'
     ]
-    hal_pins: ClassVar[List[str]] = []
+    hal_params: ClassVar[List[str]] = [
+        "invert_output",
+        "type"
+    ]
 
 
 class PWM_ModuleConfig(ModuleBaseModel):
