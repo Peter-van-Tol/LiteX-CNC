@@ -16,8 +16,25 @@ Configuration
 =============
 
 .. info::
-   Changed in Litex-CNC version 1.2. 
+   Changed in Litex-CNC version 2.0. 
 
+The configuration of the watchdog consist of an optional list of Watchdog functions. These
+functions are active when the watchdog is enabled and did has not bitten. Examples of these
+functions are an Enable-pin, a LED showing a heartbeat (or other pattern) and a chargepump.
+
+One can opt not to define functions, however this is not recommended as there is a
+risk of the machine staying active after disruption of the communications. Even when the
+functions are not defined, the configuration block is required, however it remains empty.
+
+.. code-block:: json
+
+   ...
+   "watchdog": {
+   },
+   ...
+
+Enable-pin
+----------
 The configuration of the Watchdog consist of an optional Enable-pin. The Enable-pin is
 active high as long as the watchdog is happy (communications are working, watchdog did
 not bite). The enable pin can for example be used to disconnect all pins (high-Z) when
@@ -28,20 +45,71 @@ are lost.
 
    ...
    "watchdog": {
-      "pin":"ena:0"
+      "functions": [
+         {
+            "function_type": "enable",
+            "pin": "ena:0"
+         }
+      ]
    },
    ...
 
-One can opt not to define a Enable-pin, however this is not recommended as there is a
-risk of the machine staying active after disruption of the communications. Even when the
-enable pin is not defined, the configuration block is required, however it remains empty.
+**Configuration options**
+function_type (str) - required
+    Identifier for the function. Must be ``enable`` to implement this function.
+pin (str) - required
+    The pin on which the enable signal will be put.
+invert_output (str) - optional
+    When set to True, the output signal will be inverted. Default value is False. When
+    using the built-in User LED, this option must be set to True.
+
+Heartbeat
+---------
+The heatbeat can be used to indicate the board is active and the watchdog is enabled and
+did not bite yet. There are two built-in waveforms ``heartbeat`` and ``sinus``. Optionally,
+one can define a custom waveform by providing a list of floats between 0 and 1. Below gives
+a basic configuration for the heartbeat function, using the built-in LED.
 
 .. code-block:: json
 
    ...
    "watchdog": {
+      "functions": [
+         {
+            "function_type": "heartbeat",
+            "pin": "user_led:1",
+            "invert_output": true,
+            "waveform": "heartbeat",
+            "speed": 0.857
+         }
+      ]
    },
    ...
+
+**Configuration options**
+function_type (str) - required
+    Identifier for the function. Must be ``heartbeat`` to implement this function.
+pin (str) - required
+    The pin on which the heart beat signal (PWM) will be put.
+invert_output (str) - optional
+    When set to True, the output signal will be inverted. Default value is False. When
+    using the built-in User LED, this option must be set to True.
+pwm_frequency (float) - optional
+    The PWM frequency of the signal. Default value is 1 kHz.
+waveform (str | List[float]) - optional
+    The waveform to be put on the pin. The available built-in waveforms are ``heartbeat`` 
+    and ``sinus``. Alternatively, a list of floats between 0 and 1 can be given to create
+    custom patterns
+speed (float) - optional
+    The speed of the waveform in Hz. A value of 1 Hz means that the waveform is repeated
+    every second.
+
+Charge pump
+-----------
+The Charge Pump signal is a signal which is active if the controller (watchdog) is enabled
+and has not bitten. This signal can be used eg. for external control of a safety circuitry. 
+
+...Work-in-progress..
 
 
 Input pins
