@@ -64,6 +64,7 @@ class PWM_SinglePin(BaseModel):
     def user_button_not_allowed(cls, v: str):
         if v.startswith("user_btn"):
             raise ValueError("The user Button is no valid pin for PWM outputs.")
+        return v
 
 
 class PWM_PWMDirectionPins(BaseModel):
@@ -107,6 +108,7 @@ class PWM_PWMDirectionPins(BaseModel):
     def user_button_not_allowed(cls, v: str):
         if v.startswith("user_btn"):
             raise ValueError("The user Button is no valid pin for PWM outputs.")
+        return v
 
 
 class PWM_UpDownPins(BaseModel):
@@ -158,6 +160,7 @@ class PWM_UpDownPins(BaseModel):
     def user_button_not_allowed(cls, v: str):
         if v.startswith("user_btn"):
             raise ValueError("The user Button is no valid pin for PWM outputs.")
+        return v
 
 
 class PWM_Instance(ModuleInstanceBaseModel):
