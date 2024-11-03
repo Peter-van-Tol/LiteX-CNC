@@ -14,8 +14,12 @@ from pydantic import BaseModel, Field
 from . import ModuleBaseModel, ModuleInstanceBaseModel
 
 
-class WatchdogFunctionEnableConfig(BaseModel):
-    """Function which 
+class WatchdogFunctionBaseConfig(BaseModel):
+    ...
+
+
+class WatchdogFunctionEnableConfig(WatchdogFunctionBaseConfig):
+    """Function which turns on an enable signal when the Watchdog is enabled and happy.
     """
     function_type: Literal['enable'] = 'enable'
     pin: str = Field(
@@ -40,8 +44,8 @@ class WatchdogFunctionEnableConfig(BaseModel):
         return WatchDogEnableFunction.create_function_from_config(soc, watchdog, config)
 
 
-class WatchdogFunctionHeartBeatConfig(BaseModel):
-    """Function which 
+class WatchdogFunctionHeartBeatConfig(WatchdogFunctionBaseConfig):
+    """Function which gives a PWM signal on a pin when the Watchdog is enabled and happy. 
     """
     function_type: Literal['heartbeat'] = 'heartbeat'
     pin: str = Field(
@@ -52,6 +56,21 @@ class WatchdogFunctionHeartBeatConfig(BaseModel):
         False,
         description="When set to True, the output signal will be inverted. Default value is "
         "False."
+    )
+    pwm_frequency: float = Field(
+        1000,
+        description="The PWM frequency of the signal. Default value is 1 kHz."
+    )
+    waveform: Union[Literal["heartbeat", "sinus"], List[float]] = Field(
+        "heartbeat",
+        description="The waveform to be put on the pin. The available built-in waveforms are "
+        "`heartbeat` and `sinus`. Alternatively, a list of floats between 0 and 1 can be "
+        "given to create custom patterns."
+    )
+    speed: float = Field(
+        1,
+        description="The speed of the waveform in Hz. A value of 1 Hz means that the "
+        "waveform is repeated every second."
     )
     io_standard: str = Field(
         "LVCMOS33",

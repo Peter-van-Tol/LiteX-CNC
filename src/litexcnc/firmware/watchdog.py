@@ -13,10 +13,20 @@ from migen.genlib.cdc import MultiReg
 from litex.build.generic_platform import Pins, IOStandard
 from litex.soc.interconnect.csr import AutoCSR, CSRStorage
 
-from litexcnc.config.modules.watchdog import WatchdogModuleConfig, WatchdogFunctionEnableConfig
+from litexcnc.config.modules.watchdog import (
+    WatchdogModuleConfig,
+    WatchdogFunctionBaseConfig,
+    WatchdogFunctionEnableConfig,
+    WatchdogFunctionHeartBeatConfig
+)
 
 
 class WatchDogFunctionBase(Module, AutoCSR):
+    """Base class for watchdog functions."""
+
+    def __init__(self, pad, clock_frequency: int, config: WatchdogFunctionBaseConfig):
+        self.watchdog_has_bitten = Signal()
+        self.watchdog_is_enabled = Signal()
 
     @classmethod
     def create_function_from_config(cls, soc, watchdog: 'WatchDogModule', config):
@@ -28,47 +38,78 @@ class WatchDogFunctionBase(Module, AutoCSR):
 
         watchdog_function = cls(
             soc.platform.request(function_name, 0),
+            soc. clock_frequency,
             config
         )
         watchdog.submodules += watchdog_function
         watchdog.comb += [
-            watchdog_function.watchdog_has_bitten.eq(watchdog.has_bitten)
+            watchdog_function.watchdog_has_bitten.eq(watchdog.has_bitten),
+            watchdog_function.watchdog_is_enabled.eq(watchdog.enable)
         ]
 
         return watchdog_function    
 
 class WatchDogEnableFunction(WatchDogFunctionBase):
+    """Function which put an enable signal on a pin"""
 
-    def __init__(self, pad, config: WatchdogFunctionEnableConfig):
-        self.watchdog_has_bitten = Signal()
+    def __init__(self, pad, clock_frequency: int, config: WatchdogFunctionEnableConfig):
+        super().__init__(pad, clock_frequency, config)
         self.comb += [
-            pad.eq((~self.watchdog_has_bitten) ^ config.invert_output)
+            pad.eq((self.watchdog_is_enabled & ~self.watchdog_has_bitten) ^ config.invert_output)
         ]
 
 
 class WatchDogHeartBeatFunction(WatchDogFunctionBase):
+    """Function which putd a PWM pattern on a pin"""
 
-    def __init__(self, pad, config):
-        self.watchdog_has_bitten = Signal()
+    HEARTBEAT = [
+        0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059,
+        0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 
+        0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08627450980392157, 0.09019607843137255, 
+        0.09803921568627451, 0.10980392156862745, 0.13333333333333333, 0.16470588235294117, 0.21176470588235294, 
+        0.2784313725490196, 0.3607843137254902, 0.4588235294117647, 0.5686274509803921, 0.6862745098039216,
+        0.796078431372549, 0.8941176470588236, 0.9647058823529412, 1.0, 0.996078431372549,
+        0.9490196078431372, 0.8627450980392157, 0.7490196078431373, 0.615686274509804, 0.4745098039215686,
+        0.3411764705882353, 0.22745098039215686, 0.13333333333333333, 0.06666666666666667, 0.023529411764705882, 
+        0.00392156862745098, 0.0, 0.00784313725490196, 0.0196078431372549, 0.03529411764705882,
+        0.050980392156862744, 0.06274509803921569, 0.07058823529411765, 0.07450980392156863, 0.0784313725490196,
+        0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059,
+        0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059,
+        0.08235294117647059, 0.08235294117647059, 0.08235294117647059, 0.08235294117647059]
+    SINUS = [
+        0.5, 0.54900857, 0.597545161, 0.645142339, 0.691341716,
+        0.735698368, 0.777785117, 0.817196642, 0.853553391, 0.886505227,
+        0.915734806, 0.940960632, 0.961939766, 0.978470168, 0.99039264,
+        0.997592363, 1, 0.997592363, 0.99039264, 0.978470168,
+        0.961939766, 0.940960632, 0.915734806, 0.886505227, 0.853553391,
+        0.817196642, 0.777785117, 0.735698368, 0.691341716, 0.645142339,
+        0.597545161, 0.54900857, 0.5, 0.45099143, 0.402454839,
+        0.354857661, 0.308658284, 0.264301632, 0.222214883, 0.182803358,
+        0.146446609, 0.113494773, 0.084265194, 0.059039368, 0.038060234,
+        0.021529832, 0.00960736, 0.002407637, 0, 0.002407637,
+        0.00960736, 0.021529832, 0.038060234, 0.059039368, 0.084265194, 
+        0.113494773, 0.146446609, 0.182803358, 0.222214883, 0.264301632,
+        0.308658284, 0.354857661, 0.402454839, 0.45099143
+    ]
 
-        heartbeat = Array([
-            3281, 3281, 3281, 3281, 3281, 3281, 3281, 3281, 3281, 3281,
-            3281, 3281, 3281, 3437, 3593, 3906, 4375, 5312, 6562, 8437,
-            11093, 14375, 18281, 22656, 27343, 31718, 35625, 38437, 39843, 39687,
-            37812, 34375, 29843, 24531, 18906, 13593, 9062, 5312, 2656, 937,
-            156, 0, 312, 781, 1406, 2031, 2500, 2812, 2968, 3125,
-            3281, 3281, 3281, 3281, 3281, 3281, 3281, 3281, 3281, 3281, 
-            3281, 3281, 3281, 3281])
-        pwm_period = 40000
+    def __init__(self, pad, clock_frequency: int, config: WatchdogFunctionHeartBeatConfig):
+        super().__init__(pad, clock_frequency, config)
+
+        pwm_period = int(clock_frequency/config.pwm_frequency)
+        waveform = {
+            "heartbeat": self.HEARTBEAT,
+            "sinus": self.SINUS
+        }[config.waveform]
+        heartbeat = Array([int(element*pwm_period) for element in waveform])
         pwm_width = Signal(32)
         pwm_counter = Signal(32, reset_less=True)
-        beat_period = 536000  # 70 bpm, with 40 MHz clock
+        beat_period = int(clock_frequency/(config.speed*len(waveform)))  # 70 bpm, with 40 MHz clock
         beat_counter = Signal(32)
         index_counter = Signal(32)
 
         self.sync += [
             If(
-                self.watchdog_has_bitten,
+                ~self.watchdog_is_enabled | self.watchdog_has_bitten,
                 pad.eq(0 ^ config.invert_output)
             ).Else(
                 # PWM mode
