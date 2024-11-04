@@ -116,7 +116,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
     // Store the parameter on the FPGA (also set the enable bit)
     litexcnc_watchdog_data_write_t output;
     output.timeout_cycles = htobe32(litexcnc->watchdog->hal.param.timeout_cycles + (0x80000000 * (~*(litexcnc->watchdog->hal.pin.has_bitten)))); 
-        
+    
     // Copy the data to the output and advance the pointer  
     memcpy(*data, &output, LITEXCNC_WATCHDOG_DATA_WRITE_SIZE);
     *data += LITEXCNC_WATCHDOG_DATA_WRITE_SIZE;
@@ -128,7 +128,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
 uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
 
     // Check whether the watchdog did bite
-    if (*(*data+3)) {
+    if (*(*data+3) & ~*(litexcnc->watchdog->hal.pin.has_bitten)) {
         LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten.");
         *(litexcnc->watchdog->hal.pin.has_bitten) = 1;
     }
