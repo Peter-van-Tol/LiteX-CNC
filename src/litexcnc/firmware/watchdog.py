@@ -140,20 +140,26 @@ class WatchDogModule(Module, AutoCSR):
     """
     Pet this, otherwise it will bite.
     """
-    def __init__(self, timeout=Signal(31), clock_domain="sys", default_timeout = 0, with_csr=True):
+    def __init__(self, enable=Signal(1), timeout=Signal(31), clock_domain="sys", default_timeout = 0, with_csr=True):
         # Parameters for the watchdog:
         # - the bit enable sets whether the watchdog is enabled. This is written when the 
         #   timeout is read for the first-time from the driver to FPGA
         # - timeout: counter which is decreased at each clock-cycle. When it is at 0, the 
         #   watchdog will get very angry and bite.
-        self.enable  = Signal()
+        self.enable  = enable
         self.timeout = timeout
         self.has_bitten = Signal()
+        self.reset = Signal()
 
         # Procedure of the watchdog
         sync = getattr(self.sync, clock_domain)
         sync += [
             If(
+                self.reset,
+                self.has_bitten.eq(0),
+                self.enable.eq(0),
+                self.timeout.eq(0)
+            ).Elif(
                 self.enable,
                 If(self.timeout > 0,
                     # Still some time left before freaking out
@@ -163,10 +169,8 @@ class WatchDogModule(Module, AutoCSR):
                     # The dog got angry, and will bite
                     self.has_bitten.eq(1),
                 )
-            ).Else(
-                # Sleeping dogs don't bite, but the board is also not active
-                self.has_bitten.eq(0),
             )
+            # NOTE: Sleeping dogs don't change their
         ]
 
         if with_csr:
@@ -229,12 +233,13 @@ class WatchDogModule(Module, AutoCSR):
         
         # Create the watchdog
         watchdog = WatchDogModule(
+            enable=soc.MMIO_inst.watchdog_data.storage[31],
             timeout=soc.MMIO_inst.watchdog_data.storage[:31],
             with_csr=False)
         soc.submodules += watchdog
         soc.sync+=[
             # Watchdog input (fixed values)
-            watchdog.enable.eq(soc.MMIO_inst.watchdog_data.storage[31]),
+            watchdog.reset.eq(soc.MMIO_inst.reset.storage),
             # Watchdog output (status whether the dog has bitten)
             soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
             soc.MMIO_inst.watchdog_has_bitten.we.eq(True),
