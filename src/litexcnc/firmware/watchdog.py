@@ -44,7 +44,7 @@ class WatchDogFunctionBase(Module, AutoCSR):
         watchdog.submodules += watchdog_function
         watchdog.comb += [
             watchdog_function.watchdog_has_bitten.eq(watchdog.has_bitten),
-            watchdog_function.watchdog_is_enabled.eq(watchdog.enable)
+            watchdog_function.watchdog_is_enabled.eq(watchdog.data.storage[31])
         ]
 
         return watchdog_function    
@@ -140,14 +140,13 @@ class WatchDogModule(Module, AutoCSR):
     """
     Pet this, otherwise it will bite.
     """
-    def __init__(self, enable=Signal(1), timeout=Signal(31), clock_domain="sys", default_timeout = 0, with_csr=True):
+    def __init__(self, watchdog_data, clock_domain="sys", default_timeout = 0, with_csr=True):
         # Parameters for the watchdog:
         # - the bit enable sets whether the watchdog is enabled. This is written when the 
         #   timeout is read for the first-time from the driver to FPGA
         # - timeout: counter which is decreased at each clock-cycle. When it is at 0, the 
         #   watchdog will get very angry and bite.
-        self.enable  = enable
-        self.timeout = timeout
+        self.data = watchdog_data
         self.has_bitten = Signal()
         self.reset = Signal()
 
@@ -157,13 +156,12 @@ class WatchDogModule(Module, AutoCSR):
             If(
                 self.reset,
                 self.has_bitten.eq(0),
-                self.enable.eq(0),
-                self.timeout.eq(0)
+                self.data.storage.eq(0),
             ).Elif(
-                self.enable,
-                If(self.timeout > 0,
+                self.data.storage[31],
+                If(self.data.storage[0:30] > 0,
                     # Still some time left before freaking out
-                    self.timeout.eq(self.timeout-1),
+                    self.data.storage[0:30].eq(self.data.storage[0:30]-1),
                     self.has_bitten.eq(0),
                 ).Else(
                     # The dog got angry, and will bite
@@ -207,9 +205,14 @@ class WatchDogModule(Module, AutoCSR):
         the flags and configuration for the module.
         """
         mmio.watchdog_data = CSRStorage(
-            size=32, 
-            description="Watchdog data.\nByte containing the enabled flag (bit 31) and the time (bit 30 - 0)."
-            "out in cpu cycles.", 
+            # fields=[
+            #     CSRField("timeout", size=30, offset=0, description="The length of the step pulse in clock cycles", access=CSRAccess.ReadWrite),
+            #     CSRField("reset", size=1, offset=30, description="The length of the step pulse in clock cycles", access=CSRAccess.ReadWrite),
+            #     CSRField("enable", size=1, offset=31, description="The length of the step pulse in clock cycles", access=CSRAccess.ReadWrite),
+            # ],
+            32,
+            description="Watchdog data.\nByte containing the enable flag (bit 31), reset flag (bit 30) and the "
+            "timeout (bit 29 - 0) in cpu cycles.", 
             name='watchdog_data',
             write_from_dev=True
         )
@@ -233,8 +236,7 @@ class WatchDogModule(Module, AutoCSR):
         
         # Create the watchdog
         watchdog = WatchDogModule(
-            enable=soc.MMIO_inst.watchdog_data.storage[31],
-            timeout=soc.MMIO_inst.watchdog_data.storage[:31],
+            watchdog_data=soc.MMIO_inst.watchdog_data,
             with_csr=False)
         soc.submodules += watchdog
         soc.sync+=[
