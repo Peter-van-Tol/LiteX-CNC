@@ -55,6 +55,7 @@ typedef struct litexcnc_struct litexcnc_t;
 #define LITEXCNC_LOAD_MODULE(name)              result = register_module(name); if (result<0) return result; 
 // - Creation of the basename
 #define LITEXCNC_CREATE_BASENAME(module, index)  rtapi_snprintf(base_name, sizeof(base_name), "%s.%s.%02zu", litexcnc->fpga->name, module, index);
+#define LITEXCNC_CREATE_BASENAME_NO_INDEX(module)  rtapi_snprintf(base_name, sizeof(base_name), "%s.%s", litexcnc->fpga->name, module);
 // - Creation of a pin
 #define LITEXCNC_CREATE_HAL_PIN_FN(pin_name, type, direction, parameter)     \
     rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, pin_name); \
