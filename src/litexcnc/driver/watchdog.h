@@ -44,6 +44,7 @@ typedef struct {
 
         struct {
             hal_bit_t *has_bitten;     /* Pin which is set when the watchdog has timed out */
+            hal_bit_t *reset;          /* Pin to indicate the watchdog should be reset. Acts on rising edge.*/
         } pin;
 
         struct {
@@ -56,6 +57,7 @@ typedef struct {
     // This struct holds all old values (memoization) 
     struct {
         uint32_t timeout_ns;
+        hal_bit_t reset;
     } memo;
 
 } litexcnc_watchdog_t;
