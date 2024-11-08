@@ -419,7 +419,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     // Default modules
     // - watchdog
     LITEXCNC_PRINT_NO_DEVICE(" - Watchdog\n");
-    if (litexcnc_watchdog_init(litexcnc) < 0) {
+    if (litexcnc_watchdog_init(litexcnc, header_data.watchdog_estops) < 0) {
         LITEXCNC_ERR_NO_DEVICE("Watchdog init failed\n");
         return r;
     }

@@ -42,7 +42,7 @@
 
 #include "watchdog.h"
 
-int litexcnc_watchdog_init(litexcnc_t *litexcnc) {
+int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops) {
     
     // Declarations
     int r = 0;
@@ -51,6 +51,9 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc) {
 
     // Allocate memory
     litexcnc->watchdog = (litexcnc_watchdog_t *)hal_malloc(sizeof(litexcnc_watchdog_t));
+
+    litexcnc->watchdog->num_estops = num_estops;
+    // TODO
 
     // Create pins and params
     LITEXCNC_CREATE_BASENAME_NO_INDEX("watchdog");

@@ -81,6 +81,30 @@ class WatchdogFunctionHeartBeatConfig(WatchdogFunctionBaseConfig):
         # Deferred imports to prevent importing Litex while installing the driver
         from litexcnc.firmware.watchdog import WatchDogHeartBeatFunction
         return WatchDogHeartBeatFunction.create_function_from_config(soc, watchdog, config)
+    
+
+class WatchdogEStop(BaseModel):
+    pin: str = Field(
+        description="The pin on the FPGA-card to which te EStop will be connected."
+    )
+    trigger: bool = Field(
+        description="Sets the level which triggers the E-Stop. Can be either True for "
+        "a HIGH signal which triggers an E-Stop or False for a low signal which triggers "
+        "an E-Stop. It is recommended to use a normally closed switch contact when wiring "
+        "your Estop as this makes the Estop failsafe. If the wire to the switch breaks it "
+        "will Estop the machine until it is fixed ensuring safe operation. When using "
+        "normally closed E-Stop, the value of the trigger should be set False."
+    )
+    name: str = Field(
+        None,
+        description="The name of the pin as used in LinuxCNC HAL-file (optional). "
+        "When not specified, the standard pin litexcnc.watchdog.estop.xx.triggered "
+        "will be created."
+    )
+    io_standard: str = Field(
+        "LVCMOS33",
+        description="The IO Standard (voltage) to use for the pin."
+    )
 
 
 class WatchdogModuleConfig(ModuleInstanceBaseModel):
@@ -91,10 +115,14 @@ class WatchdogModuleConfig(ModuleInstanceBaseModel):
         [],
         description="List with functions which are added to the Watchdog"
     )
+    estop: List[WatchdogEStop] = Field(
+        [],
+        description="List will all E-Stops connected to the Watchdog."
+    ) 
     
     
     def add_mmio_config_registers(self, mmio):
-        # The Encoder does not require any config, so this function is
+        # The Watchdog does not require any config, so this function is
         # not implemented.
         return
 
@@ -112,3 +140,16 @@ class WatchdogModuleConfig(ModuleInstanceBaseModel):
         # Deferred imports to prevent importing Litex while installing the driver
         from litexcnc.firmware.watchdog import WatchDogModule
         return WatchDogModule.create_from_config(soc, self)
+    
+    @property
+    def config_size(self):
+        return 4
+
+    def store_config(self, mmio):
+        # Deferred imports to prevent importing Litex while installing the driver
+        from litex.soc.interconnect.csr import CSRStatus
+        mmio.watchdog_config_data = CSRStatus(
+            size=self.config_size*8,
+            reset=len(self.estop),
+            description=f"The config of the Watchdog module."
+        )

@@ -190,10 +190,11 @@ typedef struct {
     uint8_t num_modules;
     uint16_t module_data_size;
     char name[16 + 1];
+    uint32_t watchdog_estops;
 } litexcnc_header_data_read_t;
 #pragma pack(pop)
 //sizeof(litexcnc_header_data_read_t)
-#define LITEXCNC_HEADER_DATA_READ_SIZE 32 
+#define LITEXCNC_HEADER_DATA_READ_SIZE 36
 
 // - write (reset)
 #pragma pack(push,4)

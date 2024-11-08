@@ -64,6 +64,8 @@ typedef struct {
         hal_bit_t reset;
     } memo;
 
+    size_t num_estops;
+
 } litexcnc_watchdog_t;
 
 // Defines the data-packages for sending and receiving of the status of the 
@@ -88,9 +90,9 @@ typedef struct {
 
 
 // Functions for creating, reading and writing Watchdog pins
-int litexcnc_watchdog_init(litexcnc_t *litexcnc);
+int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops);
 uint8_t litexcnc_watchdog_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
-uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data);
+uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t **data);
 
 #endif
