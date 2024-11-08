@@ -27,6 +27,7 @@ class WatchDogFunctionBase(Module, AutoCSR):
     def __init__(self, pad, clock_frequency: int, config: WatchdogFunctionBaseConfig):
         self.watchdog_has_bitten = Signal()
         self.watchdog_is_enabled = Signal()
+        self.watchdog_ok_in = Signal()
 
     @classmethod
     def create_function_from_config(cls, soc, watchdog: 'WatchDogModule', config):
@@ -44,10 +45,12 @@ class WatchDogFunctionBase(Module, AutoCSR):
         watchdog.submodules += watchdog_function
         watchdog.comb += [
             watchdog_function.watchdog_has_bitten.eq(watchdog.has_bitten),
-            watchdog_function.watchdog_is_enabled.eq(watchdog.data.storage[31])
+            watchdog_function.watchdog_is_enabled.eq(watchdog.enable),
+            watchdog_function.watchdog_ok_in.eq(watchdog.ok_in),
         ]
 
         return watchdog_function    
+
 
 class WatchDogEnableFunction(WatchDogFunctionBase):
     """Function which put an enable signal on a pin"""
@@ -55,7 +58,7 @@ class WatchDogEnableFunction(WatchDogFunctionBase):
     def __init__(self, pad, clock_frequency: int, config: WatchdogFunctionEnableConfig):
         super().__init__(pad, clock_frequency, config)
         self.comb += [
-            pad.eq((self.watchdog_is_enabled & ~self.watchdog_has_bitten) ^ config.invert_output)
+            pad.eq((self.watchdog_is_enabled & self.watchdog_ok_in & ~self.watchdog_has_bitten) ^ config.invert_output)
         ]
 
 
@@ -140,6 +143,23 @@ class WatchDogModule(Module, AutoCSR):
     """
     Pet this, otherwise it will bite.
     """
+
+    @property
+    def time_out(self):
+        return self.data.storage[0:29]
+
+    @property
+    def enable(self):
+        return self.data.storage[31]
+    
+    @property
+    def reset(self):
+        return self.data.storage[30]
+    
+    @property
+    def ok_in(self):
+        return self.data.storage[29]
+    
     def __init__(self, watchdog_data, clock_domain="sys", default_timeout = 0, with_csr=True):
         # Parameters for the watchdog:
         # - the bit enable sets whether the watchdog is enabled. This is written when the 
@@ -148,20 +168,21 @@ class WatchDogModule(Module, AutoCSR):
         #   watchdog will get very angry and bite.
         self.data = watchdog_data
         self.has_bitten = Signal()
-        self.reset = Signal()
+        self.estop_active = Signal()
+        self.internal_reset = Signal()
 
         # Procedure of the watchdog
         sync = getattr(self.sync, clock_domain)
         sync += [
             If(
-                self.reset,
+                self.internal_reset,
                 self.has_bitten.eq(0),
                 self.data.storage.eq(0),
             ).Elif(
-                self.data.storage[31],
-                If(self.data.storage[0:30] > 0,
+                self.enable,
+                If(self.time_out > 0,
                     # Still some time left before freaking out
-                    self.data.storage[0:30].eq(self.data.storage[0:30]-1),
+                    self.time_out.eq(self.time_out-1),
                     self.has_bitten.eq(0),
                 ).Else(
                     # The dog got angry, and will bite
@@ -241,7 +262,7 @@ class WatchDogModule(Module, AutoCSR):
         soc.submodules += watchdog
         soc.sync+=[
             # Watchdog input (fixed values)
-            watchdog.reset.eq(soc.MMIO_inst.reset.storage),
+            watchdog.internal_reset.eq(soc.MMIO_inst.reset.storage),
             # Watchdog output (status whether the dog has bitten)
             soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
             soc.MMIO_inst.watchdog_has_bitten.we.eq(True),

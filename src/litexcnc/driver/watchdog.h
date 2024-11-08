@@ -45,6 +45,10 @@ typedef struct {
         struct {
             hal_bit_t *has_bitten;     /* Pin which is set when the watchdog has timed out */
             hal_bit_t *reset;          /* Pin to indicate the watchdog should be reset. Acts on rising edge.*/
+            hal_bit_t *ok_in;          /* Pin to indicate previous latches (estop_latch) are working fine.*/
+            hal_bit_t *fault_in;       /* Pin to indicate previous latches (estop_latch) have an error.*/
+            hal_bit_t *ok_out;         /* Pin to indicates the system up to and including this latch is OK.*/
+            hal_bit_t *fault_out;      /* Pin to indicates the system up to and including this latch is OK.*/
         } pin;
 
         struct {
