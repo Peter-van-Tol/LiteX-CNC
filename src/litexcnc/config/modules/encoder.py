@@ -157,8 +157,8 @@ class EncoderModuleConfig(ModuleBaseModel):
     def store_config(self, mmio):
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.soc.interconnect.csr import CSRStatus
-        mmio.encoder_config_data =  CSRStatus(
+        mmio.encoder_config_data = CSRStatus(
             size=self.config_size*8,
             reset=len(self.instances),
-            description=f"The config of the GPIO module."
+            description=f"The config of the Encoder module."
         )
