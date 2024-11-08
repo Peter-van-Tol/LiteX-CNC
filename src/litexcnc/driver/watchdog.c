@@ -68,8 +68,8 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc) {
     // Set default value
     *(litexcnc->watchdog->hal.pin.fault_in) = false;
     *(litexcnc->watchdog->hal.pin.ok_in) = true;
-    *(litexcnc->watchdog->hal.pin.fault_out) = false;
-    *(litexcnc->watchdog->hal.pin.ok_out) = true;
+    *(litexcnc->watchdog->hal.pin.fault_out) = true;
+    *(litexcnc->watchdog->hal.pin.ok_out) = false;
 
     // Success
     return 0;
