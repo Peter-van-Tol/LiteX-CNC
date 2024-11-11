@@ -145,29 +145,33 @@ class WatchDogModule(Module, AutoCSR):
     """
 
     @property
+    def has_bitten(self):
+        return self.data_out.status[0]
+
+    @property
     def time_out(self):
-        return self.data.storage[0:29]
+        return self.data_in.storage[0:29]
 
     @property
     def enable(self):
-        return self.data.storage[31]
+        return self.data_in.storage[31]
     
     @property
     def reset(self):
-        return self.data.storage[30]
+        return self.data_in.storage[30]
     
     @property
     def ok_in(self):
-        return self.data.storage[29]
+        return self.data_in.storage[29]
     
-    def __init__(self, watchdog_data, clock_domain="sys", default_timeout = 0, with_csr=True):
+    def __init__(self, watchdog_data_in, watchdog_data_out, clock_domain="sys", default_timeout = 0, with_csr=True):
         # Parameters for the watchdog:
         # - the bit enable sets whether the watchdog is enabled. This is written when the 
         #   timeout is read for the first-time from the driver to FPGA
         # - timeout: counter which is decreased at each clock-cycle. When it is at 0, the 
         #   watchdog will get very angry and bite.
-        self.data = watchdog_data
-        self.has_bitten = Signal()
+        self.data_in = watchdog_data_in
+        self.data_out = watchdog_data_out
         self.estop_active = Signal()
         self.internal_reset = Signal()
 
@@ -176,17 +180,17 @@ class WatchDogModule(Module, AutoCSR):
         sync += [
             If(
                 self.internal_reset,
-                self.has_bitten.eq(0),
-                self.data.storage.eq(0),
+                self.data_out.status.eq(0),
+                self.data_in.storage.eq(0),
             ).Elif(
                 self.enable,
                 If(self.time_out > 0,
                     # Still some time left before freaking out
                     self.time_out.eq(self.time_out-1),
-                    self.has_bitten.eq(0),
+                    self.data_out.status[0].eq(0),
                 ).Else(
                     # The dog got angry, and will bite
-                    self.has_bitten.eq(1),
+                    self.data_out.status[0].eq(1),
                 )
             )
             # NOTE: Sleeping dogs don't change their
@@ -246,30 +250,37 @@ class WatchDogModule(Module, AutoCSR):
         NOTE: Status registers are meant to be read by LinuxCNC and contain
         the current status of the module.
         """
-        mmio.watchdog_has_bitten = CSRStatus(
-            size=1, 
-            description="Watchdog has bitten.\nFlag which is set when timeout has occurred.", 
-            name='watchdog_has_bitten'
+        import math
+        mmio.watchdog_status = CSRStatus(
+            size=int(math.ceil(float(len(config.estop)+1)/32))*32,
+            name='watchdog_status',
+            description="Register containing the state of the EStops and the Watchdog has bitten flag."
         )
+        # mmio.watchdog_has_bitten = CSRStatus(
+        #     size=1, 
+        #     description="Watchdog has bitten.\nFlag which is set when timeout has occurred.", 
+        #     name='watchdog_has_bitten'
+        # )
 
     @classmethod
     def create_from_config(cls, soc, config: 'WatchdogModuleConfig'):
         
         # Create the watchdog
         watchdog = WatchDogModule(
-            watchdog_data=soc.MMIO_inst.watchdog_data,
+            watchdog_data_in=soc.MMIO_inst.watchdog_data,
+            watchdog_data_out=soc.MMIO_inst.watchdog_status,
             with_csr=False)
         soc.submodules += watchdog
         soc.sync+=[
             # Watchdog input (fixed values)
             watchdog.internal_reset.eq(soc.MMIO_inst.reset.storage),
             # Watchdog output (status whether the dog has bitten)
-            soc.MMIO_inst.watchdog_has_bitten.status.eq(watchdog.has_bitten),
-            soc.MMIO_inst.watchdog_has_bitten.we.eq(True),
-            If(
-                soc.MMIO_inst.reset.storage,
-                soc.MMIO_inst.watchdog_data.storage.eq(0)
-            )
+            # soc.MMIO_inst.watchdog_status.status.eq(watchdog.has_bitten),
+            # soc.MMIO_inst.watchdog_status.we.eq(True),
+            # If(
+            #     soc.MMIO_inst.reset.storage,
+            #     soc.MMIO_inst.watchdog_data.storage.eq(0)
+            # )
         ]
 
         # Add functions

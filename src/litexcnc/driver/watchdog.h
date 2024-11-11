@@ -37,9 +37,27 @@
 #ifndef __INCLUDE_LITEXCNC_WATCHDOG_H__
 #define __INCLUDE_LITEXCNC_WATCHDOG_H__
 
+/** Structure of an output pin */
+typedef struct {
+    /** Structure defining the HAL pin and params*/
+    struct {
+        /** Structure defining the HAL pins */
+        struct {
+            hal_bit_t *fault_out;  /** HIGH when the EStop is active */
+            hal_bit_t *ok_out;     /** HIGH when the EStop is not active */
+        } pin;
+        /** Structure defining the HAL params */
+        struct {
+        } param;
+    } hal;
+} litexcnc_estop_pin_t;
+
 // Defines the Watchdog. In contrast to the other components, the watchdog is
 // a singleton: exactly one exist on each FPGA-card
 typedef struct {
+    size_t num_estops;
+    litexcnc_estop_pin_t *estop_pins;    /** Structure containing the data on the input pins */
+
     struct {
 
         struct {
@@ -63,8 +81,6 @@ typedef struct {
         uint32_t timeout_ns;
         hal_bit_t reset;
     } memo;
-
-    size_t num_estops;
 
 } litexcnc_watchdog_t;
 
