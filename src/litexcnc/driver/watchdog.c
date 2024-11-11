@@ -74,7 +74,7 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops) {
     // Create the EStops
     litexcnc->watchdog->num_estops = num_estops;
     if (num_estops) {
-        litexcnc->watchdog = (litexcnc_watchdog_t *)hal_malloc(sizeof(litexcnc_estop_pin_t)*num_estops);
+        litexcnc->watchdog->estop_pins = (litexcnc_estop_pin_t *)hal_malloc(sizeof(litexcnc_estop_pin_t)*num_estops);
         for (size_t i=0; i<num_estops; i++) {
             LITEXCNC_CREATE_BASENAME("watchdog.estop", i);
             LITEXCNC_CREATE_HAL_PIN("fault-out", bit, HAL_OUT, &(litexcnc->watchdog->estop_pins->hal.pin.fault_out))
@@ -120,12 +120,11 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
         }
     }
 
-    // Latch the results
+    // Latch the results - sense ok_in and fault_in
     if (*(litexcnc->watchdog->hal.pin.ok_out)) {
         *(litexcnc->watchdog->hal.pin.ok_out) = (
             (*(litexcnc->watchdog->hal.pin.ok_in)) & 
-            (~*(litexcnc->watchdog->hal.pin.fault_in)) & 
-            (~*(litexcnc->watchdog->hal.pin.has_bitten))
+            (~*(litexcnc->watchdog->hal.pin.fault_in))
         );
         // Negate the signal
         *(litexcnc->watchdog->hal.pin.fault_out) = *(litexcnc->watchdog->hal.pin.ok_out) ? false : true;
@@ -138,6 +137,10 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
         *(litexcnc->watchdog->hal.pin.has_bitten) = false;
         *(litexcnc->watchdog->hal.pin.fault_out) = false;
         *(litexcnc->watchdog->hal.pin.ok_out) = true;
+        for (size_t i=0; i<litexcnc->watchdog->num_estops; i++) {
+            *(litexcnc->watchdog->estop_pins[i].hal.pin.fault_out) = 0;
+            *(litexcnc->watchdog->estop_pins[i].hal.pin.ok_out) = 1;
+        }
     }
 
     // Store the parameter on the FPGA (also set the enable bit)
@@ -181,6 +184,8 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     
     // Process all the EStops
     static uint8_t mask;
+    static bool estop_active;
+    estop_active = false;
     mask = 0x80;
     for (size_t i=required_read_buffer(litexcnc->watchdog)*8; i>1; i--) {
         // The counter i can have a value outside the range of possible pins. We only
@@ -190,10 +195,7 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
                 // ESTOP active
                 *(litexcnc->watchdog->estop_pins[i-2].hal.pin.fault_out) = 1;
                 *(litexcnc->watchdog->estop_pins[i-2].hal.pin.ok_out) = 0;
-            } else {
-                // ESTOP inactive
-                *(litexcnc->watchdog->estop_pins[i-2].hal.pin.fault_out) = 0;
-                *(litexcnc->watchdog->estop_pins[i-2].hal.pin.ok_out) = 1;
+                estop_active = true; 
             }
         }
         // Modify the mask for the next. When the mask is zero (happens in case of a 
@@ -217,7 +219,8 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
         *(litexcnc->watchdog->hal.pin.ok_out) = (
             (*(litexcnc->watchdog->hal.pin.ok_in)) & 
             (~*(litexcnc->watchdog->hal.pin.fault_in)) & 
-            (~*(litexcnc->watchdog->hal.pin.has_bitten))
+            (~*(litexcnc->watchdog->hal.pin.has_bitten)) &
+            (~estop_active)
         );
         // Negate the signal
         *(litexcnc->watchdog->hal.pin.fault_out) = *(litexcnc->watchdog->hal.pin.ok_out) ? false : true;
