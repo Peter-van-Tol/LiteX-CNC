@@ -19,7 +19,7 @@ class LitexCNC_Firmware(BaseModel):
     board_name: str = Field(
         ...,
         description="The name of the board, required for identification purposes.",
-        max_length=16
+        max_length=15
     )
     connection: Union[EtherboneConnection, SPIboneConnection, List[Union[EtherboneConnection, SPIboneConnection]]] = Field(
         ...,
