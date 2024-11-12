@@ -77,8 +77,10 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops) {
         litexcnc->watchdog->estop_pins = (litexcnc_estop_pin_t *)hal_malloc(sizeof(litexcnc_estop_pin_t)*num_estops);
         for (size_t i=0; i<num_estops; i++) {
             LITEXCNC_CREATE_BASENAME("watchdog.estop", i);
-            LITEXCNC_CREATE_HAL_PIN("fault-out", bit, HAL_OUT, &(litexcnc->watchdog->estop_pins->hal.pin.fault_out))
-            LITEXCNC_CREATE_HAL_PIN("ok-out", bit, HAL_OUT, &(litexcnc->watchdog->estop_pins->hal.pin.ok_out))
+            LITEXCNC_CREATE_HAL_PIN("fault-out", bit, HAL_OUT, &(litexcnc->watchdog->estop_pins[i].hal.pin.fault_out))
+            LITEXCNC_CREATE_HAL_PIN("ok-out", bit, HAL_OUT, &(litexcnc->watchdog->estop_pins[i].hal.pin.ok_out))
+            *(litexcnc->watchdog->estop_pins[i].hal.pin.fault_out) = 0;
+            *(litexcnc->watchdog->estop_pins[i].hal.pin.ok_out) = 1;
         }
     }
 

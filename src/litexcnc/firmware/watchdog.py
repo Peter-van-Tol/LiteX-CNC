@@ -153,6 +153,22 @@ class WatchDogModule(Module, AutoCSR):
     Pet this, otherwise it will bite.
     """
 
+    class WatchdogData():
+        def __init__(self, mmio) -> None:
+            self.data_in=mmio.watchdog_data
+            self.data_out=mmio.watchdog_status
+
+    class EStopConfig():
+        def __init__(self, soc, config) -> None:
+            # Create the extension
+            soc.platform.add_extension([
+                ("estop", index, Pins(estop.pin), IOStandard(estop.io_standard))
+                for index, estop 
+                in enumerate(config.estop)
+            ])
+            self.pads = soc.platform.request_all("estop")
+            self.mask = sum([(1<<index)*(not estop.trigger) for index, estop in enumerate(config.estop)])
+
     @property
     def has_bitten(self):
         return self.data_out.status[0]
@@ -181,14 +197,14 @@ class WatchDogModule(Module, AutoCSR):
     def _to_signal(obj):
         return obj.raw_bits() if isinstance(obj, Record) else obj
     
-    def __init__(self, watchdog_data_in, watchdog_data_out, estop_pads, clock_domain="sys", default_timeout = 0, with_csr=True):
+    def __init__(self, watchdog_data: WatchdogData, estop_config: EStopConfig, clock_domain="sys", default_timeout = 0, with_csr=True):
         # Parameters for the watchdog:
         # - the bit enable sets whether the watchdog is enabled. This is written when the 
         #   timeout is read for the first-time from the driver to FPGA
         # - timeout: counter which is decreased at each clock-cycle. When it is at 0, the 
         #   watchdog will get very angry and bite.
-        self.data_in = watchdog_data_in
-        self.data_out = watchdog_data_out
+        self.data_in = watchdog_data.data_in
+        self.data_out = watchdog_data.data_out
         self.internal_reset = Signal()
 
         # Procedure of the watchdog
@@ -211,16 +227,16 @@ class WatchDogModule(Module, AutoCSR):
             ),
         ]
 
-        if estop_pads is not None:
-            self.estop = Signal(len(estop_pads))
-            self.specials += MultiReg(self._to_signal(estop_pads), self.estop)
+        if estop_config.pads is not None:
+            self.estop = Signal(len(estop_config.pads))
+            self.specials += MultiReg(self._to_signal(estop_config.pads), self.estop)
             self.sync += [
                 If(
                     self.reset & (self.estop ^ ~0b1),
-                    self.data_out.status[1:1+len(estop_pads)].eq(0)
+                    self.data_out.status[1:1+len(estop_config.pads)].eq(0)
                 ).Elif(
                     self.enable,
-                    self.data_out.status[1:1+len(estop_pads)].eq(self.data_out.status[1:1+len(estop_pads)] | (self.estop ^ 0b1))
+                    self.data_out.status[1:1+len(estop_config.pads)].eq(self.data_out.status[1:1+len(estop_config.pads)] | (self.estop ^ estop_config.mask))
                 )
             ]
 
@@ -300,9 +316,8 @@ class WatchDogModule(Module, AutoCSR):
             in enumerate([gpio for gpio in config.estop])
         ])
         watchdog = WatchDogModule(
-            watchdog_data_in=soc.MMIO_inst.watchdog_data,
-            watchdog_data_out=soc.MMIO_inst.watchdog_status,
-            estop_pads=soc.platform.request_all("estop"),
+            watchdog_data=WatchDogModule.WatchdogData(soc.MMIO_inst),
+            estop_config=WatchDogModule.EStopConfig(soc, config),
             with_csr=False)
         soc.submodules += watchdog
         soc.sync+=[
