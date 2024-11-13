@@ -163,6 +163,7 @@ class WatchDogModule(Module, AutoCSR):
             
             self.pads = None
             self.mask = None
+            self.num_estop = len(config.estop)
             self.is_defined = False
 
             if config.estop:
@@ -183,8 +184,18 @@ class WatchDogModule(Module, AutoCSR):
     
     @property
     def has_estop(self):
-        return self.data_out.status[1] != 0
-
+        if self.estop_config.is_defined:
+            return self.data_out.status[1:1+self.estop_config.num_estop] != 0
+        return False
+    
+    @property
+    def fault_out(self):
+        return self.data_out.status != 0
+    
+    @property
+    def ok_out(self):
+        return self.data_out.status == 0
+    
     @property
     def time_out(self):
         return self.data_in.storage[0:29]
@@ -211,6 +222,7 @@ class WatchDogModule(Module, AutoCSR):
         #   timeout is read for the first-time from the driver to FPGA
         # - timeout: counter which is decreased at each clock-cycle. When it is at 0, the 
         #   watchdog will get very angry and bite.
+        self.estop_config = estop_config
         self.data_in = watchdog_data.data_in
         self.data_out = watchdog_data.data_out
         self.internal_reset = Signal()
@@ -330,14 +342,7 @@ class WatchDogModule(Module, AutoCSR):
         soc.submodules += watchdog
         soc.sync+=[
             # Watchdog input (fixed values)
-            watchdog.internal_reset.eq(soc.MMIO_inst.reset.storage),
-            # Watchdog output (status whether the dog has bitten)
-            # soc.MMIO_inst.watchdog_status.status.eq(watchdog.has_bitten),
-            # soc.MMIO_inst.watchdog_status.we.eq(True),
-            # If(
-            #     soc.MMIO_inst.reset.storage,
-            #     soc.MMIO_inst.watchdog_data.storage.eq(0)
-            # )
+            watchdog.internal_reset.eq(soc.MMIO_inst.reset.storage)
         ]
 
         # Add functions
