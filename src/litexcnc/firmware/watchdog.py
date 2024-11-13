@@ -165,7 +165,7 @@ class WatchDogModule(Module, AutoCSR):
             self.mask = None
             self.is_defined = False
 
-            if config.extop:
+            if config.estop:
                 # Create the extension
                 soc.platform.add_extension([
                     ("estop", index, Pins(estop.pin), IOStandard(estop.io_standard))
