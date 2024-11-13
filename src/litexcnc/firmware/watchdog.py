@@ -160,14 +160,22 @@ class WatchDogModule(Module, AutoCSR):
 
     class EStopConfig():
         def __init__(self, soc, config) -> None:
-            # Create the extension
-            soc.platform.add_extension([
-                ("estop", index, Pins(estop.pin), IOStandard(estop.io_standard))
-                for index, estop 
-                in enumerate(config.estop)
-            ])
-            self.pads = soc.platform.request_all("estop")
-            self.mask = sum([(1<<index)*(not estop.trigger) for index, estop in enumerate(config.estop)])
+            
+            self.pads = None
+            self.mask = None
+            self.is_defined = False
+
+            if config.extop:
+                # Create the extension
+                soc.platform.add_extension([
+                    ("estop", index, Pins(estop.pin), IOStandard(estop.io_standard))
+                    for index, estop 
+                    in enumerate(config.estop)
+                ])
+                self.pads = soc.platform.request_all("estop")
+                self.mask = sum([(1<<index)*(not estop.trigger) for index, estop in enumerate(config.estop)])
+                self.is_defined = True
+                
 
     @property
     def has_bitten(self):
@@ -227,7 +235,7 @@ class WatchDogModule(Module, AutoCSR):
             ),
         ]
 
-        if estop_config.pads is not None:
+        if estop_config.is_defined:
             self.estop = Signal(len(estop_config.pads))
             self.specials += MultiReg(self._to_signal(estop_config.pads), self.estop)
             self.sync += [
