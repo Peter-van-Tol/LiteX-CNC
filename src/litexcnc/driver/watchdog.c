@@ -55,7 +55,8 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops) {
     // Create pins and params
     LITEXCNC_CREATE_BASENAME_NO_INDEX("watchdog");
     // - pins
-    LITEXCNC_CREATE_HAL_PIN("has_bitten", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.has_bitten));
+    LITEXCNC_CREATE_HAL_PIN("fpga_timeout", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.fpga_timeout));
+    LITEXCNC_CREATE_HAL_PIN("comm_timeout", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.comm_timeout));
     LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.reset));
     LITEXCNC_CREATE_HAL_PIN("ok_in", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.ok_in));
     LITEXCNC_CREATE_HAL_PIN("fault_in", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.fault_in));
@@ -92,12 +93,13 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
 
 
     if (!litexcnc->watchdog->hal.param.timeout_ns) {
-        LITEXCNC_PRINT(
+        LITEXCNC_WARN(
             "Watchdog timeout not set. Using default value %"PRIu32" ns (3 times period).",
             litexcnc->fpga->name,
             (uint32_t) litexcnc->watchdog->hal.param.timeout_ns
         );
-        litexcnc->watchdog->hal.param.timeout_ns = 3 * period;    }
+        litexcnc->watchdog->hal.param.timeout_ns = 3 * period;
+    }
 
     // Recalculate timeout_cycles only required when timeout_ns changed
     if (litexcnc->watchdog->hal.param.timeout_ns != litexcnc->watchdog->memo.timeout_ns ) {
@@ -105,7 +107,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
         litexcnc->watchdog->memo.timeout_ns = litexcnc->watchdog->hal.param.timeout_ns;
         // Validate new value (give warning when it is to close to the period of the thread)
         if (litexcnc->watchdog->hal.param.timeout_ns < (1.5 * period)) {
-            LITEXCNC_PRINT(
+            LITEXCNC_WARN(
                 "Watchdog timeout (%"PRIu32" ns) is dangerously short compared to litexcnc_write() period (%ld ns)\n",
                 litexcnc->fpga->name,
                 (uint32_t) litexcnc->watchdog->hal.param.timeout_ns,
@@ -136,7 +138,8 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
     uint8_t should_reset = (*(litexcnc->watchdog->hal.pin.reset) & ~litexcnc->watchdog->memo.reset);
     litexcnc->watchdog->memo.reset = *(litexcnc->watchdog->hal.pin.reset);
     if (should_reset & *(litexcnc->watchdog->hal.pin.ok_in) & (~*(litexcnc->watchdog->hal.pin.fault_in))) {
-        *(litexcnc->watchdog->hal.pin.has_bitten) = false;
+        *(litexcnc->watchdog->hal.pin.fpga_timeout) = false;
+        *(litexcnc->watchdog->hal.pin.comm_timeout) = false;
         *(litexcnc->watchdog->hal.pin.fault_out) = false;
         *(litexcnc->watchdog->hal.pin.ok_out) = true;
         for (size_t i=0; i<litexcnc->watchdog->num_estops; i++) {
@@ -149,7 +152,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
     litexcnc_watchdog_data_write_t output;
     output.timeout_cycles = htobe32(
         litexcnc->watchdog->hal.param.timeout_cycles + 
-        (*(litexcnc->watchdog->hal.pin.has_bitten) ? 0 : 0x80000000) +
+        (*(litexcnc->watchdog->hal.pin.fpga_timeout) ? 0 : 0x80000000) +
         (should_reset ? 0x40000000 : 0) +
         (*(litexcnc->watchdog->hal.pin.ok_out) ? 0x20000000 : 0)
     );
@@ -159,7 +162,7 @@ uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, lo
     
     // LITEXCNC_PRINT_NO_DEVICE(
     //     "%02X\n", 
-    //     (~*(litexcnc->watchdog->hal.pin.has_bitten) ? 0x80000000: 0) +
+    //     (~*(litexcnc->watchdog->hal.pin.fpga_timeout) ? 0x80000000: 0) +
     //     (should_reset ? 0x40000000 : 0) +
     //     ((~*(litexcnc->watchdog->hal.pin.fault_in) | *(litexcnc->watchdog->hal.pin.ok_in)) ? 0x20000000 : 0)
     // );
@@ -210,9 +213,9 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     }
 
     // Check whether the watchdog did bite
-    if ((*(*data) & mask) && (*(litexcnc->watchdog->hal.pin.has_bitten)==0)) {
+    if ((*(*data) & mask) && (*(litexcnc->watchdog->hal.pin.fpga_timeout)==0)) {
         LITEXCNC_ERR_NO_DEVICE("Watchdog has bitten.");
-        *(litexcnc->watchdog->hal.pin.has_bitten) = 1;
+        *(litexcnc->watchdog->hal.pin.fpga_timeout) = 1;
     }
     (*data)++;
 
@@ -221,7 +224,7 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
         *(litexcnc->watchdog->hal.pin.ok_out) = (
             (*(litexcnc->watchdog->hal.pin.ok_in)) & 
             (~*(litexcnc->watchdog->hal.pin.fault_in)) & 
-            (~*(litexcnc->watchdog->hal.pin.has_bitten)) &
+            (~*(litexcnc->watchdog->hal.pin.fpga_timeout)) &
             (~estop_active)
         );
         // Negate the signal
@@ -231,3 +234,14 @@ uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data) {
     // Success
     return 0;
 }
+
+uint8_t litexcnc_watchdog_process_read_error(litexcnc_t *litexcnc, long period) {
+
+    if ((*(litexcnc->fpga->hal.pin.read_errors) * period) > litexcnc->watchdog->hal.param.timeout_ns) {
+        *(litexcnc->watchdog->hal.pin.ok_out) = false;
+        *(litexcnc->watchdog->hal.pin.fault_out) = true;
+        *(litexcnc->watchdog->hal.pin.comm_timeout) = true;   
+    }
+
+}
+

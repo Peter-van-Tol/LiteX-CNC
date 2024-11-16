@@ -111,13 +111,15 @@ static void litexcnc_config(void* void_litexcnc, long period) {
         litexcnc->fpga, 
         litexcnc->fpga->config_base_address, 
         config_buffer, 
-        litexcnc->fpga->config_buffer_size
+        litexcnc->fpga->config_buffer_size,
+        false
     );
 }
 
 
 static void litexcnc_read(void* void_litexcnc, long period) {
     litexcnc_t *litexcnc = void_litexcnc;
+    static int res;
 
     // The first loop no data is read, as it is used for sending the configuration to the 
     // FPGA. The configuration is written in the `litexcnc_write` function. 
@@ -134,21 +136,24 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     );
     
     // Read the state from the FPGA
-    litexcnc->fpga->read(litexcnc->fpga);
-
-    // TODO: don't process the read data in case the read has failed.
-
-    // Process the read data for the different compenents
-    uint8_t* pointer = litexcnc->fpga->read_buffer + litexcnc->fpga->read_header_size;
-    // - default
-    litexcnc_watchdog_process_read(litexcnc, &pointer);
-    litexcnc_wallclock_process_read(litexcnc, &pointer);
-    // - custom
-    for (size_t i=0; i<litexcnc->num_modules; i++) {
-        litexcnc_module_instance_t *module = litexcnc->modules[i];
-        if (module->process_read != NULL) {
-            module->process_read(module->instance_data, &pointer, period);
+    res = litexcnc->fpga->read(litexcnc->fpga);
+    if (!res){
+        // Process the read data for the different compenents
+        uint8_t* pointer = litexcnc->fpga->read_buffer + litexcnc->fpga->read_header_size;
+        // - default
+        litexcnc_watchdog_process_read(litexcnc, &pointer);
+        litexcnc_wallclock_process_read(litexcnc, &pointer);
+        // - custom
+        for (size_t i=0; i<litexcnc->num_modules; i++) {
+            litexcnc_module_instance_t *module = litexcnc->modules[i];
+            if (module->process_read != NULL) {
+                module->process_read(module->instance_data, &pointer, period);
+            }
         }
+    } else {
+        // An error has occurred during reading, indicating possible connection
+        // problems. This is reported to the watchdog
+        // litexcnc_watchdog_process_read_error(litexcnc, period);
     }
 }
 
@@ -248,13 +253,15 @@ int litexcnc_reset(litexcnc_fpga_t *fpga) {
             fpga, 
             fpga->reset_base_address, 
             reset_buffer, 
-            sizeof(reset_flag)
+            sizeof(reset_flag),
+            false
         );
         r = fpga->read_n_bits(
             fpga, 
             fpga->reset_base_address, 
             reset_buffer, 
-            sizeof(reset_flag)
+            sizeof(reset_flag),
+            false
         );
         reset_status = *(uint32_t *)reset_buffer;
         i++;
@@ -274,13 +281,15 @@ int litexcnc_reset(litexcnc_fpga_t *fpga) {
             fpga, 
             fpga->reset_base_address, 
             reset_buffer, 
-            sizeof(reset_flag)
+            sizeof(reset_flag),
+            false
         );
         r = fpga->read_n_bits(
             fpga, 
             fpga->reset_base_address, 
             reset_buffer, 
-            sizeof(reset_flag)
+            sizeof(reset_flag),
+            false
         );
         reset_status = *(uint32_t *)reset_buffer;
         i++;
@@ -319,7 +328,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     // - version + config data length
     // - name (4 DWORD / 16 charachters)
     uint8_t *header_buffer = rtapi_kmalloc(sizeof(litexcnc_header_data_read_t), RTAPI_GFP_KERNEL);
-    r = litexcnc->fpga->read_n_bits(litexcnc->fpga, 0x0, header_buffer, LITEXCNC_HEADER_DATA_READ_SIZE);
+    r = litexcnc->fpga->read_n_bits(litexcnc->fpga, 0x0, header_buffer, LITEXCNC_HEADER_DATA_READ_SIZE, false);
     if (r < 0) {
         LITEXCNC_ERR_NO_DEVICE("Could not read from card, please check connection?\n");
         return r;
@@ -401,7 +410,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     LITEXCNC_PRINT_NO_DEVICE("Setting up modules...\n");
     LITEXCNC_PRINT_NO_DEVICE("Reading %u bytes\n", be16toh(header_data.module_data_size));
     uint8_t *config_buffer = rtapi_kmalloc(be16toh(header_data.module_data_size), RTAPI_GFP_KERNEL);
-    r = litexcnc->fpga->read_n_bits(litexcnc->fpga, LITEXCNC_HEADER_DATA_READ_SIZE, config_buffer, be16toh(header_data.module_data_size));
+    r = litexcnc->fpga->read_n_bits(litexcnc->fpga, LITEXCNC_HEADER_DATA_READ_SIZE, config_buffer, be16toh(header_data.module_data_size), false);
     if (r < 0) {
         LITEXCNC_ERR_NO_DEVICE("Could not read from card, please check connection?\n");
         return r;
@@ -514,9 +523,9 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     litexcnc->fpga->read_buffer = read_buffer;
 
     
-    // ================
-    // EXPORT FUNCTIONS
-    // ================
+    // =========================
+    // EXPORT FUNCTIONS AND PINS
+    // =========================
     LITEXCNC_PRINT_NO_DEVICE("Exporting functions...\n");
     // - read function
     char name[HAL_NAME_LEN + 1];
@@ -537,6 +546,12 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
         goto fail1;
     }
 
+    char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<module>
+    LITEXCNC_CREATE_BASENAME_NO_INDEX("communications")
+    LITEXCNC_CREATE_HAL_PIN("total-read-errors", u32, HAL_OUT, &(litexcnc->fpga->hal.pin.total_read_errors))
+    LITEXCNC_CREATE_HAL_PIN("read-errors", u32, HAL_OUT, &(litexcnc->fpga->hal.pin.read_errors))
+    LITEXCNC_CREATE_HAL_PIN("total-write-errors", u32, HAL_OUT, &(litexcnc->fpga->hal.pin.total_write_errors))
+    LITEXCNC_CREATE_HAL_PIN("write-errors", u32, HAL_OUT, &(litexcnc->fpga->hal.pin.write_errors))
 
     // ==========
     // RESET FPGA
@@ -690,8 +705,11 @@ int rtapi_app_main(void) {
             ret = retrieve_driver_from_registration(&registration, connections[i]);
             if (ret < 0) {
                 // The driver is not loaded yet -> load the driver
-                ret = register_driver(connections[i]); 
+                LITEXCNC_PRINT_NO_DEVICE("Registering... ");
+                ret = register_driver(connections[i]);
+                LITEXCNC_PRINT_NO_DEVICE("Registered... ");
                 if (ret<0) return ret;
+                LITEXCNC_PRINT_NO_DEVICE("No error... ");
                 ret = retrieve_driver_from_registration(&registration, connections[i]);
                 if (ret<0) {
                     LITEXCNC_ERR_NO_DEVICE("Error, could not find driver %s after registration.\n", connections[i]);
@@ -699,7 +717,10 @@ int rtapi_app_main(void) {
                 }
             }
             // Connect with the board
+            LITEXCNC_PRINT_NO_DEVICE("Initializing... ");
             ret = registration->initialize_driver(conn_str_ptr, comp_id);
+            LITEXCNC_PRINT_NO_DEVICE("initialized\n");
+
             if (ret<0) {
                 LITEXCNC_ERR_NO_DEVICE("Failed to initialize the driver.\n");
                 return ret;

@@ -117,9 +117,21 @@ struct litexcnc_fpga_struct {
     int comp_id;
     uint32_t version;
 
+    struct {
+        struct {
+            hal_u32_t *total_read_errors;   /* The total amount of read errors. This counter is increased when an error occurs */
+            hal_u32_t *read_errors;         /* The amount of read errors. This counter is increased when an error occurs and decreased on a succesfull read */
+            hal_u32_t *total_write_errors;  /* The total amount of write errors. This counter is increased when an error occurs */
+            hal_u32_t *write_errors;        /* The amount of write errors. This counter is increased when an error occurs and decreased on a succesfull write */
+        } pin;
+        struct {
+            hal_bit_t debug;  // Indicates the communication is in debug mode
+        } param;
+    } hal;
+
     // Functions to read and write data from the board
-    int (*read_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size);
-    int (*write_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size);
+    int (*read_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size, bool guarded);
+    int (*write_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size, bool guarded);
     // - on success these two return TRUE (not zero)
     // - on failure they return FALSE (0) and set *self->io_error (below) to TRUE
     int (*read)(litexcnc_fpga_t *self);

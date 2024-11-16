@@ -109,7 +109,7 @@ EXPORT_SYMBOL_GPL(register_pigpio_driver);
  * @param N       The number of the bytes to read. Must be equal to the length 
  *                of @param data. 
  ******************************************************************************/
-static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t N) {
+static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t N, bool guarded) {
     litexcnc_pigpio_t *board = this->private;
     
     // Create the required buffers
@@ -130,6 +130,10 @@ static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint
     int ret = spiXfer(board->connection, tx_buf, rx_buf, 5 + N + 2);
 	if (ret < 1) {
         LITEXCNC_ERR("Could not read from SPI device\n", this->name);
+        if (guarded) {
+            *(this->hal.pin.total_read_errors) += 1;
+            *(this->hal.pin.read_errors) += 1;
+        }
 		return -1;
     }
     
@@ -138,6 +142,10 @@ static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint
         if(rx_buf[i] == 0x01) {
             // Copy the results to the output
             memcpy(data, &rx_buf[i+1], N);
+            // Decrease the counter
+            if (guarded && (*(this->hal.pin.read_errors) > 0)) {
+                *(this->hal.pin.read_errors) -= 0;
+            }
             // Indicate success
             return 0;
         }
@@ -145,6 +153,10 @@ static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint
 
     // Writing has failed
     LITEXCNC_ERR("Read from SPI device was unsuccessful.\n", this->name);
+    if (guarded) {
+        *(this->hal.pin.total_read_errors) += 1;
+        *(this->hal.pin.read_errors) += 1;
+    }
     return -1;
 
 }
@@ -161,7 +173,8 @@ static int litexcnc_spi_read(litexcnc_fpga_t *this) {
         this, 
         this->read_base_address, 
         this->read_buffer, 
-        this->read_buffer_size);
+        this->read_buffer_size,
+        true);
 }
 
 
@@ -176,7 +189,7 @@ static int litexcnc_spi_read(litexcnc_fpga_t *this) {
  * @param N       The number of the bytes to write. Must be equal to the length 
  *                of @param data. 
  ******************************************************************************/
-static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t N) {
+static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t N, bool guarded) {
     litexcnc_pigpio_t *board = this->private;
     
     // Create the required buffers
@@ -198,12 +211,20 @@ static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uin
     int ret = spiXfer(board->connection, tx_buf, rx_buf, 5 + N + 2);
 	if (ret < 1) {
         LITEXCNC_ERR("Could not write to SPI device\n", this->name);
+        if (guarded) {
+            *(this->hal.pin.total_write_errors) += 1;
+            *(this->hal.pin.write_errors) += 1;
+        }
 		return -1;
     }
 
     // Check whether write was successfull
     for(size_t i = 0; i < (5 + N + 2); i++) {
         if(rx_buf[i] == 0x01) {
+            // Decrease the counter
+            if (guarded && (*(this->hal.pin.write_errors) > 0)) {
+                *(this->hal.pin.write_errors) -= 0;
+            }
             // Indicate success
             return 0;
         }
@@ -211,6 +232,10 @@ static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uin
 
     // Writing has failed
     LITEXCNC_ERR("Write to SPI device was unsuccessful.\n", this->name);
+    if (guarded) {
+        *(this->hal.pin.total_write_errors) += 1;
+        *(this->hal.pin.write_errors) += 1;
+    }
     return -1;
 }
 
@@ -225,7 +250,8 @@ static int litexcnc_spi_write(litexcnc_fpga_t *this) {
         this, 
         this->write_base_address, 
         this->write_buffer, 
-        this->write_buffer_size);
+        this->write_buffer_size,
+        true);
 }
 
 
@@ -278,28 +304,31 @@ static int initialize_driver(char *connection_string, int comp_id) {
     }
     
     // Create an FPGA instance
-    boards[boards_count]->fpga.comp_id           = comp_id;
-    boards[boards_count]->fpga.read_n_bits       = litexcnc_spi_read_n_bytes;
-    boards[boards_count]->fpga.read              = litexcnc_spi_read;
-    boards[boards_count]->fpga.read_header_size  = 0;
-    boards[boards_count]->fpga.write_n_bits      = litexcnc_spi_write_n_bytes;
-    boards[boards_count]->fpga.write             = litexcnc_spi_write;
-    boards[boards_count]->fpga.write_header_size = 0;
-    boards[boards_count]->fpga.private           = boards[boards_count];
-    boards[boards_count]->fpga.terminate         = terminate_driver;
+    litexcnc_fpga_t *fpga = (litexcnc_fpga_t *)hal_malloc(sizeof(litexcnc_fpga_t));
+    fpga->comp_id           = comp_id;
+    fpga->read_n_bits       = litexcnc_spi_read_n_bytes;
+    fpga->read              = litexcnc_spi_read;
+    fpga->read_header_size  = 0;
+    fpga->write_n_bits      = litexcnc_spi_write_n_bytes;
+    fpga->write             = litexcnc_spi_write;
+    fpga->write_header_size = 0;
+    fpga->private           = boards[boards_count];
+    fpga->terminate          = terminate_driver;
+    boards[boards_count]->fpga = fpga;
+    // NOTE: Pins must be created seperately after the name has been read
 
     // Register the board with the main function
-    ret = litexcnc_register(&boards[boards_count]->fpga);
+    ret = litexcnc_register(boards[boards_count]->fpga);
     if (ret != 0) {
         rtapi_print("board fails LitexCNC registration\n");
-        terminate_driver(&boards[boards_count]->fpga);
+        terminate_driver(boards[boards_count]->fpga);
         return ret;
     }
     // Create a pin to show debug messages
-    ret = hal_param_bit_newf(HAL_RW, &(boards[boards_count]->hal.param.debug), comp_id, "%s.debug", boards[boards_count]->fpga.name);
+    ret = hal_param_bit_newf(HAL_RW, &(boards[boards_count]->hal.param.debug), comp_id, "%s.debug", boards[boards_count]->fpga->name);
     if (ret < 0) {
-        terminate_driver(&boards[boards_count]->fpga);
-        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", boards[boards_count]->fpga.name);
+        terminate_driver(boards[boards_count]->fpga);
+        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", boards[boards_count]->fpga->name);
         return ret;
     }
     // Proceed to the next board

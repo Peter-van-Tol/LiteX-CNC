@@ -42,7 +42,7 @@ typedef struct {
     size_t read_request_buffer_size;
 
     // Definition of the FPGA (containing pins, steppers, PWM, ec.)
-    litexcnc_fpga_t fpga;
+    litexcnc_fpga_t *fpga;
 } litexcnc_eth_t;
 
 

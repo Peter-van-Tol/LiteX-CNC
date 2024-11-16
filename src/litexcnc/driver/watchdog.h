@@ -61,7 +61,8 @@ typedef struct {
     struct {
 
         struct {
-            hal_bit_t *has_bitten;     /* Pin which is set when the watchdog has timed out */
+            hal_bit_t *fpga_timeout;   /* Pin which is set when the watchdog has timed out */
+            hal_bit_t *comm_timeout;   /* Pin which is set when the communication has timed out */
             hal_bit_t *reset;          /* Pin to indicate the watchdog should be reset. Acts on rising edge.*/
             hal_bit_t *ok_in;          /* Pin to indicate previous latches (estop_latch) are working fine.*/
             hal_bit_t *fault_in;       /* Pin to indicate previous latches (estop_latch) have an error.*/
@@ -110,5 +111,6 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops);
 uint8_t litexcnc_watchdog_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t **data);
+uint8_t litexcnc_watchdog_process_read_error(litexcnc_t *litexcnc, long period);
 
 #endif
