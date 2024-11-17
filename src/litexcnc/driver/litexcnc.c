@@ -153,7 +153,7 @@ static void litexcnc_read(void* void_litexcnc, long period) {
     } else {
         // An error has occurred during reading, indicating possible connection
         // problems. This is reported to the watchdog
-        // litexcnc_watchdog_process_read_error(litexcnc, period);
+        litexcnc_watchdog_process_read_error(litexcnc, period);
     }
 }
 
