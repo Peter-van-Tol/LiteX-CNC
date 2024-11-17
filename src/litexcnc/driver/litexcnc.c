@@ -408,12 +408,15 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     // READ AND PROCESS CONFIG OF MODULES
     // ==================================
     LITEXCNC_PRINT_NO_DEVICE("Setting up modules...\n");
-    LITEXCNC_PRINT_NO_DEVICE("Reading %u bytes\n", be16toh(header_data.module_data_size));
     uint8_t *config_buffer = rtapi_kmalloc(be16toh(header_data.module_data_size), RTAPI_GFP_KERNEL);
-    r = litexcnc->fpga->read_n_bits(litexcnc->fpga, LITEXCNC_HEADER_DATA_READ_SIZE, config_buffer, be16toh(header_data.module_data_size), false);
-    if (r < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Could not read from card, please check connection?\n");
-        return r;
+
+    if (litexcnc->num_modules && header_data.module_data_size) {
+        LITEXCNC_PRINT_NO_DEVICE("Reading %u bytes\n", be16toh(header_data.module_data_size));
+        r = litexcnc->fpga->read_n_bits(litexcnc->fpga, LITEXCNC_HEADER_DATA_READ_SIZE, config_buffer, be16toh(header_data.module_data_size), false);
+        if (r < 0) {
+            LITEXCNC_ERR_NO_DEVICE("Could not read from card, please check connection?\n");
+            return r;
+        }
     }
 
     // LITEXCNC_PRINT_NO_DEVICE("Read header data:\n");
@@ -447,7 +450,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     // - custom modules
     litexcnc_module_registration_t *registration;
     litexcnc->num_modules = header_data.num_modules;
-    litexcnc->modules = (litexcnc_module_instance_t**) hal_malloc(litexcnc->num_modules * sizeof(litexcnc_module_instance_t*));;
+    litexcnc->modules = (litexcnc_module_instance_t**) hal_malloc(litexcnc->num_modules * sizeof(litexcnc_module_instance_t*));
     for (i = 0; i < litexcnc->num_modules; i ++) {
         // Get module from registration
         r = retrieve_module_from_registration(&registration, be32toh(*(uint32_t*)config_buffer));
