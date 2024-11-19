@@ -410,7 +410,7 @@ int litexcnc_register(litexcnc_fpga_t *fpga) {
     LITEXCNC_PRINT_NO_DEVICE("Setting up modules...\n");
     uint8_t *config_buffer = rtapi_kmalloc(be16toh(header_data.module_data_size), RTAPI_GFP_KERNEL);
 
-    if (litexcnc->num_modules && header_data.module_data_size) {
+    if (header_data.num_modules && header_data.module_data_size) {
         LITEXCNC_PRINT_NO_DEVICE("Reading %u bytes\n", be16toh(header_data.module_data_size));
         r = litexcnc->fpga->read_n_bits(litexcnc->fpga, LITEXCNC_HEADER_DATA_READ_SIZE, config_buffer, be16toh(header_data.module_data_size), false);
         if (r < 0) {
@@ -708,11 +708,8 @@ int rtapi_app_main(void) {
             ret = retrieve_driver_from_registration(&registration, connections[i]);
             if (ret < 0) {
                 // The driver is not loaded yet -> load the driver
-                LITEXCNC_PRINT_NO_DEVICE("Registering... ");
                 ret = register_driver(connections[i]);
-                LITEXCNC_PRINT_NO_DEVICE("Registered... ");
                 if (ret<0) return ret;
-                LITEXCNC_PRINT_NO_DEVICE("No error... ");
                 ret = retrieve_driver_from_registration(&registration, connections[i]);
                 if (ret<0) {
                     LITEXCNC_ERR_NO_DEVICE("Error, could not find driver %s after registration.\n", connections[i]);
@@ -720,9 +717,7 @@ int rtapi_app_main(void) {
                 }
             }
             // Connect with the board
-            LITEXCNC_PRINT_NO_DEVICE("Initializing... ");
             ret = registration->initialize_driver(conn_str_ptr, comp_id);
-            LITEXCNC_PRINT_NO_DEVICE("initialized\n");
 
             if (ret<0) {
                 LITEXCNC_ERR_NO_DEVICE("Failed to initialize the driver.\n");
