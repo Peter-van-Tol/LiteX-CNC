@@ -177,22 +177,22 @@ class PWM_Instance(ModuleInstanceBaseModel):
         "created."
     )
     hal_pins: ClassVar[List[str]] = [
-        'curr_dc',
-        'curr_period',
-        'curr_pwm_freq',
-        'curr_width',
+        'curr-dc',
+        'curr-period',
+        'curr-pwm-freq',
+        'curr-width',
         'direction',
-        'dither_pwm',
+        'dither-pwm',
         'enable',
-        'max_dc',
-        'min_dc',
+        'max-dc',
+        'min-dc',
         'offset',
-        'pwm_freq',
+        'pwm-freq',
         'scale',
         'value'
     ]
     hal_params: ClassVar[List[str]] = [
-        "invert_output",
+        "invert-output",
         "type"
     ]
 

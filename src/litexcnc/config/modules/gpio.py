@@ -64,7 +64,7 @@ class GPIO_PinOut(GPIO_PinBase):
         'out',
     ]
     hal_params: ClassVar[List[str]] = [
-        'invert_output',
+        'invert-output',
     ]
 
     @validator("pin")

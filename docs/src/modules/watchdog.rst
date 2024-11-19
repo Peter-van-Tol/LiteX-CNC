@@ -100,10 +100,10 @@ function_type (str) - required
     Identifier for the function. Must be ``heartbeat`` to implement this function.
 pin (str) - required
     The pin on which the heart beat signal (PWM) will be put.
-invert_output (str) - optional
+invert-output (str) - optional
     When set to True, the output signal will be inverted. Default value is False. When
     using the built-in User LED, this option must be set to True.
-pwm_frequency (float) - optional
+pwm-frequency (float) - optional
     The PWM frequency of the signal. Default value is 1 kHz.
 waveform (str | List[float]) - optional
     The waveform to be put on the pin. The available built-in waveforms are ``heartbeat`` 
@@ -149,7 +149,7 @@ fault, at least one of these inputs must be connected.
 Input pins
 ==========
 
-<board-name>.watchdog.timeout_ns (uint32)
+<board-name>.watchdog.timeout-ns (uint32)
    The time out (in ns) after which the watchdog will bite. It is recommended to set the watchdog
    at least 1.5 times the period of the servo-thread to give some leeway. If set too tight, this
    will lead to a watchdog which bites as soon as there is a latency excursion.
@@ -168,9 +168,9 @@ Input pins
 Output pins
 ===========
 
-<board-name>.watchdog.has_bitten hal_bit
+<board-name>.watchdog.has-bitten hal_bit
    Flag indicating that the watchdog has not been petted on time and that it has bitten.
-<board-name>.watchdog.timeout_cycles
+<board-name>.watchdog.timeout-cycles
    The number of cycles of the FPGA before the watchdog bites (DEBUG)
 <board-name>.watchdog.ok-out hal_bit (default: false)
    Pin indicating the chain is OK when ``true``.
@@ -196,7 +196,7 @@ to ``reset``, and ``ok-out`` is connected to ``iocontrol.0.emc-enable-in``.
     addf <board-name>.write test-thread
 
     # Setup the watchdog (assuming servo-thread period of 1000000 ns (1 kHz))
-    setp EMCO5.watchdog.timeout_ns 1500000
+    setp EMCO5.watchdog.timeout-ns 1500000
 
     # Tie the watchdog into the E-STOP chain
     net estop-loopout iocontrol.0.emc-enable-in <= EMCO5.watchdog.ok-out

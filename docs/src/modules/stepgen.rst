@@ -130,15 +130,15 @@ Output pins
 
 <board-name>.stepgen.<index/name>.counts (HAL_UINT)
     The current position, in counts.
-<board-name>.stepgen.<index/name>.position_fb (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.position-fb (HAL_FLOAT)
     The received position from the FPGA in units.
-<board-name>.stepgen.<index/name>.position_prediction (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.position-prediction (HAL_FLOAT)
     The predicted position at the start of the next cycle. It is calculated based on the 
     ``position_fb``, and the commanded speeds and acceleration. This HAL-pin should be
      used asfeedback for ``motmod`` to prevent oscillations.
-<board-name>.stepgen.<index/name>.speed_fb (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.speed-fb (HAL_FLOAT)
     The current speed, in units per second.
-<board-name>.stepgen.<index/name>.speed_prediction (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.speed-prediction (HAL_FLOAT)
     The predicted speed at the start of the next cycle. It is calculated based on the 
     ``speed_fb``, and the commanded speeds and acceleration.
 
