@@ -54,11 +54,11 @@ int litexcnc_wallclock_init(litexcnc_t *litexcnc) {
     
     // Create pins
     // - wallclock_ticks_msb
-    rtapi_snprintf(name, sizeof(name), "%s.wallclock.ticks_msb", litexcnc->fpga->name);
+    rtapi_snprintf(name, sizeof(name), "%s.wallclock.ticks-msb", litexcnc->fpga->name);
     r = hal_pin_u32_new(name, HAL_OUT, &(litexcnc->wallclock->hal.pin.wallclock_ticks_msb), litexcnc->fpga->comp_id);
     if (r < 0) { goto fail_pins; }
     // - wallclock_ticks_lsb
-    rtapi_snprintf(name, sizeof(name), "%s.wallclock.ticks_lsb", litexcnc->fpga->name); 
+    rtapi_snprintf(name, sizeof(name), "%s.wallclock.ticks-lsb", litexcnc->fpga->name); 
     r = hal_pin_u32_new(name, HAL_IO, &(litexcnc->wallclock->hal.pin.wallclock_ticks_lsb), litexcnc->fpga->comp_id); 
     if (r < 0) { goto fail_pins; }
 

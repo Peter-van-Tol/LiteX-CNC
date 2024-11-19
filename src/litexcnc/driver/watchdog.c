@@ -55,16 +55,16 @@ int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops) {
     // Create pins and params
     LITEXCNC_CREATE_BASENAME_NO_INDEX("watchdog");
     // - pins
-    LITEXCNC_CREATE_HAL_PIN("fpga_timeout", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.fpga_timeout));
-    LITEXCNC_CREATE_HAL_PIN("comm_timeout", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.comm_timeout));
+    LITEXCNC_CREATE_HAL_PIN("fpga-timeout", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.fpga_timeout));
+    LITEXCNC_CREATE_HAL_PIN("comm-timeout", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.comm_timeout));
     LITEXCNC_CREATE_HAL_PIN("reset", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.reset));
-    LITEXCNC_CREATE_HAL_PIN("ok_in", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.ok_in));
-    LITEXCNC_CREATE_HAL_PIN("fault_in", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.fault_in));
-    LITEXCNC_CREATE_HAL_PIN("ok_out", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.ok_out));
-    LITEXCNC_CREATE_HAL_PIN("fault_out", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.fault_out));
+    LITEXCNC_CREATE_HAL_PIN("ok-in", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.ok_in));
+    LITEXCNC_CREATE_HAL_PIN("fault-in", bit, HAL_IN, &(litexcnc->watchdog->hal.pin.fault_in));
+    LITEXCNC_CREATE_HAL_PIN("ok-out", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.ok_out));
+    LITEXCNC_CREATE_HAL_PIN("fault-out", bit, HAL_OUT, &(litexcnc->watchdog->hal.pin.fault_out));
     // - params
-    LITEXCNC_CREATE_HAL_PARAM("timeout_ns", u32, HAL_RW, &(litexcnc->watchdog->hal.param.timeout_ns));
-    LITEXCNC_CREATE_HAL_PARAM("timeout_cycles", u32, HAL_RO, &(litexcnc->watchdog->hal.param.timeout_cycles));
+    LITEXCNC_CREATE_HAL_PARAM("timeout-ns", u32, HAL_RW, &(litexcnc->watchdog->hal.param.timeout_ns));
+    LITEXCNC_CREATE_HAL_PARAM("timeout-cycles", u32, HAL_RO, &(litexcnc->watchdog->hal.param.timeout_cycles));
 
     // Set default value
     *(litexcnc->watchdog->hal.pin.fault_in) = false;

@@ -348,17 +348,17 @@ size_t litexcnc_pwm_init(litexcnc_module_instance_t **module, litexcnc_t *litexc
         LITEXCNC_CREATE_HAL_PIN("value", float, HAL_IN, &(instance->hal.pin.value))
         LITEXCNC_CREATE_HAL_PIN("scale", float, HAL_IN, &(instance->hal.pin.scale))
         LITEXCNC_CREATE_HAL_PIN("offset", float, HAL_IN, &(instance->hal.pin.offset))
-        LITEXCNC_CREATE_HAL_PIN("dither_pwm", bit, HAL_IN, &(instance->hal.pin.dither_pwm))
-        LITEXCNC_CREATE_HAL_PIN("pwm_freq", float, HAL_IN, &(instance->hal.pin.pwm_freq))
-        LITEXCNC_CREATE_HAL_PIN("min_dc", float, HAL_IN, &(instance->hal.pin.min_dc))
-        LITEXCNC_CREATE_HAL_PIN("max_dc", float, HAL_IN, &(instance->hal.pin.max_dc))
-        LITEXCNC_CREATE_HAL_PIN("curr_dc", float, HAL_OUT, &(instance->hal.pin.curr_dc))
-        LITEXCNC_CREATE_HAL_PIN("curr_pwm_freq", float, HAL_OUT, &(instance->hal.pin.curr_pwm_freq))
-        LITEXCNC_CREATE_HAL_PIN("curr_period", u32, HAL_OUT, &(instance->hal.pin.curr_period))
-        LITEXCNC_CREATE_HAL_PIN("curr_width", u32, HAL_OUT, &(instance->hal.pin.curr_width))
+        LITEXCNC_CREATE_HAL_PIN("dither-pwm", bit, HAL_IN, &(instance->hal.pin.dither_pwm))
+        LITEXCNC_CREATE_HAL_PIN("pwm-freq", float, HAL_IN, &(instance->hal.pin.pwm_freq))
+        LITEXCNC_CREATE_HAL_PIN("min-dc", float, HAL_IN, &(instance->hal.pin.min_dc))
+        LITEXCNC_CREATE_HAL_PIN("max-dc", float, HAL_IN, &(instance->hal.pin.max_dc))
+        LITEXCNC_CREATE_HAL_PIN("curr-dc", float, HAL_OUT, &(instance->hal.pin.curr_dc))
+        LITEXCNC_CREATE_HAL_PIN("curr-pwm_freq", float, HAL_OUT, &(instance->hal.pin.curr_pwm_freq))
+        LITEXCNC_CREATE_HAL_PIN("curr-period", u32, HAL_OUT, &(instance->hal.pin.curr_period))
+        LITEXCNC_CREATE_HAL_PIN("curr-width", u32, HAL_OUT, &(instance->hal.pin.curr_width))
         LITEXCNC_CREATE_HAL_PIN("direction", bit, HAL_OUT, &(instance->hal.pin.direction))
         // - params
-        LITEXCNC_CREATE_HAL_PARAM("invert_output", bit, HAL_RW, &(instance->hal.param.invert_output));
+        LITEXCNC_CREATE_HAL_PARAM("invert-output", bit, HAL_RW, &(instance->hal.param.invert_output));
         LITEXCNC_CREATE_HAL_PARAM("type", u32, HAL_RO, &(instance->hal.param.type));
 
         // Set default values for the instance (PWM is disabled by default: SAFETY!)
