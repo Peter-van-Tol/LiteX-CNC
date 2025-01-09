@@ -311,8 +311,9 @@ class StepgenModule(Module, AutoDoc):
         for index, _ in enumerate(config.instances):
             setattr(
                 mmio,
-                f'stepgen_{index}_speed_index',
+                f'stepgen_{index}_speed_target_index_enable',
                 CSRStorage(
+                    name=f'stepgen_{index}_speed_target_index_enable',
                     fields=[
                         CSRField(
                             "speed_target",
@@ -333,14 +334,17 @@ class StepgenModule(Module, AutoDoc):
             )
             setattr(
                 mmio,
-                name=f'stepgen_{index}_max_acceleration',
-                size=32,
-                description=
-                    f'The maximum acceleration for stepper {index}. The storage contains a '
-                    'fixed point value, with 16 bits before and 16 bits after the point. Each '
-                    'clock cycle, this value will be added or subtracted from the stepgen speed '
-                    'until the target speed is acquired.'
-                )
+                f'stepgen_{index}_max_acceleration',
+                CSRStorage(
+                    name=f'stepgen_{index}_max_acceleration',
+                    size=32,
+                    description=
+                        f'The maximum acceleration for stepper {index}. The storage contains a '
+                        'fixed point value, with 16 bits before and 16 bits after the point. Each '
+                        'clock cycle, this value will be added or subtracted from the stepgen speed '
+                        'until the target speed is acquired.'
+                    )
+            )
 
     @classmethod
     def create_from_config(cls, soc: SoC, watchdog, config: StepgenModuleConfig):
@@ -378,7 +382,7 @@ class StepgenModule(Module, AutoDoc):
                 stepgen.dir_hold_time.eq(getattr(soc.MMIO_inst, f"stepgen_{index}_stepdata").fields.dir_hold_time),
                 stepgen.dir_setup_time.eq(getattr(soc.MMIO_inst, f"stepgen_{index}_stepdata").fields.dir_setup_time)
             ]
-            if stepgen_config.pins.index:
+            if stepgen_config.pins.index_pin:
                 soc.sync += [
                     getattr(
                         soc.MMIO_inst, 
@@ -405,11 +409,12 @@ class StepgenModule(Module, AutoDoc):
                 getattr(soc.MMIO_inst, f'stepgen_{index}_speed_index').fields.index_flag.eq(stepgen.index_flag)
             ]
             # Add speed target and the max acceleration in the protected sync
+            print(getattr(soc.MMIO_inst, f'stepgen_{index}_speed_index').fields.__dict__)
             soc.sync += [
                 If(
                     soc.MMIO_inst.wall_clock.status >= soc.MMIO_inst.stepgen_apply_time.storage,
-                    stepgen.speed_target.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_index').fields.speed_target)),
-                    stepgen.index_enable.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_speed_index').fields.index_enable),
+                    stepgen.speed_target.eq(Cat(Constant(0, bits_sign=(stepgen.pick_off_acc - stepgen.pick_off_vel)), getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target_index_enable').fields.speed_target)),
+                    stepgen.index_enable.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_speed_target_index_enable').fields.index_enable),
                     stepgen.max_acceleration.eq(getattr(soc.MMIO_inst, f'stepgen_{index}_max_acceleration').storage),
                 )
             ]
