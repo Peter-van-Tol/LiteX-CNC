@@ -63,6 +63,7 @@ The code-block belows gives an example for the configuration of ``StepGen`` for 
                             "step_pin": "j9:0",
                             "dir_pin": "j9:1"
                         },
+                        "max_frequency": 400000,
                         "soft_stop": true
                     },
                 ...
@@ -89,6 +90,7 @@ The code-block belows gives an example for the configuration of ``StepGen`` for 
                             "dir_pos_pin": "j9:2",
                             "dir_neg_pin": "j9:4"
                         },
+                        "max_frequency": 400000,
                         "soft_stop": true
                     },
                 ...
