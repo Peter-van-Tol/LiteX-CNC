@@ -6,6 +6,43 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+
+Version 1.3.0
+=============
+
+.. info::
+  For this version the configuration file has to be changed. The section ``watchdog: {}`` has been expanded
+  with extra functions. See: `watchdog documentation <https://litex-cnc.readthedocs.io/en/latest/modules/watchdog.html>`_ 
+
+
+* ``firmware``:
+
+  * ``watchdog``: completly new watchdog. Functions can be added to the ``watchdog``, such as a heartbeat or
+    an enable signal. The enable signal can for example be used to disable the stepper drivers when the watchdog
+    has detected an error. Also E-stop can be directly be wired into the ``watchdog``, making them an integral
+    part of the E-stop chain.
+  * ``stepgen``: the ``max_frequency`` of the stepgen can be set. The default value is 400 kHz (equal to prior
+    versions). With the ``max_frequency`` and the clock frequency of the FPGA the optimal shift is calculated
+    ensuring the maximum resolution, whilst assuring the requested maximum frequency. 
+  * ``pwm``: Supports two additional modes: ``PWM/direction`` and ``UP/DOWN``.
+  * ``encoder``: Supports counter mode.
+  * ``gpio``: Fixed bug in building firmware when all ``gpio`` are either input or output.
+  * the LED and button on the 5A-75B and 5A-75E can be used in the firmware.
+  * toolchain: fixed bug in detecting OS.
+  * toolchain: bumped version of Litex to 2024.12.
+  * toolchain: bumped version of OSS-cad-suite to 20241231.
+
+* ``driver``:
+
+  * ``watchdog``:  completly new watchdog. The driver watchdog is implemented as a E-stop latch, so it can be used
+    within an E-stop chain in the HAL. When the watchdog has bitten, it has to be actively reset by resetting the
+    E-stop latch to resume command of the FPGA. Examples on how to tie the ``watchdog`` into HAL are provided in the
+    documentation.
+  * ``stepgen``: Added ``index-enable`` and ``index-pulse``. When the ``index-enable`` is HIGH and a pulse is received
+    on ``index-pulse`` the counter of the ``stepgen`` is reset to 0.
+  * ``pwm``: the signal of PWM can be inverted.
+  * all pin names are now consistently using ``-`` as seperator (i.e. ``index-enable`` instead of ``index_enable``)
+
 Version 1.2.4
 =============
 
