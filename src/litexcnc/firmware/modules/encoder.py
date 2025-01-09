@@ -30,75 +30,129 @@ class EncoderModule(Module, AutoDoc):
 
     COUNTER_SIZE = 32
 
-    def __init__(self, encoder_config: 'EncoderInstanceConfig', pads=None) -> None:
+    @classmethod
+    def create_counter_mode(cls, encoder_config: 'EncoderInstanceConfig', pads=None) -> None:
+
+        # Create the encoder
+        encoder = cls()
 
         # AutoDoc implementation
-        self.intro = ModuleDoc(self.__class__.__doc__)
+        encoder.intro = ModuleDoc(encoder.__class__.__doc__)
+        
         # Require to test working with Verilog, basically creates extra signals not
         # connected to any pads.
         if pads is None:
-            pads = Record(self.pads_layout)
-        self.pads = pads
+            pads = Record(encoder.pads_layout)
+        encoder.pads = pads
 
         # Exported pins
-        self.pin_A = Signal()
-        self.pin_B = Signal()
-        pin_Z = Signal()
+        encoder.pin_A = Signal()
 
         # Exported fields
-        self.index_enable = Signal()
-        self.counter = Signal((self.COUNTER_SIZE, True), reset=encoder_config.reset_value)
-        self.index_pulse = Signal()
-        self.reset_index_pulse = Signal()
-        self.reset = Signal()
+        encoder.counter = Signal((encoder.COUNTER_SIZE, True), reset=encoder_config.reset_value)
+        encoder.index_enable = Signal()  # NOT USED in counter-mode, but required for compatibility
+        encoder.index_pulse = Signal()  # NOT USED in counter-mode, but required for compatibility
+        encoder.reset_index_pulse = Signal()  # NOT USED in counter-mode, but required for compatibility
+        encoder.reset = Signal()
+
+        # Internal fields
+        pin_A_delayed = Signal(3) # Used to detect rising edges
+
+        # Program
+        # - Create the connections to the pads
+        encoder.comb += [
+            encoder.pin_A.eq(pads.Encoder_A),
+        ]
+        # - Program to detect rising edges
+        encoder.sync += [
+            pin_A_delayed.eq(Cat(encoder.pin_A, pin_A_delayed[:2])),
+            If(
+                pin_A_delayed[1] & ~pin_A_delayed[2],
+                encoder.create_counter_increase(encoder_config),
+            ),
+            # Reset the encoder when requested or the FPGA is reset
+            If(
+                encoder.reset,
+                encoder.counter.eq(encoder_config.reset_value),
+            ),
+        ]
+
+        return encoder
+
+    @classmethod
+    def create_quadrature_mode(cls, encoder_config: 'EncoderInstanceConfig', pads=None) -> None:
+
+        # Create the encoder
+        encoder = cls()
+
+        # AutoDoc implementation
+        encoder.intro = ModuleDoc(encoder.__class__.__doc__)
+
+        # Require to test working with Verilog, basically creates extra signals not
+        # connected to any pads.
+        if pads is None:
+            pads = Record(encoder.pads_layout)
+        encoder.pads = pads
+
+        # Exported pins
+        encoder.pin_A = Signal()
+        encoder.pin_B = Signal()
+        encoder.pin_Z = Signal()
+
+        # Exported fields
+        encoder.index_enable = Signal()
+        encoder.counter = Signal((encoder.COUNTER_SIZE, True), reset=encoder_config.reset_value)
+        encoder.index_pulse = Signal()
+        encoder.reset_index_pulse = Signal()
+        encoder.reset = Signal()
 
         # Internal fields
         pin_A_delayed = Signal(3)
         pin_B_delayed = Signal(3)
         pin_Z_delayed = Signal(3)  # NOTE: Z is delayed for 2 cycles (0,1) the third postion is
                                    # used to detect rising edges.
-        self.count_ena = Signal()
-        self.count_dir = Signal()
+        encoder.count_ena = Signal()
+        encoder.count_dir = Signal()
 
         # Program
         # - Create the connections to the pads
-        self.comb += [
-            self.pin_A.eq(pads.Encoder_A),
-            self.pin_B.eq(pads.Encoder_B),
+        encoder.comb += [
+            encoder.pin_A.eq(pads.Encoder_A),
+            encoder.pin_B.eq(pads.Encoder_B),
         ]
         # - Add support for Z-index if pin is defined. If not, the Signal is set to be constant
         if hasattr(pads, 'Encoder_Z'):
-            self.comb += pin_Z.eq(pads.Encoder_Z)
+            encoder.comb += encoder.pin_Z.eq(pads.Encoder_Z)
         else:
-            self.comb += pin_Z.eq(Constant(0))
+            encoder.comb += encoder.pin_Z.eq(Constant(0))
         # - In most cases, the "quadX" signals are not synchronous to the FPGA clock. The
         #   classical solution is to use 2 extra D flip-flops per input to avoid introducing
         #   metastability into the counter (src: https://www.fpga4fun.com/QuadratureDecoder.html)
-        self.comb += [
-            self.count_ena.eq(pin_A_delayed[1] ^ pin_A_delayed[2] ^ pin_B_delayed[1] ^ pin_B_delayed[2]),
-            self.count_dir.eq(pin_A_delayed[1] ^ pin_B_delayed[2])
+        encoder.comb += [
+            encoder.count_ena.eq(pin_A_delayed[1] ^ pin_A_delayed[2] ^ pin_B_delayed[1] ^ pin_B_delayed[2]),
+            encoder.count_dir.eq(pin_A_delayed[1] ^ pin_B_delayed[2])
         ]
-        self.sync += [
-            pin_A_delayed.eq(Cat(self.pin_A, pin_A_delayed[:2])),
-            pin_B_delayed.eq(Cat(self.pin_B, pin_B_delayed[:2])),
-            pin_Z_delayed.eq(Cat(pin_Z, pin_Z_delayed[:2])),
+        encoder.sync += [
+            pin_A_delayed.eq(Cat(encoder.pin_A, pin_A_delayed[:2])),
+            pin_B_delayed.eq(Cat(encoder.pin_B, pin_B_delayed[:2])),
+            pin_Z_delayed.eq(Cat(encoder.pin_Z, pin_Z_delayed[:2])),
             # Storing the index pulse (detection of raising flank)
             If(
                 pin_Z_delayed[1] & ~pin_Z_delayed[2],
-                self.index_pulse.eq(1)
+                encoder.index_pulse.eq(1)
             ),
             # Reset the index pulse as soon the CPU has indicated it is read
             If(
-                self.reset_index_pulse & self.index_pulse,
-                self.index_pulse.eq(encoder_config.reset_value),
-                self.reset_index_pulse.eq(0)
+                encoder.reset_index_pulse & encoder.index_pulse,
+                encoder.index_pulse.eq(encoder_config.reset_value),
+                encoder.reset_index_pulse.eq(0)
             ),
             # When the `index-enable` flag is set, detext a raising flank and
             # reset the counter in that case
             If(
-                self.reset | (self.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
-                self.counter.eq(encoder_config.reset_value),
-                self.index_enable.eq(0)
+                encoder.reset | (encoder.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
+                encoder.counter.eq(encoder_config.reset_value),
+                encoder.index_enable.eq(0)
             ),
             # Counting implementation. Counting occurs when movement occcurs, but
             # not when the counter is reset by the `index-enable`. This takes into
@@ -106,17 +160,22 @@ class EncoderModule(Module, AutoDoc):
             # at exact the same clock-cycle, which (in simulations) showed the reset
             # would not happen.
             If(
-                (pin_A_delayed[1] ^ pin_A_delayed[2] ^ pin_B_delayed[1] ^ pin_B_delayed[2]) & ~(self.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
+                (pin_A_delayed[1] ^ pin_A_delayed[2] ^ pin_B_delayed[1] ^ pin_B_delayed[2]) & ~(encoder.index_enable & pin_Z_delayed[1] & ~pin_Z_delayed[2]),
                 If(
                     pin_A_delayed[1] ^ pin_B_delayed[2], #self.count_dir,
-                    self.create_counter_increase(encoder_config),
+                    encoder.create_counter_increase(encoder_config),
                 ).Else(
-                    self.create_counter_decrease(encoder_config)
+                    encoder.create_counter_decrease(encoder_config)
                 )
             )
         ]
 
-        self.ios = {self.pin_A, self.pin_B}
+        if hasattr(pads, 'Encoder_Z'):
+            encoder.ios = {encoder.pin_A, encoder.pin_B, encoder.pin_Z}
+        else:
+            encoder.ios = {encoder.pin_A, encoder.pin_B}
+
+        return encoder
 
     def create_counter_increase(self, encoder_config: 'EncoderInstanceConfig'):
         """
@@ -228,6 +287,7 @@ class EncoderModule(Module, AutoDoc):
         for index, instance_config in enumerate(config.instances):
             # Add the io to the FPGA
             if instance_config.pin_Z is not None:
+                # Regular quadrature-mode, with index signal
                 soc.platform.add_extension([
                     ("encoder", index,
                         Subsignal("Encoder_A", Pins(instance_config.pin_A), IOStandard(instance_config.io_standard)),
@@ -235,16 +295,27 @@ class EncoderModule(Module, AutoDoc):
                         Subsignal("Encoder_Z", Pins(instance_config.pin_Z), IOStandard(instance_config.io_standard))
                     )
                 ])
-            else:
+            elif instance_config.pin_B is not None:
+                # Regular quadrature-mode
                 soc.platform.add_extension([
                     ("encoder", index,
                         Subsignal("Encoder_A", Pins(instance_config.pin_A), IOStandard(instance_config.io_standard)),
                         Subsignal("Encoder_B", Pins(instance_config.pin_B), IOStandard(instance_config.io_standard)),
                     )
                 ])
+            else:
+                # Counter-mode, only A-pin is defined
+                soc.platform.add_extension([
+                    ("encoder", index,
+                        Subsignal("Encoder_A", Pins(instance_config.pin_A), IOStandard(instance_config.io_standard)),
+                    )
+                ])
             # Create the encoder
             pads = soc.platform.request("encoder", index)
-            encoder = cls(encoder_config=instance_config, pads=pads)
+            if instance_config.pin_B:
+                encoder = cls.create_quadrature_mode(encoder_config=instance_config, pads=pads)
+            else:
+                encoder = cls.create_counter_mode(encoder_config=instance_config, pads=pads)
             # Add the encoder to the soc
             soc.submodules += encoder
             # Hookup the ynchronous logic for transferring the data from the CPU to FPGA
@@ -286,13 +357,13 @@ if __name__ == "__main__":
     )
 
     # Create encoder
-    encoder = EncoderModule(config)
+    encoder = EncoderModule.create_quadrature_mode(config)
     
     # Create quadrature signal
     b = [1, 1, 0, 0]
     a = [0, 1, 1, 0]
 
-    def test_encoder(encoder):
+    def test_encoder_quadrature_mode(encoder):
 
         for i in range(100):
             yield (encoder.pads.Encoder_A.eq(a[(i//2) % 4]))
@@ -309,6 +380,36 @@ if __name__ == "__main__":
         ...
 
 
-    print("\nRunning Sim...\n")
+    print("\nRunning Sim (quadrature mode)...\n")
     # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
-    run_simulation(encoder, test_encoder(encoder))
+    run_simulation(encoder, test_encoder_quadrature_mode(encoder))
+
+    config = EncoderInstanceConfig(
+         pin_A="not_used_in_sim"
+    )
+
+    # Create encoder
+    encoder_counter_mode = EncoderModule.create_counter_mode(config)
+    
+    # Create quadrature signal
+    a = [0, 1, 1, 0]
+
+    def test_encoder_counter_mode(encoder):
+
+        for i in range(100):
+            yield (encoder.pads.Encoder_A.eq(a[(i//2) % 4]))
+
+            quad_a = (yield encoder.pin_A)
+            count = (yield encoder.counter)
+
+            print(quad_a, count)
+            yield
+        ...
+
+    print("\nRunning Sim (counter mode)...\n")
+    # print(verilog.convert(stepgen, stepgen.ios, "pre_scaler"))
+    run_simulation(encoder_counter_mode, test_encoder_counter_mode(encoder_counter_mode))
+
+
+
+
