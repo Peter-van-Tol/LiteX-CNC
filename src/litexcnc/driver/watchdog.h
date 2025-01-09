@@ -37,13 +37,37 @@
 #ifndef __INCLUDE_LITEXCNC_WATCHDOG_H__
 #define __INCLUDE_LITEXCNC_WATCHDOG_H__
 
+/** Structure of an output pin */
+typedef struct {
+    /** Structure defining the HAL pin and params*/
+    struct {
+        /** Structure defining the HAL pins */
+        struct {
+            hal_bit_t *fault_out;  /** HIGH when the EStop is active */
+            hal_bit_t *ok_out;     /** HIGH when the EStop is not active */
+        } pin;
+        /** Structure defining the HAL params */
+        struct {
+        } param;
+    } hal;
+} litexcnc_estop_pin_t;
+
 // Defines the Watchdog. In contrast to the other components, the watchdog is
 // a singleton: exactly one exist on each FPGA-card
 typedef struct {
+    size_t num_estops;
+    litexcnc_estop_pin_t *estop_pins;    /** Structure containing the data on the input pins */
+
     struct {
 
         struct {
-            hal_bit_t *has_bitten;     /* Pin which is set when the watchdog has timed out */
+            hal_bit_t *fpga_timeout;   /* Pin which is set when the watchdog has timed out */
+            hal_bit_t *comm_timeout;   /* Pin which is set when the communication has timed out */
+            hal_bit_t *reset;          /* Pin to indicate the watchdog should be reset. Acts on rising edge.*/
+            hal_bit_t *ok_in;          /* Pin to indicate previous latches (estop_latch) are working fine.*/
+            hal_bit_t *fault_in;       /* Pin to indicate previous latches (estop_latch) have an error.*/
+            hal_bit_t *ok_out;         /* Pin to indicates the system up to and including this latch is OK.*/
+            hal_bit_t *fault_out;      /* Pin to indicates the system up to and including this latch is OK.*/
         } pin;
 
         struct {
@@ -56,6 +80,7 @@ typedef struct {
     // This struct holds all old values (memoization) 
     struct {
         uint32_t timeout_ns;
+        hal_bit_t reset;
     } memo;
 
 } litexcnc_watchdog_t;
@@ -82,9 +107,10 @@ typedef struct {
 
 
 // Functions for creating, reading and writing Watchdog pins
-int litexcnc_watchdog_init(litexcnc_t *litexcnc);
+int litexcnc_watchdog_init(litexcnc_t *litexcnc, uint32_t num_estops);
 uint8_t litexcnc_watchdog_config(litexcnc_t *litexcnc, uint8_t **data, long period);
 uint8_t litexcnc_watchdog_prepare_write(litexcnc_t *litexcnc, uint8_t **data, long period);
-uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t** data);
+uint8_t litexcnc_watchdog_process_read(litexcnc_t *litexcnc, uint8_t **data);
+uint8_t litexcnc_watchdog_process_read_error(litexcnc_t *litexcnc, long period);
 
 #endif

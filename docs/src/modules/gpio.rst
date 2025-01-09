@@ -84,7 +84,7 @@ Output pins
 Parameters
 ----------
 
-<board-name>.gpio.<n>.invert_output / <board-name>.gpio.<name>.invert_output (HAL_BIT)
+<board-name>.gpio.<n>.invert_output / <board-name>.gpio.<name>.invert-output (HAL_BIT)
     Inverts an output pin.
 
 Example
@@ -126,17 +126,17 @@ correct version of your board.
     alias pin   test_PWM_GPIO.gpio.55.in-not test_PWM_GPIO.gpio.j8:7.in-not
     # - output
     alias pin   test_PWM_GPIO.gpio.56.out           test_PWM_GPIO.gpio.j9:1.out
-    alias param test_PWM_GPIO.gpio.56.invert_output test_PWM_GPIO.gpio.j9:1.invert_output
+    alias param test_PWM_GPIO.gpio.56.invert-output test_PWM_GPIO.gpio.j9:1.invert-output
     alias pin   test_PWM_GPIO.gpio.57.out           test_PWM_GPIO.gpio.j9:2.out
-    alias param test_PWM_GPIO.gpio.57.invert_output test_PWM_GPIO.gpio.j9:2.invert_output
+    alias param test_PWM_GPIO.gpio.57.invert-output test_PWM_GPIO.gpio.j9:2.invert-output
     alias pin   test_PWM_GPIO.gpio.58.out           test_PWM_GPIO.gpio.j9:3.out
-    alias param test_PWM_GPIO.gpio.58.invert_output test_PWM_GPIO.gpio.j9:3.invert_output
+    alias param test_PWM_GPIO.gpio.58.invert-output test_PWM_GPIO.gpio.j9:3.invert-output
     alias pin   test_PWM_GPIO.gpio.59.out           test_PWM_GPIO.gpio.j9:5.out
-    alias param test_PWM_GPIO.gpio.59.invert_output test_PWM_GPIO.gpio.j9:5.invert_output
+    alias param test_PWM_GPIO.gpio.59.invert-output test_PWM_GPIO.gpio.j9:5.invert-output
     alias pin   test_PWM_GPIO.gpio.60.out           test_PWM_GPIO.gpio.j9:6.out
-    alias param test_PWM_GPIO.gpio.60.invert_output test_PWM_GPIO.gpio.j9:6.invert_output
+    alias param test_PWM_GPIO.gpio.60.invert-output test_PWM_GPIO.gpio.j9:6.invert-output
     alias pin   test_PWM_GPIO.gpio.61.out           test_PWM_GPIO.gpio.j9:7.out
-    alias param test_PWM_GPIO.gpio.61.invert_output test_PWM_GPIO.gpio.j9:7.invert_output
+    alias param test_PWM_GPIO.gpio.61.invert-output test_PWM_GPIO.gpio.j9:7.invert-output
 
     # CONNECT THE INPUT TO OUTPUT
     # ===========================

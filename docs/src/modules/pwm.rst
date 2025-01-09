@@ -163,14 +163,14 @@ Input pins
     These parameters provide a scale and offset from the value pin to the actual duty cycle. 
     The duty cycle is calculated according to duty_cycle = (value/scale) + offset, with 1.0
     meaning 100%.
-<board-name>.pwm.<n>.pwm_freq / <board-name>.pwm.<name>.pwm_freq (HAL_FLOAT)
+<board-name>.pwm.<n>.pwm-freq / <board-name>.pwm.<name>.pwm-freq (HAL_FLOAT)
     PWM frequency in Hz. The upper limit is half of the frequency of the FPGA, and values above 
     that limit will be changed to the limit. A value of zero produces Pulse Density Modulation 
     (PDM) instead of Pulse Width Modulation (PWM).
-<board-name>.pwm.<n>.min_dc / <board-name>.pwm.<name>.min_dc (HAL_FLOAT)
+<board-name>.pwm.<n>.min-dc / <board-name>.pwm.<name>.min-dc (HAL_FLOAT)
     The minimum duty cycle. A value of 1.0 corresponds to 100%. Note that when the pwm generator
     is disabled, the outputs are constantly low, regardless of the setting of min-dc.
-<board-name>.pwm.<n>.max_dc / <board-name>.pwm.<name>.mac_dc (HAL_FLOAT)
+<board-name>.pwm.<n>.max_dc / <board-name>.pwm.<name>.max-dc (HAL_FLOAT)
     The maximum duty cycle. A value of 1.0 corresponds to 100%. This can be useful when using
     transistor drivers with bootstrapped power supplies, since the supply requires some low
     time to recharge. The maximum duty cycle must be lower then the minimum duty cycle. If the 
@@ -182,17 +182,17 @@ Output pins
 <board-name>.pwm.<n>.direction / <board-name>.pwm.<name>.direction (HAL_BIT)
     Indicates which direction the PWM is running. A value of **0** for a positive duty
     cycle and **1** for negative duty cycle.
-<board-name>.pwm.<n>.curr_period / <board-name>.pwm.<name>.curr_period (HAL_INT)
+<board-name>.pwm.<n>.curr-period / <board-name>.pwm.<name>.curr-period (HAL_INT)
     The current PWM period in clock-cycles (DEBUG)
-<board-name>.pwm.<n>.curr_width / <board-name>.pwm.<name>.curr_width (HAL_INT)
+<board-name>.pwm.<n>.curr-width / <board-name>.pwm.<name>.curr-width (HAL_INT)
     The current PWM width in clock-cycles (DEBUG)
 
 Parameters
 ----------
 
-<board-name>.pwm.<n>.invert_output / <board-name>.pwm.<name>.invert_output (HAL_BIT)
+<board-name>.pwm.<n>.invert-output / <board-name>.pwm.<name>.invert-output (HAL_BIT)
     Inverts an output pin.
-<board-name>.pwm.<n>.invert_output / <board-name>.pwm.<name>.type (HAL_UINT)
+<board-name>.pwm.<n>.type / <board-name>.pwm.<name>.type (HAL_UINT)
     The type of the PWM. **0**: Single output, **1**: PWM/direction, **2**: Up/Down.
 
 Example

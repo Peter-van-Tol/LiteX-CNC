@@ -92,7 +92,7 @@ int register_eth_driver(void) {
 EXPORT_SYMBOL_GPL(register_eth_driver);
 
 
-static int litexcnc_eth_read_n_bits(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t size) {
+static int litexcnc_eth_read_n_bits(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t size, bool guarded) {
     /*
      * This function read N bits of data from the FPGA
      */
@@ -106,7 +106,7 @@ static int litexcnc_eth_read_n_bits(litexcnc_fpga_t *this, size_t address, uint8
     );
 }
 
-static int litexcnc_eth_write_n_bits(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t size) {
+static int litexcnc_eth_write_n_bits(litexcnc_fpga_t *this, size_t address, uint8_t *data, size_t size, bool guarded) {
     /*
      * This function sends N bits of data to the FPGA.
      */
@@ -140,6 +140,8 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
         this->read_buffer_size);
     if (r < 0) {
         fprintf(stderr, "Could not write addresses to read to device `%s`, error code %d", this->name, r);
+        *(this->hal.pin.total_read_errors) += 1;
+        *(this->hal.pin.read_errors) += 1;
         return -1;
     }
     // - get response
@@ -150,7 +152,14 @@ static int litexcnc_eth_read(litexcnc_fpga_t *this) {
     // - check size is expexted size
     if (count != this->read_buffer_size) {
         fprintf(stderr, "Unexpected read length: %d, expected %zu\n", count, this->read_buffer_size);
+        *(this->hal.pin.total_read_errors) += 1;
+        *(this->hal.pin.read_errors) += 1;
         return -1;
+    }
+
+    // Decrease the counter
+    if (*(this->hal.pin.read_errors) > 0) {
+        *(this->hal.pin.read_errors) -= 0;
     }
     
     // Successful read
@@ -173,6 +182,8 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
         this->write_buffer_size);
     if (r < 0) {
         fprintf(stderr, "Could not write data to device `%s`, error code %d", this->name, r);
+        *(this->hal.pin.total_write_errors) += 1;
+        *(this->hal.pin.write_errors) += 1;
         return -1;
     }
 
@@ -180,6 +191,11 @@ static int litexcnc_eth_write(litexcnc_fpga_t *this) {
     // can be a queue of packet. Test here if anoter packet is ready ( no delay) and 
     // discard that packet to avoid such a queue.
 	//eb_discard_pending_packet(board->connection, this->write_buffer_size);
+
+    // Decrease the counter
+    if (*(this->hal.pin.write_errors) > 0) {
+        *(this->hal.pin.write_errors) -= 0;
+    }
 
     return r;
 }
@@ -218,24 +234,24 @@ static int litexcnc_init_buffers(litexcnc_fpga_t *this) {
     // Initialize the buffers with headers
     size_t words;
     //  - WRITE BUFFER
-    memcpy(board->fpga.write_buffer, etherbone_header, sizeof(etherbone_header));
+    memcpy(board->fpga->write_buffer, etherbone_header, sizeof(etherbone_header));
     // - size (in WORD-count, bitshift to divide by 4)
-    words =  (board->fpga.write_buffer_size - board->fpga.read_header_size) >> 2;
-    board->fpga.write_buffer[10] = words;
+    words =  (board->fpga->write_buffer_size - board->fpga->read_header_size) >> 2;
+    board->fpga->write_buffer[10] = words;
     // - address
-    uint32_t address = htobe32(board->fpga.write_base_address);
-    memcpy(&board->fpga.write_buffer[12], &address, sizeof(address));
+    uint32_t address = htobe32(board->fpga->write_base_address);
+    memcpy(&board->fpga->write_buffer[12], &address, sizeof(address));
 
     // - REQUEST BUFFER 
-    uint8_t *read_request_buffer = rtapi_kmalloc(board->fpga.read_buffer_size, RTAPI_GFP_KERNEL);
+    uint8_t *read_request_buffer = rtapi_kmalloc(board->fpga->read_buffer_size, RTAPI_GFP_KERNEL);
     memcpy(read_request_buffer, etherbone_header, sizeof(etherbone_header));
     // - size (in WORD-count, bitshift to divide by 4)
-    words = (board->fpga.read_buffer_size - board->fpga.read_header_size) >> 2; 
+    words = (board->fpga->read_buffer_size - board->fpga->read_header_size) >> 2; 
     read_request_buffer[11] = words; 
     // - addresses
     uint32_t addresses[words];
     for (size_t i=0; i<words; i++) {
-        addresses[i] = htobe32(board->fpga.read_base_address + (i << 2));
+        addresses[i] = htobe32(board->fpga->read_base_address + (i << 2));
     }
     memcpy(&read_request_buffer[16], addresses, words * 4);
     // Store the created buffer
@@ -257,28 +273,32 @@ static int initialize_driver(char *connection_string, int comp_id) {
     ret = connect_board(boards[boards_count], connection_string);
     if (ret < 0) return ret;
     // Create an FPGA instance
-    boards[boards_count]->fpga.comp_id           = comp_id;
-    boards[boards_count]->fpga.read_n_bits       = litexcnc_eth_read_n_bits;
-    boards[boards_count]->fpga.read              = litexcnc_eth_read;
-    boards[boards_count]->fpga.read_header_size  = 16;
-    boards[boards_count]->fpga.write_n_bits      = litexcnc_eth_write_n_bits;
-    boards[boards_count]->fpga.write             = litexcnc_eth_write;
-    boards[boards_count]->fpga.write_header_size = 16;
-    boards[boards_count]->fpga.private           = boards[boards_count];
+    litexcnc_fpga_t *fpga = (litexcnc_fpga_t *)hal_malloc(sizeof(litexcnc_fpga_t));
+    fpga->comp_id           = comp_id;
+    fpga->read_n_bits       = litexcnc_eth_read_n_bits;
+    fpga->read              = litexcnc_eth_read;
+    fpga->read_header_size  = 16;
+    fpga->write_n_bits      = litexcnc_eth_write_n_bits;
+    fpga->write             = litexcnc_eth_write;
+    fpga->write_header_size = 16;
+    fpga->private           = boards[boards_count];
+    boards[boards_count]->fpga = fpga;
+    // NOTE: Pins must be created seperately after the name has been read
+
     // Register the board with the main function
-    ret = litexcnc_register(&boards[boards_count]->fpga);
+    ret = litexcnc_register(boards[boards_count]->fpga);
     if (ret != 0) {
         rtapi_print("board fails LitexCNC registration\n");
         return ret;
     }
     // Create a pin to show debug messages
-    ret = hal_param_bit_newf(HAL_RW, &(boards[boards_count]->hal.param.debug), comp_id, "%s.debug", boards[boards_count]->fpga.name);
+    ret = hal_param_bit_newf(HAL_RW, &(boards[boards_count]->hal.param.debug), comp_id, "%s.debug", boards[boards_count]->fpga->name);
     if (ret < 0) {
-        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", boards[boards_count]->fpga.name);
+        LITEXCNC_ERR_NO_DEVICE("Error adding pin '%s.debug', aborting\n", boards[boards_count]->fpga->name);
         return ret;
     }
     // Create the pins for the board and write headers to the buffers
-    ret = litexcnc_init_buffers(&boards[boards_count]->fpga);
+    ret = litexcnc_init_buffers(boards[boards_count]->fpga);
     if (ret != 0) {
         rtapi_print("Failed to create pins and params for the board\n");
         return ret;

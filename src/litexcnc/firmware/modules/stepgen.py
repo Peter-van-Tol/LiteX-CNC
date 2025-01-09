@@ -328,7 +328,7 @@ class StepgenModule(Module, AutoDoc):
             soc.sync += [ # Aangepast
                 # Data from MMIO to stepgen
                 stepgen.reset.eq(soc.MMIO_inst.reset.storage),
-                stepgen.enable.eq(~watchdog.has_bitten),
+                stepgen.enable.eq(watchdog.ok_out),
                 stepgen.steplen.eq(soc.MMIO_inst.stepgen_stepdata.fields.steplen),
                 stepgen.dir_hold_time.eq(soc.MMIO_inst.stepgen_stepdata.fields.dir_hold_time),
                 stepgen.dir_setup_time.eq(soc.MMIO_inst.stepgen_stepdata.fields.dir_setup_time),
