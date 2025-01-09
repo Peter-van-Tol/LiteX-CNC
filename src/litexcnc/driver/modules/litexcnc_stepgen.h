@@ -68,6 +68,8 @@ typedef struct {
             hal_float_t *velocity_cmd;        /* Commanded velocity, in length units per second (see parameter position-scale). */
             hal_float_t *acceleration_cmd;    /* Commanded acceleration, in length units per second squared (see parameter position-scale). */
             hal_bit_t   *debug;               /* Flag indicating whether all positional data will be printed to the command line */
+            hal_bit_t   *index_enable;        /* When true, a rising edge will reset the counter of the stepgen to zero. */
+            hal_bit_t   *index_pulse;         /* When true, a rising edge has been detected on the FPGA. This flag will be active until the index-enable is set to False. */ 
         } pin;
         /** Structure defining the HAL params */
         struct {
@@ -79,6 +81,7 @@ typedef struct {
             hal_u32_t   stepspace;            /* The minimum space between step pulses, in nanoseconds. Measured from falling edge to rising edge. The actual time depends on the step rate and can be much longer. Is used to calculate the maximum stepping frequency */ 
             hal_u32_t   dir_setup_time;       /* The minimum setup time from direction to step, in nanoseconds. Measured from change of direction to rising edge of step. */
             hal_u32_t   dir_hold_time;        /* The minimum hold time of direction after step, in nanoseconds. Measured from falling edge of step to change of direction */
+            hal_float_t max_frequency;        /* The maximum frequency of the driver in Hz */
         } param;
     } hal;
 
@@ -125,6 +128,10 @@ typedef struct {
         float fpga_speed_scale_inv;
         float fpga_acc_scale;
         float fpga_acc_scale_inv;
+        // Pick-off for fixed point math
+        size_t pick_off_pos;
+        size_t pick_off_vel;
+        size_t pick_off_acc;
     } data;
 } litexcnc_stepgen_instance_t;
 
@@ -141,7 +148,7 @@ typedef struct {
         
         } pin;
         struct{
-            hal_float_t max_driver_freq;      /* The maximum frequency of the driver in Hz. Default value is 400 kHz. */
+            
         } param;
     } hal;
 
@@ -161,10 +168,6 @@ typedef struct {
         float period_s;
         float period_s_recip;
         float cycles_per_period;
-        size_t pick_off_pos;
-        size_t pick_off_vel;
-        size_t pick_off_acc;
-        float max_frequency;
     } data;
 
 } litexcnc_stepgen_t;

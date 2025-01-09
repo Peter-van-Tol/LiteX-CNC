@@ -1,7 +1,8 @@
 # Imports for creating a json-definition
+import math
 import os
 try:
-    from typing import ClassVar, List, Literal, Union
+    from typing import ClassVar, List, Literal, Optional, Union
 except ImportError:
     # Imports for Python <3.8
     from typing import ClassVar, List, Union
@@ -15,7 +16,26 @@ from . import ModuleBaseModel, ModuleInstanceBaseModel
 
 
 class StepGenPinoutStepDirBaseConfig(ModuleInstanceBaseModel):
-    ...
+    index_pin: Optional[str] = Field(
+        None,
+        description="The pin on the FPGA-card for the index signal for the stepgen."
+    )
+    io_standard: str = Field(
+        "LVCMOS33",
+        description="The IO Standard (voltage) to use for the pins."
+    )
+
+    def convert_to_signal(self):
+        """
+        Creates the pins for this layout.
+        """
+        # Deferred imports to prevent importing Litex while installing the driver
+        from litex.build.generic_platform import IOStandard, Pins, Subsignal
+        return (
+            Subsignal("index", Pins(self.index_pin), IOStandard(self.io_standard)),
+        )
+
+
     
 class StepGenPinoutStepDirConfig(StepGenPinoutStepDirBaseConfig):
     stepgen_type: Literal['step_dir']
@@ -43,7 +63,7 @@ class StepGenPinoutStepDirConfig(StepGenPinoutStepDirBaseConfig):
         """
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.build.generic_platform import IOStandard, Pins, Subsignal
-        return (
+        return super().convert_to_signal() + (
             Subsignal("step", Pins(self.step_pin), IOStandard(self.io_standard)),
             Subsignal("dir", Pins(self.dir_pin), IOStandard(self.io_standard))
         )
@@ -98,7 +118,7 @@ class StepGenPinoutStepDirDifferentialConfig(StepGenPinoutStepDirBaseConfig):
         """
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.build.generic_platform import IOStandard, Pins, Subsignal
-        return (
+        return super().convert_to_signal() + (
             Subsignal("step_pos", Pins(self.step_pos_pin), IOStandard(self.io_standard)),
             Subsignal("step_neg", Pins(self.step_neg_pin), IOStandard(self.io_standard)),
             Subsignal("dir_pos", Pins(self.dir_pos_pin), IOStandard(self.io_standard)),
@@ -140,6 +160,14 @@ class StepgenInstanceConfig(BaseModel):
         ...,
         description="The configuration of the stepper type and pin-out."
     )
+    max_frequency: int = Field(
+        400e3,
+        description="The guaranteed maximum frequency the stepgen can generate in Hz. "
+        "The actual value can be larger then this value, as this is dependent on "
+        "the clock-frequency and scaling. Choosing a smaller value, close to the "
+        "limits of your drivers, gives a higher resolution in the velocity. Default "
+        "value is 400,000 Hz (400 kHz)."
+    )
     soft_stop: bool = Field(
         False,
         description="When False, the stepgen will directly stop when the stepgen is "
@@ -170,6 +198,18 @@ class StepgenInstanceConfig(BaseModel):
         'dir-hold-time',
     ]
 
+    def calculate_shift(self, clock_frequency):
+        """Calculates the shift required to get the desired maximum frequency
+        for the stepgen instance. The shift is maximum 4 bits, so the maximum
+        frequency division is 16 times the clock frequency. 
+
+        Args:
+            clock_frequency (int): The clock frequency of the FPGA.
+
+        Returns:
+            int: The shift required to get the desired maximum frequency.
+        """
+        return (int(math.log2(clock_frequency / self.max_frequency)) - 1) & 0x0F
 
 class StepgenModuleConfig(ModuleBaseModel):
     """
@@ -209,14 +249,27 @@ class StepgenModuleConfig(ModuleBaseModel):
 
     @property
     def config_size(self):
-        return 4
+        """Calculates the number DWORDS required to store the shift data
+        of the stepgen instances. The first byte is the number of instances,
+        followed by the shifts required for each instance to get the desired
+        maximum frequency.
+        """
+        return math.ceil((1 + len(self.instances)) / 4) * 4
 
     def store_config(self, mmio):
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.soc.interconnect.csr import CSRStatus
+        # - store the number of instances
+        config = len(self.instances) << ((self.config_size - 1) * 8)
+        # - calculate and store the shift for each instance plus the other settings
+        clock_frequency = mmio.clock_frequency.status.reset.value
+        for index, instance in enumerate(self.instances):
+            config_byte = instance.calculate_shift(clock_frequency)
+            config_byte += (1 if instance.pins.index_pin is not None else 0) << 7
+            config += config_byte << ((self.config_size - 2 - index) * 8)
+        # Store the config
         mmio.stepgen_config_data =  CSRStatus(
             size=self.config_size*8,
             reset=len(self.instances),
             description=f"The config of the Stepgen module."
         )
-
