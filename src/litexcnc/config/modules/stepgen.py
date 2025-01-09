@@ -31,9 +31,11 @@ class StepGenPinoutStepDirBaseConfig(ModuleInstanceBaseModel):
         """
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.build.generic_platform import IOStandard, Pins, Subsignal
-        return (
-            Subsignal("index", Pins(self.index_pin), IOStandard(self.io_standard)),
-        )
+        if self.index_pin:
+            return (
+                Subsignal("index", Pins(self.index_pin), IOStandard(self.io_standard)),
+            )
+        return tuple()
 
 
     
