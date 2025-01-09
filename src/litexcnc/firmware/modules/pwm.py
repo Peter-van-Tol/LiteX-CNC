@@ -183,7 +183,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         soc.sync += [
             soc.MMIO_inst.pwm_enable.we.eq(0),
             If(
-                soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_has_bitten.status,
+                soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_status.status,
                 soc.MMIO_inst.pwm_enable.dat_w.eq(0x0),
                 soc.MMIO_inst.pwm_enable.we.eq(1)
             )
@@ -199,7 +199,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
             )
             soc.submodules += _pwm
             soc.comb += [
-                _pwm.enable.eq(soc.MMIO_inst.pwm_enable.storage[index] & ~watchdog.has_bitten),
+                _pwm.enable.eq(soc.MMIO_inst.pwm_enable.storage[index] & watchdog.ok_out),
                 _pwm.invert_output.eq(soc.MMIO_inst.pwm_invert_output.storage[index]),
                 _pwm.period.eq(getattr(soc.MMIO_inst, f'pwm_{index}_period').storage),
                 _pwm.width.eq(getattr(soc.MMIO_inst, f'pwm_{index}_duty').fields.width),

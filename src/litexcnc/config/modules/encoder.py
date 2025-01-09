@@ -8,7 +8,7 @@ except ImportError:
 import warnings
 
 # Imports for creating a json-definition
-from pydantic import  Field, root_validator
+from pydantic import  Field, root_validator, validator
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
@@ -107,6 +107,12 @@ class EncoderInstanceConfig(ModuleInstanceBaseModel):
         # Everything OK, pass on the values
         return values
 
+    @validator("pin_A", "pin_B", "pin_Z")
+    def user_led_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user LED is no valid pin for Encoder.")
+        return v
+
 
 class EncoderModuleConfig(ModuleBaseModel):
     """
@@ -151,8 +157,8 @@ class EncoderModuleConfig(ModuleBaseModel):
     def store_config(self, mmio):
         # Deferred imports to prevent importing Litex while installing the driver
         from litex.soc.interconnect.csr import CSRStatus
-        mmio.encoder_config_data =  CSRStatus(
+        mmio.encoder_config_data = CSRStatus(
             size=self.config_size*8,
             reset=len(self.instances),
-            description=f"The config of the GPIO module."
+            description=f"The config of the Encoder module."
         )

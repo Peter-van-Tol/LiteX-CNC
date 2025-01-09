@@ -36,7 +36,7 @@ typedef struct {
     int connection;
 
     // Definition of the FPGA (containing pins, steppers, PWM, ec.)
-    litexcnc_fpga_t fpga;
+    litexcnc_fpga_t *fpga;
 
 } litexcnc_pigpio_t;
 

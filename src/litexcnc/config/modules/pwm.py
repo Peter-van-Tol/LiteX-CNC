@@ -9,7 +9,7 @@ except ImportError:
     from typing_extensions import Literal, Union
 
 # Imports for the configuration
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
@@ -58,6 +58,13 @@ class PWM_SinglePin(BaseModel):
                 pads.pwm.eq(0 ^ invert),
             ), 
         )
+    
+    @validator("pwm", always=True)
+    @classmethod
+    def user_button_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user Button is no valid pin for PWM outputs.")
+        return v
 
 
 class PWM_PWMDirectionPins(BaseModel):
@@ -95,6 +102,13 @@ class PWM_PWMDirectionPins(BaseModel):
             pads.pwm.eq(value ^ invert),
             pads.direction.eq(direction ^ invert),
         )
+    
+    @validator("pwm", "direction", always=True)
+    @classmethod
+    def user_button_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user Button is no valid pin for PWM outputs.")
+        return v
 
 
 class PWM_UpDownPins(BaseModel):
@@ -140,7 +154,15 @@ class PWM_UpDownPins(BaseModel):
                 pads.down.eq(value ^ invert),
             ),
         )
-        
+
+    @validator("up", "down", always=True)
+    @classmethod
+    def user_button_not_allowed(cls, v: str):
+        if v.startswith("user_btn"):
+            raise ValueError("The user Button is no valid pin for PWM outputs.")
+        return v
+
+
 class PWM_Instance(ModuleInstanceBaseModel):
     """
     Model describing a pin of the GPIO.
@@ -155,20 +177,24 @@ class PWM_Instance(ModuleInstanceBaseModel):
         "created."
     )
     hal_pins: ClassVar[List[str]] = [
-        'curr_dc',
-        'curr_period',
-        'curr_pwm_freq',
-        'curr_width',
-        'dither_pwm',
+        'curr-dc',
+        'curr-period',
+        'curr-pwm-freq',
+        'curr-width',
+        'direction',
+        'dither-pwm',
         'enable',
-        'max_dc',
-        'min_dc',
+        'max-dc',
+        'min-dc',
         'offset',
-        'pwm_freq',
+        'pwm-freq',
         'scale',
         'value'
     ]
-    hal_pins: ClassVar[List[str]] = []
+    hal_params: ClassVar[List[str]] = [
+        "invert-output",
+        "type"
+    ]
 
 
 class PWM_ModuleConfig(ModuleBaseModel):

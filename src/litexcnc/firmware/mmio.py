@@ -94,6 +94,7 @@ class MMIO(Module, AutoCSR):
             reset=int.from_bytes(config.board_name.ljust(16, '\0')[12:16].encode("ascii"), byteorder='big'),
             description="Name of the FPGA (bytes 12-15)"
         )
+        config.watchdog.store_config(self)
         # Write the configuration of the modules
         for index, module in enumerate(config.modules):
             setattr(self, f'module_{index}',
