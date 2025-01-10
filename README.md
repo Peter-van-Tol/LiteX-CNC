@@ -19,11 +19,12 @@ This project would not be possible without:
 ## Quick start
 LitexCNC can be installed using pip:
 ```shell
-pip install litexcnc[cli]
+pip install litexcnc
 ```
 
-> **NOTE: Suffix `[cli]` required!** <br>
-> The suffix `[cli]` is required to install the command-line interface. Without this suffix the scripts referenced below will not work.
+> **NOTE: Suffix `[cli]` deprecated!** <br>
+> In previous versions the suffix `[cli]` was required. This requirement has been removed since version 1.2
+> and deprecated since version 1.3. The suffix will be removed in version 1.4.
 
 After installation of LitexCNC the following scripts are available to the user:
 ```shell
