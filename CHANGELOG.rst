@@ -6,6 +6,11 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.3.1
+=============
+
+Due to an upgrade of the build-system, the script ``litexcnc`` was not installed on all systems. In this version
+this has been patched.
 
 Version 1.3.0
 =============
