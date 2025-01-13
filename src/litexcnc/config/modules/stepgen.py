@@ -272,6 +272,6 @@ class StepgenModuleConfig(ModuleBaseModel):
         # Store the config
         mmio.stepgen_config_data =  CSRStatus(
             size=self.config_size*8,
-            reset=len(self.instances),
+            reset=config,
             description=f"The config of the Stepgen module."
         )
