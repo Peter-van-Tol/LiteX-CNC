@@ -6,6 +6,24 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.3.2
+=============
+
+An error in ``stepgen`` has been resolved in this version. Upgrading from version 1.3.0 or 1.3.1 to this version
+requires re-compilation of the firmware and re-installation of the drivers.
+
+* ``firmware``:
+
+  * ``stepgen``: config on the stepgen was not correctly stored on the FPGA, hence the defined stepgens
+    were not detected by the driver and with more then 3 stepgens errors were generated if encoders were
+    also defined in the configuration.
+
+* ``driver``:
+
+  * ``stepgen``: when using 3, 7 , 11, and so on stepgens, the ``encoder`` module would fail.
+
+
+
 Version 1.3.1
 =============
 
