@@ -532,7 +532,7 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
         litexcnc_stepgen_instance_t *instance = &(stepgen->instances[i]);
 
         // Set the pick-offs
-        int8_t shift = *(*config);
+        int8_t shift = *(*config) & 0xF;
         instance->data.pick_off_pos = 32;
         instance->data.pick_off_vel = instance->data.pick_off_pos + shift;
         instance->data.pick_off_acc = instance->data.pick_off_vel + 16;
@@ -575,7 +575,8 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
     }
 
     // Align config at DWORD boundary
-    (*config) += 4 - ((1 + stepgen->num_instances) & 0x03);
+    (*config) += (4 - ((1 + stepgen->num_instances) & 0x03) & 0x03);
+    LITEXCNC_ERR_NO_DEVICE("%d\n",  (4 - ((1 + stepgen->num_instances) & 0x03) & 0x03));
 
     return 0;
 }
