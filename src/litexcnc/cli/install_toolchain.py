@@ -30,7 +30,7 @@ def _install_litex(target: str, user: bool) -> int:
     open(os.path.join(target, 'litex_setup.py'), 'wb').write(response.content)
 
     # Run the python file
-    command = "litex_setup.py --init --install --config=standard --tag=2024.12"
+    command = "litex_setup.py --init --install --update --config=standard --tag=2024.12"
     if user:
         command += " --user"
     command = f'{sys.executable} {os.path.join(target, command)}'  #  --gcc=riscv if SOC with cpu
