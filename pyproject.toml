@@ -66,6 +66,7 @@ encoder = "litexcnc.config.modules.encoder"
 [project.entry-points."litexcnc.boards"]
 colorlight = "litexcnc.config.boards.colorlight"
 rv901t     = "litexcnc.config.boards.rv901t"
+sipeed     = "litexcnc.config.boards.sipeed"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.3.0"
