@@ -1,10 +1,8 @@
-[project]
+[tool.poetry]
 name = "litexcnc"
 version = "1.3.3"
 description = "Generic CNC firmware and driver for FPGA cards which are supported by LiteX"
-authors = [
-    { name = "Peter van Tol", email = "petertgvantol@gmail.com" },
-]
+authors = ["Peter van Tol <petertgvantol@gmail.com>"]
 license = "GPL-3.0-or-later"
 readme = "README.md"
 packages = [{include = "litexcnc", from = "src"}]
@@ -36,41 +34,41 @@ classifiers = [
     "Topic :: Software Development :: Code Generators",
     "Topic :: System :: Hardware :: Hardware Drivers"
 ]
-requires-python = ">=3.7,<3.13"
-dependencies = [
-    "packaging>=21.3",
-    "pydantic>=1.10.2,<2.0",
-    "requests>=2.28.1,<3.0",
-    "click~=8.1.3",
-    "meson~=0.64.1",
-    "ninja~=1.11.1",
-    "yapps~=2.2.0",
-    "chardet~=5.0.0",
-]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+packaging = "^21.3"
+pydantic = "^1.10.2"
+requests = {version="^2.28.1"}
+click = {version="^8.1.3"}
+meson = {version="^0.64.1"}
+ninja = {version="^1.11.1"}
+yapps = {version="^2.2.0"}
+chardet = {version="^5.0.0"}
 
 [tool.poetry.extras]
 cli = []
 
-[project.scripts]
-litexcnc = "litexcnc.__main__:cli"
-
-[project.entry-points."litexcnc.driver_files"]
-default = "litexcnc.driver"
-
-[project.entry-points."litexcnc.modules"]
-gpio    = "litexcnc.config.modules.gpio"
-pwm     = "litexcnc.config.modules.pwm"
-stepgen = "litexcnc.config.modules.stepgen"
-encoder = "litexcnc.config.modules.encoder"
-
-[project.entry-points."litexcnc.boards"]
-colorlight = "litexcnc.config.boards.colorlight"
-rv901t     = "litexcnc.config.boards.rv901t"
+[tool.poetry.scripts]
+litexcnc = { callable = "litexcnc.__main__:cli", extras = ["cli"] }
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.3.0"
 sphinx-rtd-theme = "^1.1.1"
 
+[tool.poetry.plugins."litexcnc.driver_files"]
+default = "litexcnc.driver"
+
+[tool.poetry.plugins."litexcnc.modules"]
+gpio    = "litexcnc.config.modules.gpio"
+pwm     = "litexcnc.config.modules.pwm"
+stepgen = "litexcnc.config.modules.stepgen"
+encoder = "litexcnc.config.modules.encoder"
+
+[tool.poetry.plugins."litexcnc.boards"]
+colorlight = "litexcnc.config.boards.colorlight"
+rv901t     = "litexcnc.config.boards.rv901t"
+
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

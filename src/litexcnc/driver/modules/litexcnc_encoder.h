@@ -115,10 +115,6 @@ typedef struct {
              * then 1000 counts of the encoder will be reported as a position of 2.0 units.
              */ 
             hal_float_t position_scale;
-            /* Position offset in scaled units. When the encoder count is 0, this will be the
-             * reported position. Can be used to create a digital potentiometer.
-             */
-            hal_float_t position_offset;
             /* Enables times-4 mode. When true (the default), the counter counts each edge of the
              * quadrature waveform (four counts per full cycle). When false, it only counts once 
              * per full cycle. NOTE: this function is implemented by dividing applying an integer
@@ -138,7 +134,6 @@ typedef struct {
     struct {
         hal_s32_t position_reset;
         hal_float_t position_scale;
-        hal_float_t position_offset;
         hal_float_t velocity[LITEXCNC_ENCODER_POSITION_AVERAGE_SIZE];
         size_t velocity_pointer;
     } memo;

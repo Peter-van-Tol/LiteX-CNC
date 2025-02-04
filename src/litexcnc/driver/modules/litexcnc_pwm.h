@@ -70,13 +70,10 @@ typedef struct {
             hal_float_t *curr_dc;	    /* pin: current duty cycle */
             hal_float_t *curr_pwm_freq; /* pin: current pwm frequency */
             hal_u32_t *curr_period;     /* The current PWM period in clock-cycles*/ 
-            hal_u32_t *curr_width;      /* The current PWM width in clock-cycles*/
-            hal_bit_t *direction;	    /* 0 = up / foward, 1 = down / reverse */
+            hal_u32_t *curr_width;      /* The current PWM width in clock-cycles*/ 
         } pin;
         /** Structure defining the HAL params */
         struct {
-            hal_bit_t invert_output;    /** When set, the output is inverted (i.e. active low) */
-            hal_u32_t type;             /* Type of the PWM: 0: Single, 1: Dir/PWM 2: Up/down 3: Reserved*/
             hal_float_t scale_recip;    /* Reciprocal of the scale, not exported */
             hal_float_t period_recip;   /* Reciprocal of the width, not exported */
         } param;

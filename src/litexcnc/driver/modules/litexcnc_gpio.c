@@ -187,7 +187,7 @@ static int litexcnc_gpio_init_out(litexcnc_gpio_output_pin_t *gpio_instance, lit
     LITEXCNC_CREATE_BASENAME("gpio", index);
     // Pins and params for the output
     LITEXCNC_CREATE_HAL_PIN("out", bit, HAL_IN, &(gpio_instance->hal.pin.out));
-    LITEXCNC_CREATE_HAL_PARAM("invert-output", bit, HAL_RW, &(gpio_instance->hal.param.invert_output));
+    LITEXCNC_CREATE_HAL_PARAM("invert_output", bit, HAL_RW, &(gpio_instance->hal.param.invert_output));
 
     // Indicate success         
     return 0;

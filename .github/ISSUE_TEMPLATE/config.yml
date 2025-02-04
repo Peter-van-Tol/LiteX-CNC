@@ -1,5 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: 🤔 Ask a Question
-    url: 'https://github.com/Peter-van-Tol/LiteX-CNC/discussions/new?category=question'
-    about: Ask a question about how to use pydantic-shapely using github discussions

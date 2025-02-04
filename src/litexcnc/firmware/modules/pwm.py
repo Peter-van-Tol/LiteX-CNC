@@ -8,7 +8,7 @@ from pydantic import Field
 from migen import *
 from migen.genlib.cdc import MultiReg
 from litex.build.generic_platform import Pins, IOStandard
-from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRField
+from litex.soc.interconnect.csr import AutoCSR, CSRStorage
 from litex.soc.integration.doc import AutoDoc, ModuleDoc
 from litex.soc.integration.soc import SoC
 
@@ -21,24 +21,18 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
     Pulse Width Modulation can be useful for various purposes: dim leds, regulate a fan, control
     an oscillator. Software can configure the PWM width and period and enable/disable it.
     """
-    def __init__(self, pads=None, output_function=None, clock_domain="sys", with_csr=True,
+    def __init__(self, pwm=None, clock_domain="sys", with_csr=True,
         default_enable = 0,
-        default_invert_output=0,
         default_width  = 0,
         default_period = 0):
 
         # AutoDoc implementation
         self.intro = ModuleDoc(self.__class__.__doc__)
 
-        if pads is None:
-            pads = Record([("pwm", 1),])
-        if output_function is None:
-            output_function = lambda pads, value, direction, invert: (pads.pwm.eq(value ^ invert),)
-        
+        if pwm is None:
+            self.pwm = pwm = Signal()
         self.enable = Signal(reset=default_enable)
-        self.invert_output = Signal(reset=default_invert_output)
-        self.width = Signal(31, reset=default_width)
-        self.direction = Signal()
+        self.width  = Signal(32, reset=default_width)
         self.period = Signal(32, reset=default_period)
 
         # Local registers for PWM
@@ -56,9 +50,9 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
                     # PWM mode
                     counter.eq(counter + 1),
                     If(counter < self.width,
-                        *output_function(pads, 1, self.direction, self.invert_output)
+                        pwm.eq(1)
                     ).Else(
-                        *output_function(pads, 0, self.direction, self.invert_output)
+                        pwm.eq(0)
                     ),
                     If(counter >= (self.period - 1),
                         counter.eq(0)
@@ -69,17 +63,17 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
                     error_1.eq(error - self.width[:16] + (2**16 - 1)),
                     If(
                         self.width[:16] > error,
-                        *output_function(pads, 1, self.direction, self.invert_output),
+                        pwm.eq(1),
                         error.eq(error_1)
                     ).Else(
-                        *output_function(pads, 0, self.direction, self.invert_output),
+                        pwm.eq(0),
                         error.eq(error_0)
                     )
                 )
             ).Else(
                 # Inactive
                 counter.eq(0),
-                *output_function(pads, 0, 0, self.invert_output)
+                pwm.eq(0)
             )
         ]
 
@@ -90,9 +84,6 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         self._enable = CSRStorage(description="""PWM Enable.\n
             Write ``1`` to enable PWM.""",
             reset = self.enable.reset)
-        self._invert_output = CSRStorage(description="""PWM Invert output.\n
-            Write ``1`` to invert the output (i.e. active LOW).""",
-            reset = self.invert_output.reset)
         self._width  = CSRStorage(32, reset_less=True, description="""PWM Width.\n
             Defines the *Duty cycle* of the PWM. PWM is active high for *Width* ``{cd}_clk`` cycles and
             active low for *Period - Width* ``{cd}_clk`` cycles.""".format(cd=clock_domain),
@@ -103,10 +94,9 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
 
         n = 0 if clock_domain == "sys" else 2
         self.specials += [
-            MultiReg(self._enable.storage,        self.enable, n=n),
-            MultiReg(self._invert_output.storage, self.enable, n=n),
-            MultiReg(self._width.storage,         self.width,  n=n),
-            MultiReg(self._period.storage,        self.period, n=n),
+            MultiReg(self._enable.storage, self.enable, n=n),
+            MultiReg(self._width.storage,  self.width,  n=n),
+            MultiReg(self._period.storage, self.period, n=n),
         ]
 
     @classmethod
@@ -124,13 +114,7 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         mmio.pwm_enable = CSRStorage(
             size=int(math.ceil(float(len(pwm_config.instances))/32))*32,
             name='pwm_enable',
-            description="Register containing the settings with PWM channels are enabled.", 
-            write_from_dev=True
-        )
-        mmio.pwm_invert_output = CSRStorage(
-            size=int(math.ceil(float(len(pwm_config.instances))/32))*32,
-            name='pwm_invert_output',
-            description="Register containing the settings with PWM channels are inverted (i.e. active LOW).", 
+            description="Register containing the bits to be written to the GPIO out pins.", 
             write_from_dev=True
         )
 
@@ -148,14 +132,11 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
             )
             setattr(
                 mmio,
-                f'pwm_{index}_duty', 
+                f'pwm_{index}_width', 
                 CSRStorage(
-                    fields=[
-                        CSRField("width", size=31, offset=0, description="The minimum delay (in clock cycles) after a direction change and before the next step - may be longer"),
-                        CSRField("sign", size=1, offset=31, description="The minimum delay (in clock cycles) after a step pulse before "),
-                    ],
-                    description=f'pwm_{index}_duty',
-                    name=f'pwm_{index}_duty',
+                    size=32, 
+                    description=f'pwm_{index}_width',
+                    name=f'pwm_{index}_width',
                     write_from_dev=False
                 )
             )
@@ -172,18 +153,20 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         if not pwm_config:
             return
 
+        # Add module and create the pads
         soc.platform.add_extension([
-            ("pwm", index, *pwm_instance.pins.convert_to_signal())
+            ("pwm", index, Pins(pwm_instance.pin), IOStandard(pwm_instance.io_standard))
             for index, pwm_instance 
             in enumerate(pwm_config.instances)
         ])
-        
+        soc.pwm_outputs = [pad for pad in soc.platform.request_all("pwm").l]
+
         # Turn the PWM off when the card is reset or watchdog has bitten
         # Connect to the reset mechanism
         soc.sync += [
             soc.MMIO_inst.pwm_enable.we.eq(0),
             If(
-                soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_status.status,
+                soc.MMIO_inst.reset.storage | soc.MMIO_inst.watchdog_has_bitten.status,
                 soc.MMIO_inst.pwm_enable.dat_w.eq(0x0),
                 soc.MMIO_inst.pwm_enable.we.eq(1)
             )
@@ -192,16 +175,10 @@ class PwmPdmModule(Module, AutoDoc, AutoCSR):
         # Create the generators
         for index in range(len(pwm_config.instances)):
             # Add the PWM-module to the platform
-            _pwm = PwmPdmModule(
-                soc.platform.request('pwm', index),
-                output_function=pwm_config.instances[index].pins.output_pwm,
-                with_csr=False
-            )
+            _pwm = PwmPdmModule(soc.pwm_outputs[index], with_csr=False)
             soc.submodules += _pwm
             soc.comb += [
-                _pwm.enable.eq(soc.MMIO_inst.pwm_enable.storage[index] & watchdog.ok_out),
-                _pwm.invert_output.eq(soc.MMIO_inst.pwm_invert_output.storage[index]),
+                _pwm.enable.eq(soc.MMIO_inst.pwm_enable.storage[index] & ~watchdog.has_bitten),
                 _pwm.period.eq(getattr(soc.MMIO_inst, f'pwm_{index}_period').storage),
-                _pwm.width.eq(getattr(soc.MMIO_inst, f'pwm_{index}_duty').fields.width),
-                _pwm.direction.eq(getattr(soc.MMIO_inst, f'pwm_{index}_duty').fields.sign),
+                _pwm.width.eq(getattr(soc.MMIO_inst, f'pwm_{index}_width').storage)
             ]

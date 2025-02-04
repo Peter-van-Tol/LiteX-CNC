@@ -55,7 +55,6 @@ typedef struct litexcnc_struct litexcnc_t;
 #define LITEXCNC_LOAD_MODULE(name)              result = register_module(name); if (result<0) return result; 
 // - Creation of the basename
 #define LITEXCNC_CREATE_BASENAME(module, index)  rtapi_snprintf(base_name, sizeof(base_name), "%s.%s.%02zu", litexcnc->fpga->name, module, index);
-#define LITEXCNC_CREATE_BASENAME_NO_INDEX(module)  rtapi_snprintf(base_name, sizeof(base_name), "%s.%s", litexcnc->fpga->name, module);
 // - Creation of a pin
 #define LITEXCNC_CREATE_HAL_PIN_FN(pin_name, type, direction, parameter)     \
     rtapi_snprintf(name, sizeof(name), "%s.%s", base_name, pin_name); \
@@ -117,21 +116,9 @@ struct litexcnc_fpga_struct {
     int comp_id;
     uint32_t version;
 
-    struct {
-        struct {
-            hal_u32_t *total_read_errors;   /* The total amount of read errors. This counter is increased when an error occurs */
-            hal_u32_t *read_errors;         /* The amount of read errors. This counter is increased when an error occurs and decreased on a succesfull read */
-            hal_u32_t *total_write_errors;  /* The total amount of write errors. This counter is increased when an error occurs */
-            hal_u32_t *write_errors;        /* The amount of write errors. This counter is increased when an error occurs and decreased on a succesfull write */
-        } pin;
-        struct {
-            hal_bit_t debug;  // Indicates the communication is in debug mode
-        } param;
-    } hal;
-
     // Functions to read and write data from the board
-    int (*read_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size, bool guarded);
-    int (*write_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size, bool guarded);
+    int (*read_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size);
+    int (*write_n_bits)(litexcnc_fpga_t *self, size_t address, uint8_t *data, size_t size);
     // - on success these two return TRUE (not zero)
     // - on failure they return FALSE (0) and set *self->io_error (below) to TRUE
     int (*read)(litexcnc_fpga_t *self);
@@ -201,11 +188,11 @@ typedef struct {
     uint8_t reserved2;
     uint8_t num_modules;
     uint16_t module_data_size;
-    char name[16];
-    uint32_t watchdog_estops;
+    char name[16 + 1];
 } litexcnc_header_data_read_t;
 #pragma pack(pop)
-#define LITEXCNC_HEADER_DATA_READ_SIZE sizeof(litexcnc_header_data_read_t)
+//sizeof(litexcnc_header_data_read_t)
+#define LITEXCNC_HEADER_DATA_READ_SIZE 32 
 
 // - write (reset)
 #pragma pack(push,4)
