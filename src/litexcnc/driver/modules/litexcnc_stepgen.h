@@ -98,6 +98,7 @@ typedef struct {
         hal_float_t acceleration;
         hal_float_t maxaccel;       
         hal_float_t maxvel;
+        hal_bit_t has_index;
         bool error_max_speed_printed;
     } memo;
     
