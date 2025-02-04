@@ -1,6 +1,6 @@
 [project]
 name = "litexcnc"
-version = "1.3.2"
+version = "1.3.3"
 description = "Generic CNC firmware and driver for FPGA cards which are supported by LiteX"
 authors = [
     { name = "Peter van Tol", email = "petertgvantol@gmail.com" },
