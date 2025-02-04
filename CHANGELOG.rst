@@ -6,6 +6,12 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
+Version 1.3.3
+=============
+
+An error in ``stepgen`` related to index pulses has been resolved in this version. No need to re-compile the
+firmware, only reinstallation of the drivers is required.
+
 Version 1.3.2
 =============
 
