@@ -68,6 +68,8 @@ typedef struct {
             hal_float_t *velocity_cmd;        /* Commanded velocity, in length units per second (see parameter position-scale). */
             hal_float_t *acceleration_cmd;    /* Commanded acceleration, in length units per second squared (see parameter position-scale). */
             hal_bit_t   *debug;               /* Flag indicating whether all positional data will be printed to the command line */
+            hal_bit_t   *index_enable;        /* When true, a rising edge will reset the counter of the stepgen to zero. */
+            hal_bit_t   *index_pulse;         /* When true, a rising edge has been detected on the FPGA. This flag will be active until the index-enable is set to False. */ 
         } pin;
         /** Structure defining the HAL params */
         struct {
