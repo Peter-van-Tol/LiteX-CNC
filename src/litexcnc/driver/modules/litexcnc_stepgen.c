@@ -336,7 +336,7 @@ int litexcnc_stepgen_prepare_write(void *module, uint8_t **data, int period) {
 
         // Convert the integers used and scale it to the FPGA
         index_flag = 0;
-        if (instance->memo.index_enable && *(instance->hal.pin.index_enable)) {
+        if (instance->memo.has_index && *(instance->hal.pin.index_enable)) {
             index_flag = 0xF0000000;
         }
         instance_data.speed_target = htobe32(instance->data.fpga_speed & 0x7FFFFFFF + index_flag);
@@ -420,7 +420,7 @@ int litexcnc_stepgen_process_read(void *module, uint8_t **data, int period) {
         *data += 8;  // The data read is 64 bit-wide. The buffer is 8-bit wide
         memcpy(&speed, *data, sizeof speed);
         instance->data.speed = (int64_t) (be32toh(speed) & 0x7FFFFFFF) -  0x40000000;
-        if (instance->memo.index_enable) {
+        if (instance->memo.has_index) {
             *(instance->hal.pin.index_pulse) = (be32toh(speed) & 0xF0000000) ? true : false;
         }
         *data += 4;  // The data read is 32 bit-wide. The buffer is 8-bit wide
@@ -574,7 +574,7 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
 
         // Create the pin for index-enable, only when the pin is defined for this instance
         if (*(*config) & 0x80) {
-            instance->memo.index_enable = true;
+            instance->memo.has_index = true;
             LITEXCNC_CREATE_HAL_PIN("index-enable", bit, HAL_IN, &(instance->hal.pin.index_enable));
             LITEXCNC_CREATE_HAL_PIN("index-pulse", bit, HAL_OUT, &(instance->hal.pin.index_pulse));
         }
