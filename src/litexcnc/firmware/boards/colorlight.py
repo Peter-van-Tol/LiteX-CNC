@@ -146,7 +146,11 @@ class Hub75Hat(colorlight_5a_75b.Platform):
             "7.0": colorlight_5a_75b._io_v7_0,
             "8.0": colorlight_5a_75b._io_v8_0}[revision]
         connectors = self.get_connectors(revision)
-        colorlight_5a_75b.LatticePlatform.__init__(self, device, io, connectors=connectors, toolchain=toolchain)
+        try:
+            # Since 1-2025 the LatticePlatform attribute has been renamed
+            colorlight_5a_75b.LatticePlatform.__init__(self, device, io, connectors=connectors, toolchain=toolchain)
+        except AttributeError:
+            colorlight_5a_75b.LatticeECP5Platform.__init__(self, device, io, connectors=connectors, toolchain=toolchain)
 
 
 def move_user_led_and_btn_to_connector(ios, connectors):
