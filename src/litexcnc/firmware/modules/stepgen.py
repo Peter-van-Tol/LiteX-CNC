@@ -108,11 +108,11 @@ class StepgenModule(Module, AutoDoc):
         self.enable = Signal()
         self.position = Signal(64 + (self.pick_off_vel - self.pick_off_pos))
         self.speed = Signal(
-            32 + (self.pick_off_acc - self.pick_off_vel),
+            31 + (self.pick_off_acc - self.pick_off_vel),
             reset=self.speed_reset_val
         )
         self.speed_target = Signal(
-            32 + (self.pick_off_acc - self.pick_off_vel),
+            31 + (self.pick_off_acc - self.pick_off_vel),
             reset=self.speed_reset_val
         )
         self.max_acceleration = Signal(32)
@@ -496,7 +496,7 @@ class StepgenModule(Module, AutoDoc):
         )
         # - dir
         self.sync += If(
-            self.dir != (self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1]),
+            self.dir != (self.speed[31 + (self.pick_off_acc - self.pick_off_vel) - 1]),
             # Enable the Hold DDS, but wait with changing the dir pin until the
             # dir_hold_counter has been elapsed
             self.hold_dds.eq(1),
@@ -509,7 +509,7 @@ class StepgenModule(Module, AutoDoc):
             ),
             If(
                 self.dir_hold_counter.counter == 0,
-                self.dir.eq(self.speed[32 + (self.pick_off_acc - self.pick_off_vel) - 1])
+                self.dir.eq(self.speed[31 + (self.pick_off_acc - self.pick_off_vel) - 1])
             )
         )
 
