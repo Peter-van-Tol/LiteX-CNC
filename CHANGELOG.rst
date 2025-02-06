@@ -6,14 +6,24 @@ All versions in this changelog have two entries: ``driver`` and ``firmware``. Th
 have the same version, as communication protocol might change between versions. In the firmware/driver there
 is a safeguard to prevent miscommunication.
 
-Version 1.3.3
+Version 1.3.4
 =============
+
+An error in ``stepgen`` related to index pulses has been resolved in this version. The error prevented the
+firmware from correctly setting the ``dir``-pin. Recompilation of firmware is required. The correct working
+of the ``stepgen`` has been tested on a real machine, instead on synthesis. Many thanks LisovR for debugging
+this module.
+
+Version 1.3.0 to 1.3.3 are now `yanked <https://pypi.org/help/#yanked>`_ because of not working ``stepgen`` module. 
+
+Version 1.3.3 - yanked
+======================
 
 An error in ``stepgen`` related to index pulses has been resolved in this version. No need to re-compile the
 firmware, only reinstallation of the drivers is required.
 
-Version 1.3.2
-=============
+Version 1.3.2 - yanked
+======================
 
 An error in ``stepgen`` has been resolved in this version. Upgrading from version 1.3.0 or 1.3.1 to this version
 requires re-compilation of the firmware and re-installation of the drivers.
@@ -28,16 +38,14 @@ requires re-compilation of the firmware and re-installation of the drivers.
 
   * ``stepgen``: when using 3, 7 , 11, and so on stepgens, the ``encoder`` module would fail.
 
-
-
-Version 1.3.1
-=============
+Version 1.3.1 - yanked
+======================
 
 Due to an upgrade of the build-system, the script ``litexcnc`` was not installed on all systems. In this version
 this has been patched.
 
-Version 1.3.0
-=============
+Version 1.3.0 - yanked
+======================
 
 .. info::
   For this version the configuration file has to be changed. The section ``watchdog: {}`` has been expanded
