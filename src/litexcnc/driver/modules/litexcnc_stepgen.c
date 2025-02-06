@@ -584,7 +584,6 @@ size_t litexcnc_stepgen_init(litexcnc_module_instance_t **module, litexcnc_t *li
 
     // Align config at DWORD boundary
     (*config) += (4 - ((1 + stepgen->num_instances) & 0x03) & 0x03);
-    LITEXCNC_ERR_NO_DEVICE("%d\n",  (4 - ((1 + stepgen->num_instances) & 0x03) & 0x03));
 
     return 0;
 }
