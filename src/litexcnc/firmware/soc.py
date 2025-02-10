@@ -97,10 +97,9 @@ class LitexCNC_Firmware(BaseModel):
         # Deferred imports to prevent importing Litex while installing the driver
         from litexcnc.firmware.watchdog import WatchDogModule
         from litexcnc.firmware.mmio import MMIO
-        from litexcnc.firmware.connections import add_connection
 
+        # Generate the SOC (including connection)
         soc = self._generate_soc()
-        add_connection(soc, self)
 
         # Create memory mapping for IO
         soc.submodules.MMIO_inst = MMIO(config=self)
