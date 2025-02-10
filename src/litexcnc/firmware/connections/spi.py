@@ -7,10 +7,10 @@ from litex.soc.integration.doc import ModuleDoc, AutoDoc
 from litex.soc.interconnect import wishbone
 
 
-class Spi4WireDocumentation(ModuleDoc):
-    """4-Wire SPI Protocol
+class SpiStandardDocumentation(ModuleDoc):
+    """Standard SPI Protocol
 
-    The 4-wire SPI protocol does not require any pins to change direction, and
+    The standard SPI protocol does not require any pins to change direction, and
     is therefore suitable for designs with level-shifters or without GPIOs that
     can change direction.
     
@@ -21,8 +21,10 @@ class Spi4WireDocumentation(ModuleDoc):
     device will not pull the `MISO` line high and will immediately respond
     with ``0x00`` or ``0x01``.
 
-    You can abort the operation by driving ``CS`` high.  However, if a WRITE or
-    READ has already been initiated then it will not be aborted.
+    You can abort the operation by driving ``CS`` high (when using CS).  However,
+    if a WRITE or READ has already been initiated then it will not be aborted.
+
+    When no CS is being used, all communication must start with a sync-byte 0xAB.
 
     .. wavedrom::
         :caption: 4-Wire SPI Operation
@@ -44,8 +46,8 @@ class Spi4WireDocumentation(ModuleDoc):
         ]}
     """
 
-class Spi3WireDocumentation(ModuleDoc):
-    """3-Wire SPI Protocol
+class SpiBiDirectionalDocumentation(ModuleDoc):
+    """Bi-direcional, or 3-wire, SPI Protocol
 
     The 3-wire SPI protocol repurposes the ``MOSI`` line for both data input and
     data output.  The direction of the line changes immediately after the
@@ -58,6 +60,12 @@ class Spi3WireDocumentation(ModuleDoc):
 
     You can abort the operation by driving ``CS`` high.  However, if a WRITE or
     READ has already been initiated then it will not be aborted.
+
+    You can abort the operation by driving ``CS`` high (when using CS).  However,
+    if a WRITE or READ has already been initiated then it will not be aborted.
+
+    When no CS is being used, all communication must start with a sync-byte 0xAB.
+    This mode is equal to 2-wire SPI.
 
     .. wavedrom::
         :caption: 3-Wire SPI Operation
@@ -73,37 +81,6 @@ class Spi3WireDocumentation(ModuleDoc):
                 {  "name": 'MOSI',        "wave": 'x23...3...5|50', "data": '0x00 [ADDRESS] [DATA] 0xFF 0x00'},
                 {  "name": 'CS',          "wave": 'x0.........|.x', "data": '1 2 3'},
                 {  "name": 'data bits',   "wave": 'xx22222222x|xx', "data": '31:24 23:16 15:8 7:0 31:24 23:16 15:8 7:0'}
-            ]
-        ]}
-        """
-
-class Spi2WireDocumentation(ModuleDoc):
-    """2-Wire SPI Protocol
-
-    The 2-wire SPI protocol removes the ``CS`` line in favor of a sync byte.
-    Note that the 2-wire protocol has no way of interrupting communication,
-    so if the bus locks up the device must be reset.  The direction of the
-    data line changes immediately after the address (for read) or the data
-    (for write) and the device starts writing ``0xFF``.
-
-    As soon as data is available (read) or the data has been written (write),
-    the device drives the ``MOSI`` line low in order to clock out ``0x00``
-    or ``0x01``.  This will always happen on a byte boundary.
-
-    All transactions begin with a sync byte of ``0xAB``.
-
-    .. wavedrom::
-        :caption: 2-Wire SPI Operation
-
-        { "signal": [
-            ["Write",
-                {  "name": 'MOSI',        "wave": '223...5|55...', "data": '0xAB 0x01 [ADDRESS] 0xFF 0x01 [DATA]'},
-                {  "name": 'data bits',   "wave": 'xx2222x|x2222', "data": '31:24 23:16 15:8 7:0 31:24 23:16 15:8 7:0'}
-            ],
-            {},
-            ["Read",
-                {  "name": 'MOSI',        "wave": '223...3...5|5', "data": '0xAB 0x00 [ADDRESS] [DATA] 0xFF 0x00'},
-                {  "name": 'data bits',   "wave": 'xx22222222x|x', "data": '31:24 23:16 15:8 7:0 31:24 23:16 15:8 7:0'}
             ]
         ]}
         """
@@ -131,14 +108,12 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
     def __init__(self, pads, bidirectional=False, with_cs=True, with_tristate=True, debug_led=None):
         self.wishbone = wishbone.Interface()
 
-        # # # TODO: documentation
-        # if wires == 4:
-        #     self.mod_doc = Spi4WireDocumentation()
-        # elif wires == 3:
-        #     self.mod_doc = Spi3WireDocumentation()
-        # elif wires == 2:
-        #     self.mod_doc = Spi2WireDocumentation()
-
+        # Documentation
+        if bidirectional:
+            self.mod_doc = SpiStandardDocumentation()
+        else:
+            self.mod_doc = SpiBiDirectionalDocumentation()
+       
         clk  = Signal()
         cs_n = Signal()
         mosi = Signal()
