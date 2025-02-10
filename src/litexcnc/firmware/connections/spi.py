@@ -381,12 +381,18 @@ def add_spi(soc, connection):
     """
     Adds spi connection to the board
     """
+    subsignals = [
+        Subsignal("mosi", Pins(connection.mosi), IOStandard(connection.io_standard)),
+        Subsignal("miso", Pins(connection.miso), IOStandard(connection.io_standard)),
+        Subsignal("clk",  Pins(connection.clk),  IOStandard(connection.io_standard))
+    ]
+    if connection.cs_n:
+        subsignals.append(
+            Subsignal("cs_n", Pins(connection.cs_n), IOStandard(connection.io_standard))
+        )
     soc.platform.add_extension([
         ("spi", 0, 
-            Subsignal("mosi", Pins(connection.mosi), IOStandard(connection.io_standard)),
-            Subsignal("miso", Pins(connection.miso), IOStandard(connection.io_standard)),
-            Subsignal("clk",  Pins(connection.clk),  IOStandard(connection.io_standard)),
-            # Subsignal("cs_n", Pins(connection.cs_n), IOStandard(connection.io_standard)),
+            *subsignals,
         )
     ])
     spi_pads = soc.platform.request("spi")
@@ -402,5 +408,5 @@ def add_spi(soc, connection):
     # soc.platform.add_false_path_constraints(soc.crg.cd_sys.clk, soc.spi_cd.clk)
 
     # soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, debug_led=soc.platform.request("user_led_n")))
-    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, bidirectional=False, with_cs=False))
+    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, bidirectional=False, with_cs=connection.cs_n is not None))
     soc.add_wb_master(soc.spibone.wishbone)
