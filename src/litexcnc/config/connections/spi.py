@@ -4,10 +4,10 @@
 from ipaddress import IPv4Address
 import os
 try:
-    from typing import ClassVar, List, Literal
+    from typing import ClassVar, List, Literal, Optional
 except ImportError:
     from typing import ClassVar, List
-    from typing_extensions import Literal
+    from typing_extensions import Literal, Optional
 
 
 from pydantic import BaseModel, Field, validator
@@ -33,8 +33,8 @@ class SPIboneConnection(BaseModel):
           ...,
           description="The pin on the FPGA-card used for the clock-signal."
     )
-    cs_n: str = Field(
-          ...,
+    cs_n: Optional[str] = Field(
+          None,
           description="The pin on the FPGA-card used for the chip-select."
     )
     io_standard: str = Field(
