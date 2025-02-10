@@ -111,7 +111,7 @@ class Spi2WireDocumentation(ModuleDoc):
 class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
     """Wishbone Bridge over SPI
 
-    This module allows for accessing a Wishbone bridge over a {}-wire protocol.
+    This module allows for accessing a Wishbone bridge over a 2, 3 or 4-wire protocol.
     All operations occur on byte boundaries, and are big-endian.
 
     The device can take a variable amount of time to respond, so the host should
@@ -128,19 +128,16 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
     ADDRESS_WIDTH  = 4
     VALUE_WIDTH    = 4 
 
-
-
-    def __init__(self, pads, wires=4, with_tristate=True, debug_led=None):
+    def __init__(self, pads, bidirectional=False, with_cs=True, with_tristate=True, debug_led=None):
         self.wishbone = wishbone.Interface()
 
-        # # #
-        self.__doc__ = self.__doc__.format(wires)
-        if wires == 4:
-            self.mod_doc = Spi4WireDocumentation()
-        elif wires == 3:
-            self.mod_doc = Spi3WireDocumentation()
-        elif wires == 2:
-            self.mod_doc = Spi2WireDocumentation()
+        # # # TODO: documentation
+        # if wires == 4:
+        #     self.mod_doc = Spi4WireDocumentation()
+        # elif wires == 3:
+        #     self.mod_doc = Spi3WireDocumentation()
+        # elif wires == 2:
+        #     self.mod_doc = Spi2WireDocumentation()
 
         clk  = Signal()
         cs_n = Signal()
@@ -162,28 +159,20 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
         self.specials += [
             MultiReg(pads.clk, clk),
         ]
-        if wires == 2:
+        if bidirectional:
             io = TSTriple()
             self.specials += io.get_tristate(pads.mosi)
             self.specials += MultiReg(io.i, mosi)
             self.comb += io.o.eq(miso)
             self.comb += io.oe.eq(miso_en)
-        elif wires == 3:
-            self.specials += MultiReg(pads.cs_n, cs_n),
-            io = TSTriple()
-            self.specials += io.get_tristate(pads.mosi)
-            self.specials += MultiReg(io.i, mosi)
-            self.comb += io.o.eq(miso)
-            self.comb += io.oe.eq(miso_en)
-        elif wires == 4:
-            self.specials += MultiReg(pads.cs_n, cs_n),
+        else:
             self.specials += MultiReg(pads.mosi, mosi)
-            if with_tristate:
+            if with_tristate and with_cs:
                 self.specials += Tristate(pads.miso, miso, ~cs_n)
             else:
                 self.comb += pads.miso.eq(miso)
-        else:
-            raise ValueError("`wires` must be 2, 3, or 4")
+        if with_cs:
+            self.specials += MultiReg(pads.cs_n, cs_n),
 
         clk_last = Signal()
         clk_rising = Signal()
@@ -212,20 +201,7 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
         self.sync += If(cs_n, counter.eq(0)).Elif(clk_rising, counter.eq(counter + 1))
         self.sync += If(cs_n, counter2.eq(0))
 
-        if wires == 2:
-            fsm.act("IDLE",
-                miso_en.eq(0),
-                NextValue(miso, 1),
-                If(clk_rising,
-                    NextValue(sync_byte, Cat(mosi, sync_byte))
-                ),
-                If(sync_byte[0:7] == 0b101011,
-                    NextState("GET_COMMAND"),
-                    NextValue(counter, 0),
-                    NextValue(command, mosi),
-                )
-            )
-        elif wires == 3 or wires == 4:
+        if with_cs:
             fsm.act("IDLE",
                 miso_en.eq(0),
                 NextValue(miso, 1),
@@ -236,7 +212,20 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
                 ),
             )
         else:
-            raise ValueError("invalid `wires` count: {}".format(wires))
+            fsm.act("IDLE",
+                miso_en.eq(0),
+                NextValue(miso, 1),
+                NextValue(write_response, 1),
+                If(clk_rising,
+                    NextValue(sync_byte, Cat(mosi, sync_byte))
+                ),
+                If(sync_byte[0:7] == 0b101011,
+                    NextState("GET_COMMAND"),
+                    NextValue(counter, 0),
+                    NextValue(counter2, 0),
+                    NextValue(command, mosi),
+                )
+            )
 
         # Determine if it's a read or a write
         fsm.act("GET_COMMAND",
@@ -400,19 +389,17 @@ class SpiWishboneBridge(Module, ModuleDoc, AutoDoc):
             ),
         )
 
-        if wires == 3 or wires == 4:
+        if with_cs:
             fsm.act("END",
                 NextValue(miso, 1),
                 miso_en.eq(1),
             )
-        elif wires == 2:
+        else:
             fsm.act("END",
                 miso_en.eq(0),
                 NextValue(sync_byte, 0),
                 NextState("IDLE")
             )
-        else:
-            raise ValueError("invalid `wires` count: {}".format(wires))
 
 
 def add_spi(soc, connection):
@@ -424,7 +411,7 @@ def add_spi(soc, connection):
             Subsignal("mosi", Pins(connection.mosi), IOStandard(connection.io_standard)),
             Subsignal("miso", Pins(connection.miso), IOStandard(connection.io_standard)),
             Subsignal("clk",  Pins(connection.clk),  IOStandard(connection.io_standard)),
-            Subsignal("cs_n", Pins(connection.cs_n), IOStandard(connection.io_standard)),
+            # Subsignal("cs_n", Pins(connection.cs_n), IOStandard(connection.io_standard)),
         )
     ])
     spi_pads = soc.platform.request("spi")
@@ -440,7 +427,5 @@ def add_spi(soc, connection):
     # soc.platform.add_false_path_constraints(soc.crg.cd_sys.clk, soc.spi_cd.clk)
 
     # soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, debug_led=soc.platform.request("user_led_n")))
-    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads))
+    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, bidirectional=False, with_cs=False))
     soc.add_wb_master(soc.spibone.wishbone)
-
-

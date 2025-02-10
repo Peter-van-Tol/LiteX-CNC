@@ -22,6 +22,10 @@
 #define LITEXCNC_SPIDEV_VERSION "1.0.1"
 #define MAX_SPI_BOARDS 4
 
+#define SPI_SYNC_BYTE 0xAB
+#define SPI_READ_COMMAND 0x40
+#define SPI_WRITE_COMMAND 0x80
+
 #include <litexcnc.h>
 
 typedef struct {
@@ -34,6 +38,7 @@ typedef struct {
 
     // Connection with SPI (in reality this is a file-descriptor)
     int connection;
+    uint8_t flags;
 
     // Definition of the FPGA (containing pins, steppers, PWM, ec.)
     litexcnc_fpga_t *fpga;

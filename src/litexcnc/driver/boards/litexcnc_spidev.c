@@ -88,23 +88,30 @@ static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint
     
     // Create the required buffers
     static uint8_t tx_buf[5+2+256];
-    memset((void*) tx_buf, 5, 2+N);
+    memset((void*) tx_buf, 0, 5+2+N);
     static uint8_t rx_buf[5+2+256];
     memset((void*) rx_buf, 0, 5+2+N);
+    static uint8_t sync_byte_shift;
 
-     // Write data to package
+    // Write data to package
+    // - optional sync byte
+    sync_byte_shift = 0;
+    if (board->flags & SPI_NO_CS) {
+        tx_buf[0] = SPI_SYNC_BYTE;
+        sync_byte_shift++;
+    }
     // - command and size
     size_t words = N >> 2;
-    tx_buf[0] = 0x40 + (words & 0x1F);
+    tx_buf[0+sync_byte_shift] = SPI_READ_COMMAND + (words & 0x1F);
     // - address
     uint32_t address_be = htobe32(address);
-    memcpy(&tx_buf[1], &address_be, 4);
+    memcpy(&tx_buf[1+sync_byte_shift], &address_be, 4);
     
     // Create the request and send the data 
     struct spi_ioc_transfer tr = {
 		.tx_buf = (unsigned long)&tx_buf,
 		.rx_buf = (unsigned long)&rx_buf,
-		.len = 5 + N + 2,
+		.len = 5 + sync_byte_shift + N + 2,
 		.delay_usecs = delay,
 		.speed_hz = speed,
 		.bits_per_word = bits,
@@ -120,7 +127,7 @@ static int litexcnc_spi_read_n_bytes(litexcnc_fpga_t *this, size_t address, uint
     }
     
     // Check whether write was successfull
-    for(size_t i = 0; i < (5 + 2); i++) {
+    for(size_t i = 0; i < (sync_byte_shift + 5 + 2); i++) {
         if(rx_buf[i] == 0x01) {
             // Copy the results to the output
             memcpy(data, &rx_buf[i+1], N);
@@ -178,22 +185,29 @@ static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uin
     static uint8_t tx_buf[5+2+256];
     static uint8_t rx_buf[5+2+256];
     memset((void*) rx_buf, 0, 5+2+N);
+    static uint8_t sync_byte_shift;
 
-     // Write data to package
+    // Write data to package
+    // - optional sync byte
+    sync_byte_shift = 0;
+    if (board->flags & SPI_NO_CS) {
+        tx_buf[0] = SPI_SYNC_BYTE;
+        sync_byte_shift++;
+    }
     // - command and size
     size_t words = N >> 2;
-    tx_buf[0] = 0x80 + (words & 0x1F);
+    tx_buf[0+sync_byte_shift] = SPI_WRITE_COMMAND + (words & 0x1F);
     // - address
     uint32_t address_be = htobe32(address);
-    memcpy(&tx_buf[1], &address_be, 4);
+    memcpy(&tx_buf[1+sync_byte_shift], &address_be, 4);
     // - data
-    memcpy(&tx_buf[5], data, N);
+    memcpy(&tx_buf[5+sync_byte_shift], data, N);
 
     // Create the request and send the data 
     struct spi_ioc_transfer tr = {
 		.tx_buf = (unsigned long)&tx_buf,
 		.rx_buf = (unsigned long)&rx_buf,
-		.len = 5 + N + 2,
+		.len = 5 + N + sync_byte_shift + 2,
 		.delay_usecs = delay,
 		.speed_hz = speed,
 		.bits_per_word = bits,
@@ -209,7 +223,7 @@ static int litexcnc_spi_write_n_bytes(litexcnc_fpga_t *this, size_t address, uin
     }
 
     // Check whether write was successfull
-    for(size_t i = 0; i < (5 + N + 2); i++) {
+    for(size_t i = 0; i < (sync_byte_shift + 5 + N + 2); i++) {
         if(rx_buf[i] == 0x01) {
             // Decrease the counter
             if ((guarded) && (*(this->hal.pin.write_errors) > 0)) {
@@ -257,12 +271,50 @@ static int litexcnc_spi_write(litexcnc_fpga_t *this) {
  ******************************************************************************/
 static int initialize_driver(char *connection_string, int comp_id) {
     size_t ret;
+    
+    uint8_t flags;
+    char *flags_ptr;
+    char *flag_ptr;
+
+    // Check whether the connection string contains a colon (:), which indicates
+    // possible flags. If a flags are specified, it is split from the connection
+    // string and stored separately
+    flags_ptr = strchr(connection_string, ':'); // Find first ':'
+    if (flags_ptr != NULL) {
+        *flags_ptr = '\0';          // Replace ':' with a null terminator
+        flags_ptr++;                // Move pointer forward
+        
+        while (true) {
+            flag_ptr = strchr(flags_ptr, '|');
+            // Test whether the string needs to be split
+            if (flag_ptr != NULL) {
+                *flag_ptr = '\0';
+            }
+            // Process flag
+            if (strcmp(flags_ptr, "NO_CS") == 0) {
+                fprintf(stderr, "%s: received flag %s. Supported flags are NO_CS.\n", LITEXCNC_SPIDEV_NAME, flags_ptr);
+                flags |= SPI_NO_CS;
+            } else {
+                fprintf(stderr, "%s: unkwown flag %s. Supported flags are NO_CS.\n", LITEXCNC_SPIDEV_NAME, flags_ptr);
+                return -1;
+            }
+            // Check whether the loop has to be broken.
+            if (flag_ptr == NULL) {
+                fprintf(stderr, "Leaving loop\n");
+                break;
+            }
+            // Handle the remaining string
+            flags_ptr = flag_ptr;
+        }
+    }
+
     boards[boards_count] = (litexcnc_spi_t *)hal_malloc(sizeof(litexcnc_spi_t));
     boards[boards_count]->connection = open(connection_string, O_RDWR);
     if (boards[boards_count]->connection < 0) {
-        fprintf(stderr, "main: opening device file: %s: %s\n", connection_string, strerror(errno));
+        fprintf(stderr, "%s: error opening device file: %s: %s\n", LITEXCNC_SPIDEV_NAME, connection_string, strerror(errno));
         return errno;
     }
+    boards[boards_count]->flags = flags;
 
     // Create an FPGA instance
     litexcnc_fpga_t *fpga = (litexcnc_fpga_t *)hal_malloc(sizeof(litexcnc_fpga_t));
