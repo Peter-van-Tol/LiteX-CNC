@@ -300,7 +300,6 @@ static int initialize_driver(char *connection_string, int comp_id) {
             }
             // Check whether the loop has to be broken.
             if (flag_ptr == NULL) {
-                fprintf(stderr, "Leaving loop\n");
                 break;
             }
             // Handle the remaining string
