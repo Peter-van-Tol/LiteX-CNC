@@ -1,4 +1,27 @@
+"""
+This module contains all supported boards. Each sub-module contains a single
+family of boards, for example colorlight, linsn, or sipeed. Within a family,
+multiple boards can be supported.
+"""
+
+import sys
+if sys.version_info[:2] >= (3, 8):
+    # TODO: Import directly (no need for conditional) when `python_requires = >= 3.8`
+    from importlib.metadata import entry_points  # pragma: no cover
+else:
+    from importlib_metadata import entry_points  # pragma: no cover
+try:
+    from typing import Any
+except ImportError:
+    from typing_extensions import Any
+
+from abc import abstractmethod
 from copy import copy
+from pydantic import BaseModel, Field
+
+# Registry which holds all the sub-classes of modules
+board_registry = {}
+GROUP = "litexcnc.boards"
 
 
 def _move_user_led_and_btn_to_connector(io, connectors):
@@ -31,6 +54,24 @@ def _move_user_led_and_btn_to_connector(io, connectors):
     connectors.append(('user_led', definition_led))
     connectors.append(('user_btn', definition_btn))
     return io, connectors
+
+
+class ConfigBase(BaseModel):
+    """Base-class for defining a board
+    """
+    family: Any
+    board_type: Any
+    clock_frequency: int
+    connection: Any
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        board_registry[cls.__fields__['family'].default] = cls
+
+    @abstractmethod
+    def generate_soc(self, name):
+        """Generates the logic for the board."""
+        raise NotImplementedError()
 
 
 class ExtensionBoardBase():
@@ -68,3 +109,17 @@ class ExtensionBoardBase():
             NotImplementedError: This function should be defined in derived class.
         """
         raise NotImplementedError("Function should be defined in derived class.")
+
+
+
+entries = entry_points()
+if hasattr(entries, "select"):
+    # The select method was introduced in importlib_metadata 3.9 (and Python 3.10)
+    # and the previous dict interface was declared deprecated
+    modules = entries.select(group=GROUP)  # type: ignore
+else:
+    # TODO: Once Python 3.10 becomes the oldest version supported, this fallback and
+    #       conditional statement can be removed.
+    modules = (extension for extension in entries.get(GROUP, []))  # type: ignore
+for module in modules:
+    module.load()
