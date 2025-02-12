@@ -11,9 +11,6 @@ from litexcnc.config.modules import ModuleBaseModel, module_registry
 from litexcnc.config.modules.watchdog import WatchdogModuleConfig
 from litexcnc.firmware.boards import ConfigBase as Board, board_registry
 
-# Registry which holds all the sub-classes of modules
-board_registry = {}
-
 
 class LitexCNC_Firmware(BaseModel):
     name: str = Field(
@@ -39,31 +36,10 @@ class LitexCNC_Firmware(BaseModel):
         extra = "allow"
 
     def __init__(self, **kwargs):
-        # TODO: refactor this
-        for index in range(len(kwargs['modules'])):
-            current_module = kwargs['modules'][index]
-            if isinstance(current_module, dict):
-                item_module_type = current_module['module_type']
-                for name, subclass in module_registry.items():
-                    registery_module_type = subclass.__fields__['module_type'].default
-                    if item_module_type == registery_module_type:
-                        current_module = subclass(**current_module) 
-                        break
-                else:
-                    raise TypeError(f"Unknown module type `{current_module['module_type']}`. Supported module types: {' '.join([module.__fields__['module_type'].default for module in module_registry.values()])}")
-                kwargs['modules'][index] = current_module
-        
-        # Deferred imports, otherwise the registry is not filled yet 
-        from litexcnc.firmware.boards import board_registry
+        # Convert board config and module configs to instances
         kwargs['board'] = board_registry[kwargs['board']['family']](**kwargs['board'])
+        kwargs['modules'] = [module_registry[module['module_type']](**module) for module in kwargs['modules']]
         super().__init__(**kwargs)
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        """"""
-        super().__init_subclass__(**kwargs)
-        for board_type in get_args(cls.__fields__['board_type'].type_):
-            if board_type != 'abstract':
-                board_registry[board_type] = cls
 
     @validator('name')
     def ascii_boardname(cls, value):
