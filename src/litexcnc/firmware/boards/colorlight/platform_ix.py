@@ -52,6 +52,7 @@ class Platform_i5(colorlight_i5.Platform):
     in LitexCNC-firmware. The pinout has been re-written to the dimm-slot of the
     FPGA, so it can be easily translated to different extension boards.
     """
+    REVISIONS = ["7.0"]
 
     # Source: https://github.com/wuxx/Colorlight-FPGA-Projects/blob/master/README.md
     v7_0_dimm = """
@@ -164,7 +165,7 @@ class Platform_i5(colorlight_i5.Platform):
 
     def __init__(self, revision, ext_board, toolchain="trellis"):
         # Select correct device, io and connectors
-        assert revision == "7.0"
+        assert revision in self.REVISIONS
         device = "LFE5U-25F-6BG381C"
         io = colorlight_i5._io_v7_0
         connectors = _desciptor_to_connector("dimm", self.v7_0_dimm)
@@ -180,6 +181,7 @@ class Platform_i9(colorlight_i5.Platform):
     in LitexCNC-firmware. The pinout has been re-written to the dimm-slot of the
     FPGA, so it can be easily translated to different extension boards.
     """
+    REVISIONS = ["7.2"]
 
     # Source: https://github.com/wuxx/Colorlight-FPGA-Projects/blob/master/colorlight_i9_v7.2.md
     v7_2_dimm = """
@@ -292,7 +294,7 @@ class Platform_i9(colorlight_i5.Platform):
 
     def __init__(self, revision, ext_board, toolchain="trellis"):
         # Select correct device, io and connectors
-        assert revision == "7.0"
+        assert revision in self.REVISIONS
         device = "LFE5U-45F-6BG381C"
         io = colorlight_i5._io_v7_2
         connectors = _desciptor_to_connector("dimm", self.v7_2_dimm)

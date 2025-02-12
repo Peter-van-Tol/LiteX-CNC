@@ -128,10 +128,11 @@ class Platform_5A_75B(colorlight_5a_75b.Platform):
     """Platform supporting the 5A-75B, where the user LED and user button can be used
     in LitexCNC-firmware
     """
+    REVISIONS = ["6.1", "7.0", "8.0"]
     
     def __init__(self, revision, ext_board, toolchain="trellis"):
         # Select correct device, io and connectors
-        assert revision in ["6.1", "7.0", "8.0"]
+        assert revision in self.REVISIONS
         device = {
             "6.1": "LFE5U-25F-6BG381C",
             "7.0": "LFE5U-25F-6BG256C",
@@ -160,10 +161,11 @@ class Platform_5A_75E(colorlight_5a_75e.Platform):
     """Platform supporting the 5A-75B, where the user LED and user button can be used
     in LitexCNC-firmware
     """
+    REVISIONS = ["6.0", "7.1", "8.2"]
     
     def __init__(self, revision, ext_board, toolchain="trellis"):
         # Select correct device, io and connectors
-        assert revision in ["6.0", "7.1", "8.2"]
+        assert revision in self.REVISIONS
         device = {
             "6.0": "LFE5U-25F-6BG256C",
             "7.1": "LFE5U-25F-6BG256C",
