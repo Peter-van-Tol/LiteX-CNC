@@ -11,7 +11,7 @@ class Platform_RV901T(linsn_rv901t.Platform):
     in LitexCNC-firmware
     """
 
-    def __init__(self, revision, ext_board,  toolchain="ise"):
+    def __init__(self, toolchain="ise"):
         device = "xc6slx16-2-ftg256"
         io = linsn_rv901t._io
         connectors = linsn_rv901t._connectors

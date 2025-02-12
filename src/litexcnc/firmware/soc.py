@@ -1,32 +1,29 @@
 # Imports for creating the config
 try:
-    from typing import Any, List, Union, get_args
+    from typing import Any, List, get_args
 except ImportError:
-    from typing import Any, List, Union
+    from typing import Any, List
     from typing_extensions import get_args
 from pydantic import BaseModel, Field, validator
 
 # Local imports
 from litexcnc.config.modules import ModuleBaseModel, module_registry
 from litexcnc.config.modules.watchdog import WatchdogModuleConfig
-from litexcnc.config.connections import EtherboneConnection, SPIboneConnection
+from litexcnc.firmware.boards import ConfigBase as Board, board_registry
 
 # Registry which holds all the sub-classes of modules
 board_registry = {}
 
 
 class LitexCNC_Firmware(BaseModel):
-    board_name: str = Field(
+    name: str = Field(
         ...,
-        description="The name of the board, required for identification purposes.",
+        description="The name of the controller, required for identification purposes.",
         max_length=15
     )
-    connection: Union[EtherboneConnection, SPIboneConnection, List[Union[EtherboneConnection, SPIboneConnection]]] = Field(
+    board: Board = Field(
         ...,
-        description="The configuration of the connection to the board."
-    )
-    clock_frequency: int = Field(
-      50e6  
+        description="Definition of the FPGA"
     )
     watchdog: WatchdogModuleConfig = Field(
         ...,
@@ -41,20 +38,8 @@ class LitexCNC_Firmware(BaseModel):
     class Config:
         extra = "allow"
 
-    def __new__(cls,  *args, **kwargs):
-        # Deferred import to prevent circular imports. We need to import the boards here
-        # to trigger the import mechanism and make sure that the board_registry is filled.
-        from litexcnc.config import boards
-        if cls is not LitexCNC_Firmware:
-            return super().__new__(cls)
-        if 'board_type' not in kwargs.keys():
-            raise ValueError("Field `board_type` is requierd.")
-        if kwargs['board_type'] not in board_registry.keys():
-            raise TypeError(f"Unknown board type `{kwargs['board_type']}`. Supported board types: {' '.join(board_registry.keys())}")
-        subclass = board_registry[kwargs['board_type']]
-        return subclass.__new__(subclass,  *args, **kwargs)
-
     def __init__(self, **kwargs):
+        # TODO: refactor this
         for index in range(len(kwargs['modules'])):
             current_module = kwargs['modules'][index]
             if isinstance(current_module, dict):
@@ -67,6 +52,10 @@ class LitexCNC_Firmware(BaseModel):
                 else:
                     raise TypeError(f"Unknown module type `{current_module['module_type']}`. Supported module types: {' '.join([module.__fields__['module_type'].default for module in module_registry.values()])}")
                 kwargs['modules'][index] = current_module
+        
+        # Deferred imports, otherwise the registry is not filled yet 
+        from litexcnc.firmware.boards import board_registry
+        kwargs['board'] = board_registry[kwargs['board']['family']](**kwargs['board'])
         super().__init__(**kwargs)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -76,13 +65,7 @@ class LitexCNC_Firmware(BaseModel):
             if board_type != 'abstract':
                 board_registry[board_type] = cls
 
-    def _generate_soc(self):
-        """
-        
-        """
-        raise NotImplementedError("This function should be implemented by a sub-class")
-
-    @validator('board_name')
+    @validator('name')
     def ascii_boardname(cls, value):
         assert value.isascii(), 'Must be ASCII string'
         return value
@@ -95,11 +78,10 @@ class LitexCNC_Firmware(BaseModel):
         - initialize any user defined module
         """
         # Deferred imports to prevent importing Litex while installing the driver
-        from litexcnc.firmware.watchdog import WatchDogModule
         from litexcnc.firmware.mmio import MMIO
 
         # Generate the SOC (including connection)
-        soc = self._generate_soc()
+        soc = self.board.generate_soc(self.name)
 
         # Create memory mapping for IO
         soc.submodules.MMIO_inst = MMIO(config=self)

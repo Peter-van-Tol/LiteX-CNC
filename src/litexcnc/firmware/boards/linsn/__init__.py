@@ -1,7 +1,9 @@
 try:
-    from typing import Optional
+    from typing import List, Literal, Optional, Union
 except ImportError:
-    from typing_extensions import Optional
+    from typing_extensions import List, Literal, Optional, Union
+
+from pydantic import Field
 
 # Imports for defining the board
 from litex.soc.integration.soc_core import *
@@ -9,9 +11,12 @@ from litex_boards.targets import (
     linsn_rv901t,
 )
 
+from litexcnc.config.connections import EtherboneConnection, SPIboneConnection
 from litexcnc.firmware.connections.spi import add_spi
 from .etherbone import add_etherbone
 from .platform_rv901t import Platform_RV901T
+from .. import ConfigBase
+
 
 PLATFORM = {
     "rv901t": Platform_RV901T,
@@ -21,7 +26,29 @@ CRG = {
 }
 
 
-class Linsn(SoCMini):
+class Config(ConfigBase):
+
+    family: Literal["linsn"] = "linsn"
+    board_type: Literal["rv901t"] = "rv901t"
+    clock_frequency: int = Field(
+        50e6,
+        description="The requested clock frequency of the FPGA. Lower this frequency in case of timing errors."  
+    )
+    connection: Union[EtherboneConnection, SPIboneConnection, List[Union[EtherboneConnection, SPIboneConnection]]] = Field(
+        ...,
+        description="The configuration of the connection to the board."
+    )
+
+    def generate_soc(self, name):
+        """Returns the board on which LitexCNC firmware is designed for.
+        """
+        return SoC(
+            self,
+            name
+        )
+
+
+class SoC(SoCMini):
 
     CONNECTION_MAPPING = {
         "etherbone": add_etherbone,
@@ -30,19 +57,17 @@ class Linsn(SoCMini):
 
     def __init__(
             self,
-            board: str,
-            revision: str,
-            ext_board: Optional[str],
-            config: 'LitexCNC_Firmware',
+            config: Config,
+            name: str
             ):
 
         # Get the correct platform
-        platform = PLATFORM[board.lower()](revision, ext_board)
+        platform = PLATFORM[config.board_type.lower()]()
         
         # SoCMini ----------------------------------------------------------------------------------
         self.clock_frequency = config.clock_frequency
         SoCMini.__init__(self, platform, clk_freq=config.clock_frequency,
-            ident          = config.board_name,
+            ident          = name,
             ident_version  = True,
         )
 
@@ -56,7 +81,7 @@ class Linsn(SoCMini):
             self.CONNECTION_MAPPING[connection.connection_type](self, connection)
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG[board](self.platform, config.clock_frequency)
+        self.submodules.crg = CRG[config.board_type](self.platform, config.clock_frequency)
 
 
 __all__ = [

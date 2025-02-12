@@ -64,7 +64,7 @@ class MMIO(Module, AutoCSR):
         )
         self.clock_frequency = CSRStatus(
             size=32,
-            reset=config.clock_frequency,
+            reset=config.board.clock_frequency,
             description="Reporting the clock frequency of the FPGA."
         )
         self.module_config = CSRStatus(
@@ -76,22 +76,22 @@ class MMIO(Module, AutoCSR):
         )
         self.name1 = CSRStatus(
             size=32,
-            reset=int.from_bytes(config.board_name.ljust(16, '\0')[0:4].encode("ascii"), byteorder='big'),
+            reset=int.from_bytes(config.name.ljust(16, '\0')[0:4].encode("ascii"), byteorder='big'),
             description="Name of the FPGA (bytes 0-3)"
         )
         self.name2 = CSRStatus(
             size=32,
-            reset=int.from_bytes(config.board_name.ljust(16, '\0')[4:8].encode("ascii"), byteorder='big'),
+            reset=int.from_bytes(config.name.ljust(16, '\0')[4:8].encode("ascii"), byteorder='big'),
             description="Name of the FPGA (bytes 4-7)"
         )
         self.name3 = CSRStatus(
             size=32,
-            reset=int.from_bytes(config.board_name.ljust(16, '\0')[8:12].encode("ascii"), byteorder='big'),
+            reset=int.from_bytes(config.name.ljust(16, '\0')[8:12].encode("ascii"), byteorder='big'),
             description="Name of the FPGA (bytes 8-11)"
         )
         self.name4 = CSRStatus(
             size=32,
-            reset=int.from_bytes(config.board_name.ljust(16, '\0')[12:16].encode("ascii"), byteorder='big'),
+            reset=int.from_bytes(config.name.ljust(16, '\0')[12:16].encode("ascii"), byteorder='big'),
             description="Name of the FPGA (bytes 12-15)"
         )
         config.watchdog.store_config(self)
