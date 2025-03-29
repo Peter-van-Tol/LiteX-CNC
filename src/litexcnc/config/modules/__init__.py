@@ -29,7 +29,7 @@ class ModuleBaseModel(BaseModel):
     """
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        module_registry[cls.__name__] = cls
+        module_registry[cls.__fields__['module_type'].default] = cls
 
     class Config:
         extra = "allow"
