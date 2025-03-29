@@ -682,6 +682,7 @@ int rtapi_app_main(void) {
     int result;
     LITEXCNC_PRINT_NO_DEVICE("Loading and registering default modules:\n");
     LITEXCNC_LOAD_MODULE("gpio")
+    LITEXCNC_LOAD_MODULE("gpio_expander")
     LITEXCNC_LOAD_MODULE("pwm")
     LITEXCNC_LOAD_MODULE("encoder")
     LITEXCNC_LOAD_MODULE("stepgen")
