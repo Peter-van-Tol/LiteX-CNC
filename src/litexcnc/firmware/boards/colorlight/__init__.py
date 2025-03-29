@@ -68,7 +68,7 @@ class Config(ConfigBase):
         description="The extension board used. Currently only HUB75HAT is supported for the 5A-75B."
     )
     clock_frequency: int = Field(
-        50e6,
+        int(50e6),
         description="The requested clock frequency of the FPGA. Lower this frequency in case of timing errors."  
     )
     connection: Union[EtherboneConnection, SPIboneConnection, List[Union[EtherboneConnection, SPIboneConnection]]] = Field(
@@ -124,6 +124,9 @@ class SoC(SoCMini):
             ident_version  = True,
         )
 
+        # CRG --------------------------------------------------------------------------------------
+        self.submodules.crg = CRG[config.board_type.lower()](self.platform, config.clock_frequency)
+
         # Connectivity -----------------------------------------------------------------------------
         connections = config.connection
         if not isinstance(config.connection, list):
@@ -132,9 +135,6 @@ class SoC(SoCMini):
             if connection.connection_type not in self.CONNECTION_MAPPING:
                 raise KeyError(f"Unsupported connection type '{connection.connection_type}'")
             self.CONNECTION_MAPPING[connection.connection_type](self, connection)
-
-        # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG[config.board_type.lower()](self.platform, config.clock_frequency)
 
 
 __all__ = [
