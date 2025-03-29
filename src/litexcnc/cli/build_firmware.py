@@ -41,7 +41,7 @@ def cli(config, output_directory, build, alias_file):
         # Create a collection with aliases
         alias = []
         for module in firmware_config.modules:
-            alias.extend(module.create_aliases(firmware_config.board_name))
+            alias.extend(module.create_aliases(firmware_config.name))
         # Write the alias to the output file
         with open(os.path.join(output_directory, 'alias.hal'), 'wt') as alias_ouput:
             print('\n'.join(alias), file=alias_ouput)
