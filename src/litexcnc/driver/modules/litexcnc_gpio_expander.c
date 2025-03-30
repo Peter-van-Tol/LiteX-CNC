@@ -152,14 +152,16 @@ int litexcnc_gpio_expander_process_read(void *instance, uint8_t** data, int peri
 }
 
 
-static int litexcnc_gpio_init_out(litexcnc_gpio_output_pin_t *gpio_instance, litexcnc_t *litexcnc, size_t index) {
+static int litexcnc_gpio_init_out(litexcnc_gpio_output_pin_t *gpio_instance, litexcnc_t *litexcnc, size_t chain_index, size_t pin_index) {
 
     int r;
-    char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.gpio.<gpio_name>
+    char base[HAL_NAME_LEN + 1];   // i.e. gpio.<gpio_name>
+    char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.gpio.<chain_index>.<gpio_name>
     char name[HAL_NAME_LEN + 1];        // i.e. <base_name>.<pin_name>
         
     // Basename for the pins
-    LITEXCNC_CREATE_BASENAME("gpio.0", index);
+    rtapi_snprintf(base, sizeof(base), "gpio.%02zu", chain_index);
+    LITEXCNC_CREATE_BASENAME(base, pin_index);
     // Pins and params for the output
     LITEXCNC_CREATE_HAL_PIN("out", bit, HAL_IN, &(gpio_instance->hal.pin.out));
     LITEXCNC_CREATE_HAL_PARAM("invert-output", bit, HAL_RW, &(gpio_instance->hal.param.invert_output));
@@ -169,14 +171,16 @@ static int litexcnc_gpio_init_out(litexcnc_gpio_output_pin_t *gpio_instance, lit
 }
 
 
-static int litexcnc_gpio_init_in(litexcnc_gpio_input_pin_t *gpio_instance, litexcnc_t *litexcnc, size_t index) {
+static int litexcnc_gpio_init_in(litexcnc_gpio_input_pin_t *gpio_instance, litexcnc_t *litexcnc, size_t chain_index, size_t index) {
 
     int r;
-    char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.gpio.<gpio_name>
+    char base[HAL_NAME_LEN + 1];   // i.e. gpio.<gpio_name>
+    char base_name[HAL_NAME_LEN + 1];   // i.e. <board_name>.<board_index>.gpio.<chain_index>.<gpio_name>
     char name[HAL_NAME_LEN + 1];        // i.e. <base_name>.<pin_name>
         
     // Basename for the pins
-    LITEXCNC_CREATE_BASENAME("gpio.0", index);
+    rtapi_snprintf(base, sizeof(base), "gpio.%02zu", chain_index);
+    LITEXCNC_CREATE_BASENAME(base, pin_index);
     // Pins and params for the output
     LITEXCNC_CREATE_HAL_PIN("in", bit, HAL_OUT, &(gpio_instance->hal.pin.in))
     LITEXCNC_CREATE_HAL_PIN("in-not", bit, HAL_OUT, &(gpio_instance->hal.pin.in_not))
@@ -191,7 +195,11 @@ static int litexcnc_gpio_init_in(litexcnc_gpio_input_pin_t *gpio_instance, litex
  * data out. The number of pins are in the first (and only) byte of the configuration.
  */
 size_t litexcnc_gpio_expander_74hct595_init(
-    litexcnc_gpio_expander_instance_t *expander, litexcnc_t *litexcnc, uint8_t **config, uint8_t config_length
+    litexcnc_gpio_expander_instance_t *expander,
+    litexcnc_t *litexcnc,
+    uint8_t **config,
+    uint8_t config_length,
+    size_t chain_index
 ) {
     // Declarations
     size_t i;
@@ -203,7 +211,8 @@ size_t litexcnc_gpio_expander_74hct595_init(
     expander->num_output_pins = *(*config);
     expander->required_write_buffer = (((expander->num_output_pins)>>5) + ((expander->num_output_pins & 0x1F)?1:0)) * 4;
     expander->prepare_write = &(litexcnc_gpio_expander_74hct595_prepare_write);
-    
+    *config += 1;
+
     // Create space in th memory for the pins
     expander->output_pins = (litexcnc_gpio_output_pin_t *)hal_malloc(expander->num_output_pins * sizeof(litexcnc_gpio_output_pin_t));
     if (expander->output_pins == NULL) {
@@ -216,6 +225,7 @@ size_t litexcnc_gpio_expander_74hct595_init(
         litexcnc_gpio_init_out(
             &expander->output_pins[i],
             litexcnc,
+            chain_index,
             i
         );
     }
@@ -259,7 +269,7 @@ size_t litexcnc_gpio_expander_init(litexcnc_module_instance_t **module, litexcnc
         bytes_read++;
         // TODO: currently there is only 1 supported expander, makes live easier
         litexcnc_gpio_expander_74hct595_init(
-            &gpio_expanders->instances[i], litexcnc, config, expander_config_length
+            &gpio_expanders->instances[i], litexcnc, config, expander_config_length, i
         );
     }
 
