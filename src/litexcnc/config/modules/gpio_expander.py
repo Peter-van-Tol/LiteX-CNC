@@ -55,34 +55,42 @@ class ExpanderPort(BaseModel):
         return v
 
 
+class GpioExpander74HCT595Pins(BaseModel):
+    serial_data: str = Field(
+        description="The pin on the FPGA-card for the serial data signal."
+    )
+    clock: str = Field(
+        None,
+        description="The pin on the FPGA-card for the clock signal."
+    )
+    latch: str = Field(
+        None,
+        description="The pin on the FPGA-card for the latch signal."
+    )
+    clear: str = Field(
+        None,
+        description="The pin on the FPGA-card for the clear signal."
+    ) 
+    io_standard: str = Field(
+        "LVCMOS33",
+        description="The IO Standard (voltage) to use for the pins."
+    )
+
+
 class GpioExpander74HCT595Config(GpioExpanderBase):
+    expander_type: Literal["shift_out"] = "shift_out"
     name: str = Field(
         None,
         description="The name of the expander"
     )
-    serial_data_pin: str = Field(
-        description="The pin on the FPGA-card for the serial data signal."
+    pins: GpioExpander74HCT595Pins = Field(
+        description="Definition of the pins used to send the signals to the "
+        "shift register."
     )
-    clock_pin: str = Field(
-        None,
-        description="The pin on the FPGA-card for the clock signal."
-    )
-    latch_pin: str = Field(
-        None,
-        description="The pin on the FPGA-card for the latch signal."
-    )
-    clear_pin: str = Field(
-        None,
-        description="The pin on the FPGA-card for the clear signal."
-    ) 
     ports: list[ExpanderPort] = Field(
         [],
         min_items=1,
         description="Definition of ports (74HCT595 chips) in the chain."
-    )
-    io_standard: str = Field(
-        "LVCMOS33",
-        description="The IO Standard (voltage) to use for the pins."
     )
     CODE: ClassVar[int] = 0x01
     
@@ -94,10 +102,10 @@ class GpioExpander74HCT595Config(GpioExpanderBase):
         # Add the pins to the FPGA and select them
         soc.platform.add_extension([
             ("gpio_expander", index,
-                Subsignal("serial_data", Pins(self.serial_data_pin), IOStandard(self.io_standard)),
-                Subsignal("clock", Pins(self.clock_pin), IOStandard(self.io_standard)),
-                Subsignal("latch", Pins(self.latch_pin), IOStandard(self.io_standard)),
-                Subsignal("clear", Pins(self.clear_pin), IOStandard(self.io_standard)),
+                Subsignal("serial_data", Pins(self.pins.serial_data), IOStandard(self.pins.io_standard)),
+                Subsignal("clock", Pins(self.pins.clock), IOStandard(self.pins.io_standard)),
+                Subsignal("latch", Pins(self.pins.latch), IOStandard(self.pins.io_standard)),
+                Subsignal("clear", Pins(self.pins.clear), IOStandard(self.pins.io_standard)),
             )
         ])
         pads = soc.platform.request('gpio_expander', index)
