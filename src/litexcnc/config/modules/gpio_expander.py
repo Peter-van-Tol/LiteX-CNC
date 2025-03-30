@@ -10,7 +10,7 @@ from typing_extensions import Annotated
 import math
 
 # Imports for the configuration
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, root_validator
 
 # Import of the basemodel, required to register this module
 from . import ModuleBaseModel, ModuleInstanceBaseModel
@@ -40,16 +40,16 @@ class GpioExpanderBase(ModuleInstanceBaseModel):
 
 
 class ExpanderPort(BaseModel):
-    pin_names: dict[int, str] = Field(
+    __root__: dict[int, str] = Field(
         {},
         description="The names of the pins of this port expander. The pin name "
         "will change `<BOARD_NAME>.gpio.exp.0.0.out` to `<BOARD_NAME>.gpio.<pin_name>.out. "
         "The name will ensure the pin_name is placed within the 'regular' GPIO range." 
     )
 
-    @validator("pin_names")
+    @root_validator
     def pin_index_in_range(cls, v: dict[int, str]):
-        for key in v.keys():
+        for key in v['__root__'].keys():
             if key not in (0, 1, 2, 3, 4, 5, 6, 7):
                 raise KeyError("Keys should be an integer in range [0-7].")
         return v
@@ -93,6 +93,12 @@ class GpioExpander74HCT595Config(GpioExpanderBase):
         description="Definition of ports (74HCT595 chips) in the chain."
     )
     CODE: ClassVar[int] = 0x01
+    hal_pins: ClassVar[List[str]] = [
+        'out',
+    ]
+    hal_params: ClassVar[List[str]] = [
+        'invert-output',
+    ]
     
 
     def create_from_config(self, soc, watchdog, index):
@@ -166,6 +172,11 @@ class GpioExpander74HCT595Config(GpioExpanderBase):
 
 class GpioExpander74HCT165(GpioExpanderBase):
     ...
+    hal_pins: ClassVar[List[str]] = [
+        'in',
+        'in-not',
+    ]
+    hal_params: ClassVar[List[str]] = []
 
     def add_mmio_write_registers(self, mmio):
         # Deferred imports to prevent importing Litex while installing the driver
@@ -195,6 +206,50 @@ class GpioExpander_ModuleConfig(ModuleBaseModel):
         item_type=GpioExpanders,
         unique_items=True,
     )
+
+    def _create_pin_alias(self, board_name, name, chain_index, pin_index, alias, pin):
+        """Creates an alias for a pin. This function has been overridden in order to
+        inlude the chain index.
+        """
+        return f"alias pin {board_name}.gpio.{chain_index:02}.{pin_index:02}.{pin} {board_name}.{name}.{alias}.{pin}"
+
+    def _create_param_alias(self, board_name, name, chain_index, pin_index, alias, parameter):
+        """Creates an alias for a param,. This function has been overridden in order to
+        inlude the chain index.
+        """
+        return f"alias param {board_name}.gpio.{chain_index:02}.{pin_index:02}.{parameter} {board_name}.{name}.{alias}.{parameter}"
+
+    def create_aliases(self, board_name):   
+        """Creates the aliases for the pins and params. Aliases can make the HAL-file 
+        easier to read. To use aliases is completely optional for the user.
+
+        Rationale: In earlier versions of LitexCNC the pin-names were determined from
+        the JSON, which had to be loaded with the driver. The JSON was linked with a
+        CRC-code. A small change in the JSON required re-compilation of the firmware.
+        In this version the JSON is not used anymore by the driver, the capabilies of
+        the FPGA are announced by the FPGA themselves. All pins therefore are numbered,
+        with the alias-function from halcmd the original behavior can be emulated.
+        """
+        aliases = []
+        for chain_index, instance in enumerate(self.instances):
+            # Get the name of the expander
+            name = "gpio"
+            if instance.name:
+                name = instance.name
+            # Create aliase
+            pin_index = 0
+            for port_index, port in enumerate(instance.ports):
+                print(port)
+                for pin_index in range(pin_index, pin_index+8):
+                    if hasattr(instance, 'hal_pins'):
+                        if (pin_index - port_index * 8) in port.__root__:
+                            for pin in instance.hal_pins:
+                                aliases.append(self._create_pin_alias(board_name, name, chain_index, pin_index, port.__root__[pin_index - port_index * 8], pin))
+                    if hasattr(instance, 'hal_params'):
+                        if (pin_index - port_index * 8) in port.__root__:
+                            for param in instance.hal_params:
+                                aliases.append(self._create_param_alias(board_name, name, chain_index, pin_index, port.__root__[pin_index - port_index * 8], param))
+        return aliases
 
     def create_from_config(self, soc, watchdog):
         for index, instance in enumerate(self.instances):
