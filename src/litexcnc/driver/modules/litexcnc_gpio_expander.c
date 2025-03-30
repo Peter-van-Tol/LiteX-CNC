@@ -152,7 +152,7 @@ int litexcnc_gpio_expander_process_read(void *instance, uint8_t** data, int peri
 }
 
 
-static int litexcnc_gpio_init_out(litexcnc_gpio_output_pin_t *gpio_instance, litexcnc_t *litexcnc, size_t chain_index, size_t pin_index) {
+static int litexcnc_gpio_init_out(litexcnc_gpio_output_pin_t *gpio_instance, litexcnc_t *litexcnc, size_t chain_index, size_t index) {
 
     int r;
     char base[HAL_NAME_LEN + 1];   // i.e. gpio.<gpio_name>
@@ -161,7 +161,7 @@ static int litexcnc_gpio_init_out(litexcnc_gpio_output_pin_t *gpio_instance, lit
         
     // Basename for the pins
     rtapi_snprintf(base, sizeof(base), "gpio.%02zu", chain_index);
-    LITEXCNC_CREATE_BASENAME(base, pin_index);
+    LITEXCNC_CREATE_BASENAME(base, index);
     // Pins and params for the output
     LITEXCNC_CREATE_HAL_PIN("out", bit, HAL_IN, &(gpio_instance->hal.pin.out));
     LITEXCNC_CREATE_HAL_PARAM("invert-output", bit, HAL_RW, &(gpio_instance->hal.param.invert_output));
@@ -180,7 +180,7 @@ static int litexcnc_gpio_init_in(litexcnc_gpio_input_pin_t *gpio_instance, litex
         
     // Basename for the pins
     rtapi_snprintf(base, sizeof(base), "gpio.%02zu", chain_index);
-    LITEXCNC_CREATE_BASENAME(base, pin_index);
+    LITEXCNC_CREATE_BASENAME(base, index);
     // Pins and params for the output
     LITEXCNC_CREATE_HAL_PIN("in", bit, HAL_OUT, &(gpio_instance->hal.pin.in))
     LITEXCNC_CREATE_HAL_PIN("in-not", bit, HAL_OUT, &(gpio_instance->hal.pin.in_not))
