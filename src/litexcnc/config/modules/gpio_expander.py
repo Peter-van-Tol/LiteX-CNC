@@ -224,7 +224,7 @@ class GpioExpander_ModuleConfig(ModuleBaseModel):
         """
         num_bytes = 1  # First byte is for the number of instances of port expanders
         for instance in self.instances:
-            num_bytes += instance.config_size
+            num_bytes += instance.config_size + 1
         # Align on DWORD boundary
         return math.ceil(num_bytes / 4) * 4
 
