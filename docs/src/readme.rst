@@ -94,8 +94,8 @@ The toolchain can be installed using:
     litexcnc install_toolchain
 
 .. note:: 
-    The commmand ``install_litex`` has been deprecated. The command ``install_toolchain``
-    includes Litex, OSS-CAD-suite, and OpenOCD (RaspberryPi only).
+    The commmand ``install_litex`` has been deprecated. The packages ``litex`` and all its dependencies
+    are now automatically installed together with ``litexcnc``.
 
 Options for the command are:
 
