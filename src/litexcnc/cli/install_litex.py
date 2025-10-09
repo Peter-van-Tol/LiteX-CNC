@@ -12,5 +12,9 @@ import requests
 @click.option('--user', is_flag=True, help="Install Litex in your home directory")
 @click.option('--directory', '-d', help="Install Litex in specific location")
 def cli(user, directory):
-    """Installs Litex from https://github.com/enjoy-digital/litex in HOME [DEPRECATED: use `install_toolchain` instead]"""
-    click.echo(click.style("INFO", fg="blue") + f": This command is deprecated, use `install_toolchain` instead.")
+    """
+    Installs Litex from https://github.com/enjoy-digital/litex in HOME 
+    
+    [DEPRECATED: litex is automatically installed with litexcnc]
+    """
+    click.echo(click.style("INFO", fg="blue") + f": This command is deprecated, use `litex` is automatically installed with `litexcnc`.")

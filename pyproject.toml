@@ -46,6 +46,11 @@ dependencies = [
     "ninja~=1.11.1",
     "yapps~=2.2.0",
     "chardet~=5.0.0",
+    "litex @ git+https://github.com/enjoy-digital/litex.git@2025.08",
+    "liteeth @ git+https://github.com/enjoy-digital/liteeth.git@2025.08",
+    "litedram @ git+https://github.com/enjoy-digital/litedram.git@2025.08",
+    "litex-boards @ git+https://github.com/litex-hub/litex-boards.git@2025.08",
+    "migen @ git+https://github.com/m-labs/migen",
 ]
 
 [tool.poetry.extras]
