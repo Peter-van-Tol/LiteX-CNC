@@ -127,7 +127,7 @@ def _install_openocd_rpi(target: str, user: bool):
         click.echo(click.style("ERROR", fg="red") + ": Cannot update system.")
         return -1
     if subprocess.call(
-        "sudo apt-get -y install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev gpiod libgpiod-dev",
+        "sudo apt-get -y install git autoconf libtool make pkg-config libusb-1.0-0 libusb-1.0-0-dev gpiod libgpiod-dev libjim-dev",
         shell=True,
     ):
         click.echo(click.style("ERROR", fg="red") + ": Cannot install pre-requisites.")
@@ -191,7 +191,7 @@ def cli(user, directory, arch, os_):
     if user and not directory:
         target = str(Path.home() / "toolchain")
 
-    # # Install the components of the toolchain
+    # Install the components of the toolchain
     _install_oss_cad_suite(target, user, arch, os_)
 
     # When this instance is on a Raspberry Pi, install a custom version
