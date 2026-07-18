@@ -193,10 +193,12 @@ class ColorLightBase(SoCMini):
             ios = {
                 "6.0": colorlight_5a_75e._io_v6_0, 
                 "7.1": colorlight_5a_75e._io_v7_1,
+                "8.2": colorlight_5a_75e._io_v8_2
             }
             connectors = {
                 "6.0": colorlight_5a_75e._connectors_v6_0, 
                 "7.1": colorlight_5a_75e._connectors_v7_1,
+                "8.2": colorlight_5a_75e._connectors_v8_2
             }
             move_user_led_and_btn_to_connector(ios, connectors)
             platform = colorlight_5a_75e.Platform(revision=revision)

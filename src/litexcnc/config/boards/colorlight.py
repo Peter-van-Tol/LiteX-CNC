@@ -16,6 +16,7 @@ class ColorLight(LitexCNC_Firmware):
         '5A-75B v8.0',
         '5A-75E v6.0',
         '5A-75E v7.1',
+        '5A-75E v8.2',
         'HUB75HAT v6.1',
         'HUB75HAT v7.0',
         'HUB75HAT v8.0',
