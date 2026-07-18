@@ -210,9 +210,9 @@ class EtherboneClient:
 
         # set the bit
         if value:
-            gpio_data[word_index] |= bit_mask
+            gpio_data[len(gpio_data) - word_index - 1] |= bit_mask
         else:
-            gpio_data[word_index] &= ~bit_mask
+            gpio_data[len(gpio_data) - word_index - 1] &= ~bit_mask
 
         self.write_register("MMIO_inst_gpio_out", gpio_data)
 
@@ -263,9 +263,9 @@ class EtherboneClient:
         bit_mask = 1 << (pwm_index % 32)
 
         if enable:
-            pwm_config[word_index] |= bit_mask
+            pwm_config[len(pwm_config) - word_index - 1] |= bit_mask
         else:
-            pwm_config[word_index] &= ~bit_mask
+            pwm_config[len(pwm_config) - word_index - 1] &= ~bit_mask
 
         self.write_register("MMIO_inst_pwm_enable", pwm_config)
 
@@ -275,7 +275,7 @@ class EtherboneClient:
         word_index = pwm_index // 32
         bit_mask = 1 << (pwm_index % 32)
 
-        return bool(pwm_config[word_index] & bit_mask)
+        return bool(pwm_config[len(pwm_config) - word_index - 1] & bit_mask)
 
     def pwm_get_period(self, pwm_index: int) -> int:
         return self.read_register(f"MMIO_inst_pwm_{pwm_index}_period")[0]
