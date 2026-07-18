@@ -73,6 +73,7 @@
             }
         }
     },
+    "additionalProperties": false,
     "$defs": {
         "pin": {
             "type": "string"
@@ -97,7 +98,8 @@
                 "cs_n": {
                     "$ref": "#/$defs/pin"
                 }
-            }
+            },
+            "additionalProperties": false
         },
 
         "etherboneConnection": {
@@ -129,7 +131,8 @@
                     "type": "boolean",
                     "default": false
                 }
-            }
+            },
+            "additionalProperties": false
         },
 
         "gpioModule": {
@@ -157,10 +160,12 @@
                             "safe_state": {
                                 "type": "boolean"
                             }
-                        }
+                        },
+                        "additionalProperties": false
                     }
                 }
-            }
+            },
+            "additionalProperties": false
         },
 
         "pwmModule": {
@@ -182,10 +187,12 @@
                             "name": {
                                 "type": "string"
                             }
-                        }
+                        },
+                        "additionalProperties": false
                     }
                 }
-            }
+            },
+            "additionalProperties": false
         },
 
         "stepgenModule": {
@@ -220,7 +227,8 @@
                                             "dir_pin": {
                                                 "$ref": "#/$defs/pin"
                                             }
-                                        }
+                                        },
+                                        "additionalProperties": false
                                     },
                                     {
                                         "type": "object",
@@ -247,17 +255,20 @@
                                             "dir_neg_pin": {
                                                 "$ref": "#/$defs/pin"
                                             }
-                                        }
+                                        },
+                                        "additionalProperties": false
                                     }
                                 ]
                             },
                             "soft_stop": {
                                 "type": "boolean"
                             }
-                        }
+                        },
+                        "additionalProperties": false
                     }
                 }
-            }
+            },
+            "additionalProperties": false
         },
 
         "encoderModule": {
@@ -297,10 +308,12 @@
                                 "type": "integer",
                                 "minimum": 0
                             }
-                        }
+                        },
+                        "additionalProperties": false
                     }
                 }
-            }
+            },
+            "additionalProperties": false
         }
     }
 }
