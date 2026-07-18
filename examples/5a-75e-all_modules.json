@@ -1,13 +1,12 @@
 {
     "board_name": "simple_5a-75a",
-    "board_type": "5A-75E v8.0",
+    "board_type": "5A-75E v6.0",
     "clock_frequency": 40000000,
-    "ethphy": {
-        "tx_delay": 0
-    },
-    "etherbone": {
+    "connection": {
+        "connection_type": "etherbone",
         "ip_address": "10.0.0.10",
-        "mac_address": "0x10e2d5000000"
+        "mac_address": "0x10e2d5000000",
+        "tx_delay": 0
     },
     "watchdog": {
         "pin":"j2:0"
