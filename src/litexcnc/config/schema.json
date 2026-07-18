@@ -1,0 +1,306 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Simple 5A-75A Board Configuration",
+    "type": "object",
+    "required": [
+        "board_name",
+        "board_type",
+        "clock_frequency",
+        "connection",
+        "watchdog",
+        "modules"
+    ],
+    "properties": {
+        "board_name": {
+            "type": "string"
+        },
+        "board_type": {
+            "enum": [
+                "5A-75B v6.1",
+                "5A-75B v7.0",
+                "5A-75B v8.0",
+                "5A-75E v6.0",
+                "5A-75E v7.1",
+                "5A-75E v8.2",
+                "HUB75HAT v6.1",
+                "HUB75HAT v7.0",
+                "HUB75HAT v8.0",
+                "i5 v7.0",
+                "i9 v7.2",
+                "RV901T"
+            ]
+        },
+        "clock_frequency": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "connection": {
+            "type": "object",
+            "oneOf": [
+                {
+                    "$ref": "#/$defs/spiConnection"
+                },
+                {
+                    "$ref": "#/$defs/etherboneConnection"
+                }
+            ]
+        },
+        "watchdog": {
+            "type": "object",
+            "properties": {
+                "pin": {
+                    "$ref": "#/$defs/pin"
+                }
+            }
+        },
+        "modules": {
+            "type": "array",
+            "items": {
+                "oneOf": [
+                    {
+                        "$ref": "#/$defs/gpioModule"
+                    },
+                    {
+                        "$ref": "#/$defs/pwmModule"
+                    },
+                    {
+                        "$ref": "#/$defs/stepgenModule"
+                    },
+                    {
+                        "$ref": "#/$defs/encoderModule"
+                    }
+                ]
+            }
+        }
+    },
+    "$defs": {
+        "pin": {
+            "type": "string"
+        },
+
+        "spiConnection": {
+            "type": "object",
+            "required": ["connection_type", "mosi", "miso", "clk", "cs_n"],
+            "properties": {
+                "connection_type": {
+                    "const": "spi"
+                },
+                "mosi": {
+                    "$ref": "#/$defs/pin"
+                },
+                "miso": {
+                    "$ref": "#/$defs/pin"
+                },
+                "clk": {
+                    "$ref": "#/$defs/pin"
+                },
+                "cs_n": {
+                    "$ref": "#/$defs/pin"
+                }
+            }
+        },
+
+        "etherboneConnection": {
+            "type": "object",
+            "required": ["connection_type", "ip_address", "mac_address"],
+            "properties": {
+                "connection_type": {
+                    "const": "etherbone"
+                },
+                "ip_address": {
+                    "type": "string",
+                    "format": "ipv4"
+                },
+                "mac_address": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-fA-F]{12}$"
+                },
+                "rx_delay": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                },
+                "tx_delay": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                },
+                "with_hw_init_reset": {
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
+
+        "gpioModule": {
+            "type": "object",
+            "required": ["module_type", "instances"],
+            "properties": {
+                "module_type": {
+                    "const": "gpio"
+                },
+                "instances": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["direction", "pin"],
+                        "properties": {
+                            "direction": {
+                                "enum": ["in", "out"]
+                            },
+                            "pin": {
+                                "$ref": "#/$defs/pin"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "safe_state": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        "pwmModule": {
+            "type": "object",
+            "required": ["module_type", "instances"],
+            "properties": {
+                "module_type": {
+                    "const": "pwm"
+                },
+                "instances": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["pin"],
+                        "properties": {
+                            "pin": {
+                                "$ref": "#/$defs/pin"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        "stepgenModule": {
+            "type": "object",
+            "required": ["module_type", "instances"],
+            "properties": {
+                "module_type": {
+                    "const": "stepgen"
+                },
+                "instances": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["pins", "soft_stop"],
+                        "properties": {
+                            "pins": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "stepgen_type",
+                                            "step_pin",
+                                            "dir_pin"
+                                        ],
+                                        "properties": {
+                                            "stepgen_type": {
+                                                "const": "step_dir"
+                                            },
+                                            "step_pin": {
+                                                "$ref": "#/$defs/pin"
+                                            },
+                                            "dir_pin": {
+                                                "$ref": "#/$defs/pin"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "object",
+                                        "required": [
+                                            "stepgen_type",
+                                            "step_pos_pin",
+                                            "step_neg_pin",
+                                            "dir_pos_pin",
+                                            "dir_neg_pin"
+                                        ],
+                                        "properties": {
+                                            "stepgen_type": {
+                                                "const": "step_dir_differential"
+                                            },
+                                            "step_pos_pin": {
+                                                "$ref": "#/$defs/pin"
+                                            },
+                                            "step_neg_pin": {
+                                                "$ref": "#/$defs/pin"
+                                            },
+                                            "dir_pos_pin": {
+                                                "$ref": "#/$defs/pin"
+                                            },
+                                            "dir_neg_pin": {
+                                                "$ref": "#/$defs/pin"
+                                            }
+                                        }
+                                    }
+                                ]
+                            },
+                            "soft_stop": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        "encoderModule": {
+            "type": "object",
+            "required": ["module_type", "instances"],
+            "properties": {
+                "module_type": {
+                    "const": "encoder"
+                },
+                "instances": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["pin_A", "pin_B"],
+                        "properties": {
+                            "pin_A": {
+                                "$ref": "#/$defs/pin"
+                            },
+                            "pin_B": {
+                                "$ref": "#/$defs/pin"
+                            },
+                            "pin_Z": {
+                                "$ref": "#/$defs/pin"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "min_value": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "max_value": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "reset_value": {
+                                "type": "integer",
+                                "minimum": 0
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
