@@ -50,7 +50,7 @@ chardet = {version="^5.0.0"}
 cli = []
 
 [tool.poetry.scripts]
-litexcnc = { callable = "litexcnc.__main__:cli", extras = ["cli"] }
+litexcnc = "litexcnc.__main__:cli"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.3.0"
