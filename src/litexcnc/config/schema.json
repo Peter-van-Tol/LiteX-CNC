@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Simple 5A-75A Board Configuration",
+    "title": "LiteX-CNC Configuration",
     "type": "object",
     "required": [
         "board_name",
