@@ -3,6 +3,8 @@ import socket
 import struct
 import time
 
+import click
+
 from litexcnc.tools.csr_map import CsrMap
 from litexcnc.tools.alias_map import AliasMap
 
@@ -126,6 +128,7 @@ class EtherboneClient:
     port: int = 1234
     local_port: int = 1234
     timeout: float = 1.0
+    verbose: bool = False
 
     def __post_init__(self) -> None:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -133,6 +136,10 @@ class EtherboneClient:
         self._socket.bind(("", self.local_port))
         self._socket.settimeout(self.timeout)
         self._socket.connect((self.host, self.port))
+
+    def debug(self, message: str) -> None:
+        if self.verbose:
+            click.echo(f"[DEBUG] {message}", err=True)
 
     def close(self) -> None:
         self._socket.close()
@@ -144,6 +151,7 @@ class EtherboneClient:
         self.close()
 
     def read_words(self, address: int, count: int) -> list[int]:
+        self.debug(f"Reading {count} words from address 0x{address:08X}")
         self._socket.send(etherbone_read(address, count))
         response = self._socket.recv(16 + (count * 4))
 
@@ -154,22 +162,29 @@ class EtherboneClient:
         return words
 
     def write_words(self, address: int, values: list[int]) -> None:
+        self.debug(f"Writing {len(values)} words to address 0x{address:08X}: " + " ".join(f"0x{value:08X}" for value in values))
         self._socket.send(etherbone_write(address, values))
 
     def read_register(self, register_name: str) -> list[int]:
         address, length, _ = self.csr_map.resolve(register_name)
+        self.debug(f"Reading register {register_name} at address 0x{address:08X} with length {length}")
         return self.read_words(address, length)
 
     def write_register(self, register_name: str, values: list[int]) -> None:
         address, length, _ = self.csr_map.resolve(register_name)
         if len(values) != length:
             raise Exception(f"expected {length} values for register {register_name}, got {len(values)}")
+        hex_values = " ".join(f"0x{value:08X}" for value in values)
+        self.debug(f"Writing register {register_name} at address 0x{address:08X} with values {hex_values}")
         self.write_words(address, values)
+
+    def get_clock_frequency(self) -> int:
+        return self.read_register("MMIO_inst_clock_frequency")[0]
 
     def probe(self) -> ProbeResult:
         magic = self.read_register("MMIO_inst_magic")[0]
         version = decode_version(self.read_register("MMIO_inst_version")[0])
-        freq = self.read_register("MMIO_inst_clock_frequency")[0]
+        freq = self.get_clock_frequency()
         module_data_size, num_modules = decode_module_config(self.read_register("MMIO_inst_module_config")[0])
         names = [self.read_register(f"MMIO_inst_name{i}") for i in range(1, 5)]
         names = [decode_u32(name[0]) for name in names]
@@ -223,7 +238,7 @@ class EtherboneClient:
         self.write_register("MMIO_inst_watchdog_data", [encode_watchdog_data(True, timeout_cycles)])
 
     def watchdog_pet_loop(self, interval_ms: int, timeout_cycles: int | None = None):
-        clock_frequency = self.probe().clock_frequency
+        clock_frequency = self.get_clock_frequency()
 
         if timeout_cycles is None:
             # calculate required timeout cycles based on the interval and clock frequency
@@ -241,7 +256,7 @@ class EtherboneClient:
     def pwm_list(self) -> list[PWMState]:
         output: list[PWMState] = []
         current_index = 0
-        clock_frequency = self.probe().clock_frequency
+        clock_frequency = self.get_clock_frequency()
         while self.csr_map.registers.get(f"MMIO_inst_pwm_{current_index}_period") is not None:
             enabled = self.pwm_get_enabled(current_index)
             period_cycles = self.pwm_get_period(current_index)
@@ -284,7 +299,7 @@ class EtherboneClient:
         self.write_register(f"MMIO_inst_pwm_{pwm_index}_period", [period_cycles])
 
     def pwm_set_period_us(self, pwm_index: int, period_us: float):
-        clock_frequency = self.probe().clock_frequency
+        clock_frequency = self.get_clock_frequency()
         period_cycles = int((period_us / 1_000_000) * clock_frequency)
         self.pwm_set_period(pwm_index, period_cycles)
 
@@ -295,19 +310,19 @@ class EtherboneClient:
         self.write_register(f"MMIO_inst_pwm_{pwm_index}_width", [duty_cycles])
 
     def pwm_set_width_us(self, pwm_index: int, duty_us: float):
-        clock_frequency = self.probe().clock_frequency
+        clock_frequency = self.get_clock_frequency()
         duty_cycles = int((duty_us / 1_000_000) * clock_frequency)
         self.pwm_set_width(pwm_index, duty_cycles)
 
     def pwm_get_frequency(self, pwm_index: int) -> float:
-        clock_frequency = self.probe().clock_frequency
+        clock_frequency = self.get_clock_frequency()
         period_cycles = self.pwm_get_period(pwm_index)
         if period_cycles == 0:
             raise Exception(f"PWM {pwm_index} period is zero, cannot calculate frequency")
         return clock_frequency / period_cycles
 
     def pwm_set_frequency(self, pwm_index: int, frequency_hz: float):
-        clock_frequency = self.probe().clock_frequency
+        clock_frequency = self.get_clock_frequency()
         period_cycles = int(clock_frequency / frequency_hz)
         self.pwm_set_period(pwm_index, period_cycles)
 
