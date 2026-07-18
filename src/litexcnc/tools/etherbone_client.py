@@ -126,14 +126,13 @@ class EtherboneClient:
     csr_map: CsrMap
     alias_map: AliasMap
     port: int = 1234
-    local_port: int = 1234
     timeout: float = 1.0
     verbose: bool = False
 
     def __post_init__(self) -> None:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.bind(("", self.local_port))
+        self._socket.bind(("", self.port))
         self._socket.settimeout(self.timeout)
         self._socket.connect((self.host, self.port))
 

@@ -51,13 +51,12 @@ def client(ctx: click.Context) -> EtherboneClient:
 @click.group(name="etherbone")
 @click.option("--host", required=True, help="Board IP address or hostname")
 @click.option("--port", default=1234, show_default=True, type=int, help="Etherbone UDP port")
-@click.option("--local-port", default=1234, show_default=True, type=int, help="Local UDP port to bind for replies")
 @click.option("--timeout", default=1.0, show_default=True, type=float, help="Socket timeout in seconds")
 @click.option("--csr", default="csr.csv", type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Generated csr.csv file")
 @click.option("--alias", default="alias.hal", type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Generated alias.hal file")
 @click.option("--verbose", is_flag=True, help="Enable verbose debug output")
 @click.pass_context
-def cli(ctx: click.Context, host: str, port: int, local_port: int, timeout: float, csr: str, alias: str, verbose: bool):
+def cli(ctx: click.Context, host: str, port: int, timeout: float, csr: str, alias: str, verbose: bool):
     """Raw Etherbone access to the FPGA board."""
     settings = _runtime_settings(ctx)
     settings.client = EtherboneClient(
@@ -65,7 +64,6 @@ def cli(ctx: click.Context, host: str, port: int, local_port: int, timeout: floa
         csr_map=CsrMap(csr),
         alias_map=AliasMap(alias),
         port=port,
-        local_port=local_port,
         timeout=timeout,
         verbose=verbose
     )
