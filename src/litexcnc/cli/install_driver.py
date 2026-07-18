@@ -134,7 +134,7 @@ def cli(modules, rtlib):
                 os.path.join(temp_dir, os.path.basename(file.name))
             )
             if not modules or 'default' in modules:
-                if re.search("litexcnc_.*\.c", file.name):
+                if re.search(r"litexcnc_.*\.c", file.name):
                     files_to_compiles.append(file.name)
         if driver_files.keys():
             click.echo(click.style("INFO", fg="bright_blue") + ": Retrieving extra modules / boards to compile...")
@@ -146,7 +146,7 @@ def cli(modules, rtlib):
                         os.path.join(temp_dir, os.path.basename(file.name))
                     )
                     if not modules or extra in modules:
-                        if re.search("litexcnc_.*\.c", file.name):
+                        if re.search(r"litexcnc_.*\.c", file.name):
                             files_to_compiles.append(file.name)
 
         # Compile the driver
