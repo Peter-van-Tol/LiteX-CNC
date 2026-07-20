@@ -1,6 +1,6 @@
 {
-    "board_name": "5A-75B:V6.1",
-    "board_type": "5A-75B v6.1",
+    "board_name": "5A-75B:V7.0",
+    "board_type": "5A-75B v7.0",
     "clock_frequency": 40000000,
     "connection": {
         "connection_type": "etherbone",
@@ -9,12 +9,13 @@
         "mac_address": "0x10e2d5000000"
     },
     "watchdog": {
-        "pin": "j1:8"
+        "pin": "j1:7"
     },
     "modules": [
         {
             "module_type": "gpio",
             "instances": [
+                { "direction": "out", "pin": "j1:8", "name": "A" },
                 { "direction": "out", "pin": "j1:9", "name": "B" },
                 { "direction": "out", "pin": "j1:10", "name": "C" },
                 { "direction": "out", "pin": "j1:11", "name": "D" },

@@ -9,12 +9,13 @@
         "mac_address": "0x10e2d5000000"
     },
     "watchdog": {
-        "pin": "j1:8"
+        "pin": "j1:7"
     },
     "modules": [
         {
             "module_type": "gpio",
             "instances": [
+                { "direction": "out", "pin": "j1:8", "name": "A" },
                 { "direction": "out", "pin": "j1:9", "name": "B" },
                 { "direction": "out", "pin": "j1:10", "name": "C" },
                 { "direction": "out", "pin": "j1:11", "name": "D" },
