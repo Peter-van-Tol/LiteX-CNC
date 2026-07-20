@@ -15,59 +15,41 @@
         {
             "module_type": "gpio",
             "instances": [
-                { "direction": "out", "pin": "j1:9", "name": "j1:10" },
-                { "direction": "out", "pin": "j1:10", "name": "j1:11" },
-                { "direction": "out", "pin": "j1:11", "name": "j1:12" },
-                { "direction": "out", "pin": "j1:12", "name": "j1:13" },
-                { "direction": "out", "pin": "j1:13", "name": "j1:14" },
-                { "direction": "out", "pin": "j1:14", "name": "j1:15" },
-                { "direction": "in", "pin": "j1:0", "name": "j1:1" },
-                { "direction": "in", "pin": "j1:1", "name": "j1:2" },
-                { "direction": "in", "pin": "j1:2", "name": "j1:3" },
-                { "direction": "in", "pin": "j1:4", "name": "j1:5" },
-                { "direction": "in", "pin": "j1:5", "name": "j1:6" },
-                { "direction": "in", "pin": "j1:6", "name": "j1:7" },
-                { "direction": "in", "pin": "j2:0", "name": "j2:1" },
-                { "direction": "in", "pin": "j2:1", "name": "j2:2" },
-                { "direction": "in", "pin": "j2:2", "name": "j2:3" },
-                { "direction": "in", "pin": "j2:4", "name": "j2:5" },
-                { "direction": "in", "pin": "j2:5", "name": "j2:6" },
-                { "direction": "in", "pin": "j2:6", "name": "j2:7" },
-                { "direction": "out", "pin": "j5:0", "name": "j5:1" },
-                { "direction": "out", "pin": "j5:1", "name": "j5:2" },
-                { "direction": "out", "pin": "j5:2", "name": "j5:3" },
-                { "direction": "out", "pin": "j5:4", "name": "j5:5" },
-                { "direction": "out", "pin": "j5:5", "name": "j5:6" },
-                { "direction": "out", "pin": "j5:6", "name": "j5:7" }
+                { "direction": "out", "pin": "j1:9", "name": "B" },
+                { "direction": "out", "pin": "j1:10", "name": "C" },
+                { "direction": "out", "pin": "j1:11", "name": "D" },
+                { "direction": "out", "pin": "j1:12", "name": "CLK" },
+                { "direction": "out", "pin": "j1:13", "name": "STB" },
+                { "direction": "out", "pin": "j1:14", "name": "OE" },
+                { "direction": "in", "pin": "j1:0", "name": "J1:R0" },
+                { "direction": "in", "pin": "j1:1", "name": "J1:G0" },
+                { "direction": "in", "pin": "j1:2", "name": "J1:B0" },
+                { "direction": "in", "pin": "j1:4", "name": "J1:R1" },
+                { "direction": "in", "pin": "j1:5", "name": "J1:G1" },
+                { "direction": "in", "pin": "j1:6", "name": "J1:B1" },
+                { "direction": "in", "pin": "j2:0", "name": "J2:R0" },
+                { "direction": "in", "pin": "j2:1", "name": "J2:G0" },
+                { "direction": "in", "pin": "j2:2", "name": "J2:B0" },
+                { "direction": "in", "pin": "j2:4", "name": "J2:R1" },
+                { "direction": "in", "pin": "j2:5", "name": "J2:G1" },
+                { "direction": "in", "pin": "j2:6", "name": "J2:B1" },
+                { "direction": "out", "pin": "j5:0", "name": "J5:R0" },
+                { "direction": "out", "pin": "j5:1", "name": "J5:G0" },
+                { "direction": "out", "pin": "j5:2", "name": "J5:B0" },
+                { "direction": "out", "pin": "j5:4", "name": "J5:R1" },
+                { "direction": "out", "pin": "j5:5", "name": "J5:G1" },
+                { "direction": "out", "pin": "j5:6", "name": "J5:B1" }
             ]
         },
         {
             "module_type": "pwm",
             "instances": [
-                {
-                    "pin": "j6:0",
-                    "name": "j6:1"
-                },
-                {
-                    "pin": "j6:1",
-                    "name": "j6:2"
-                },
-                {
-                    "pin": "j6:2",
-                    "name": "j6:3"
-                },
-                {
-                    "pin": "j6:4",
-                    "name": "j6:5"
-                },
-                {
-                    "pin": "j6:5",
-                    "name": "j6:6"
-                },
-                {
-                    "pin": "j6:6",
-                    "name": "j6:7"
-                }
+                { "pin": "j6:0", "name": "J6:R0" },
+                { "pin": "j6:1", "name": "J6:G0" },
+                { "pin": "j6:2", "name": "J6:B0" },
+                { "pin": "j6:4", "name": "J6:R1" },
+                { "pin": "j6:5", "name": "J6:G1" },
+                { "pin": "j6:6", "name": "J6:B1" }
             ]
         },
         {
