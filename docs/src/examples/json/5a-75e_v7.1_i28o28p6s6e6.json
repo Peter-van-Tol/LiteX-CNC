@@ -1,6 +1,6 @@
 {
-    "board_name": "5A-75E:v6.0",
-    "board_type": "5A-75E v6.0",
+    "board_name": "5A-75E:v7.1",
+    "board_type": "5A-75E v7.1",
     "clock_frequency": 40000000,
     "connection": {
         "connection_type": "etherbone",
