@@ -56,12 +56,10 @@
         {
             "module_type": "encoder",
             "instances": [
-                { "pin_A": "j3:0", "pin_B": "j3:1" },
-                { "pin_A": "j3:2", "pin_B": "j3:4" },
-                { "pin_A": "j3:5", "pin_B": "j3:6" },
-                { "pin_A": "j4:0", "pin_B": "j4:1" },
-                { "pin_A": "j4:2", "pin_B": "j4:4" },
-                { "pin_A": "j4:5", "pin_B": "j4:6" }
+                { "pin_A": "j3:0", "pin_B": "j3:1", "pin_Z": "j3:2" },
+                { "pin_A": "j3:4", "pin_B": "j3:5", "pin_Z": "j3:6" },
+                { "pin_A": "j4:0", "pin_B": "j4:1", "pin_Z": "j4:2" },
+                { "pin_A": "j4:4", "pin_B": "j4:5", "pin_Z": "j4:6" }
             ]
         },
         {
