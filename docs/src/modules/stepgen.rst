@@ -19,6 +19,12 @@ and velocity mode during operations.
     position to veloctiy, you can keep your current setup when you explicitly set te pin ``velocity-mode``
     to TRUE.
 
+.. note::
+    At this moment the timings can be set for each stepgen channel. At start up these timings are 
+    aggregated to a single timing which is applied to the whole stepgen. This means that the slowest 
+    drive will determine the maximum speed of the machine. In future release of LitexCNC this behavior
+    will be changed and timings will be applied independently.
+
 Step types
 ==========
 
@@ -57,7 +63,6 @@ The code-block belows gives an example for the configuration of ``StepGen`` for 
                             "step_pin": "j9:0",
                             "dir_pin": "j9:1"
                         },
-                        "max_frequency": 400000,
                         "soft_stop": true
                     },
                 ...
@@ -84,7 +89,6 @@ The code-block belows gives an example for the configuration of ``StepGen`` for 
                             "dir_pos_pin": "j9:2",
                             "dir_neg_pin": "j9:4"
                         },
-                        "max_frequency": 400000
                         "soft_stop": true
                     },
                 ...
@@ -93,17 +97,6 @@ The code-block belows gives an example for the configuration of ``StepGen`` for 
             ...
         ]
         ...
-
-.. info::
-    The maximum frequency in the configuration is the guaranteed maximum frequency the
-    stepgen can reach. The actual maximum frequency depends on the clock speed of the
-    FPGA and the scaling of this clock powers with a power of 2. 
-
-    The maximum frequency should be chosen to be as close as possible to the maximum
-    frequency supported by the drive. Setting this value to a high value would lead
-    to reduction in resolution of the speed of the stepgen.
-
-    The field ``max_frequency`` is optional. When not set, it will default to 400 kHz.
 
 HAL
 ===
@@ -137,15 +130,15 @@ Output pins
 
 <board-name>.stepgen.<index/name>.counts (HAL_UINT)
     The current position, in counts.
-<board-name>.stepgen.<index/name>.position-fb (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.position_fb (HAL_FLOAT)
     The received position from the FPGA in units.
-<board-name>.stepgen.<index/name>.position-prediction (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.position_prediction (HAL_FLOAT)
     The predicted position at the start of the next cycle. It is calculated based on the 
     ``position_fb``, and the commanded speeds and acceleration. This HAL-pin should be
      used asfeedback for ``motmod`` to prevent oscillations.
-<board-name>.stepgen.<index/name>.speed-fb (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.speed_fb (HAL_FLOAT)
     The current speed, in units per second.
-<board-name>.stepgen.<index/name>.speed-prediction (HAL_FLOAT)
+<board-name>.stepgen.<index/name>.speed_prediction (HAL_FLOAT)
     The predicted speed at the start of the next cycle. It is calculated based on the 
     ``speed_fb``, and the commanded speeds and acceleration.
 
@@ -198,11 +191,6 @@ The relevant parameters which are exported to the HAL are:
 <board-name>.stepgen.<index/name>.dir-setup-time (FLOAT)
     The minimum setup time from direction to step, in nanoseconds periods. Measured from 
     change of direction to rising edge of step.
-<board-name>.stepgen.<index/name>.max-frequency (FLOAT)
-    The maximum frequency the FPGA can generate pulses. This maximum frequency is determined
-    based on the ``steplen`` and ``stepspace`` parameters and the fixed point math in the
-    FPGA (i.e. protection against rollovers). This frequency can be higher then the maximum
-    frequency requested in the JSON configuration file.
 
 Timing parameters - up/down
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -6,10 +6,9 @@ except ImportError:
 from litexcnc.firmware.soc import LitexCNC_Firmware
 
 
-class ColorLight_5A_75X(LitexCNC_Firmware):
+class ColorLight(LitexCNC_Firmware):
     """
-    Configuration for Colorlight 5A-75B and 5A-75E cards:
-
+    Configuration for Colorlight 5A-75B, 5A-75E, i5 and i9 cards:
     """
     board_type: Literal[
         '5A-75B v6.1',
@@ -20,6 +19,8 @@ class ColorLight_5A_75X(LitexCNC_Firmware):
         'HUB75HAT v6.1',
         'HUB75HAT v7.0',
         'HUB75HAT v8.0',
+        'i5 v7.0',
+        'i9 v7.2',
     ]
 
     def _generate_soc(self):

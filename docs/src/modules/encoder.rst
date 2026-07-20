@@ -10,8 +10,6 @@ with some extra functions.  Differences are:
   the HAL-pin ``min-speed-estimate`` is no longer used.
 * To be able to simulate a (digital) potentiometer, the HAL-parameter ``position-scale`` is
   supplemented with ``position-offset``.
-* The encoder can be configured to run in `counter-mode`, however this has to be done in the
-  firmware. Enabling `counter-mode` is as easy as only defining the A pin in the configuration.
 * The encoder can be configured to:
   
   * Have a custom reset-value (default=0)
@@ -56,23 +54,6 @@ both a simple encoder and encoders with an index pulse.
                 {"pin_A":"j3:0", "pin_B":"j3:1", "pin_Z":"j3:2"},
                 ...,
                 {"pin_A":"j3:4", "pin_B":"j3:5", "pin_Z":"j3:6"}
-            ]
-            },
-            ...
-        ]
-
-    .. code-tab:: json
-        :caption: counter-mode
-        
-        ...
-        "modules": [
-            ...,
-            {
-            "module_type": "encoder",
-            "instances": [
-                {"pin_A":"j3:0"},
-                ...,
-                {"pin_A":"j3:2"}
             ]
             },
             ...
@@ -132,7 +113,7 @@ HAL
 
 Input pins
 ----------
-<board-name>.encoder.<n>.index-enable (HAL_BIT)
+<board-name>.encoder.<n>.index_enable (HAL_BIT)
     When ``true``, counts and position are reset to zero on the next rising edge of
     Phase-Z. At the same time, index-enable is reset to zero to indicate that a rising 
     edge has occurred.
@@ -141,7 +122,7 @@ Output pins
 -----------
 <board-name>.encoder.<n>.counts (HAL_INT)
     Position in encoder counts.
-<board-name>.encoder.<n>.index-pulse (HAL_BIT)
+<board-name>.encoder.<n>.index_pulse (HAL_BIT)
     When ``true``, a rising edge has been detected on the FPGA. This flag will be active
     until the next read action from the FPGA, when it is automatically reset.
 <board-name>.encoder.<n>.position (HAL_FLOAT)
@@ -151,19 +132,19 @@ Output pins
     quantization noise as compared to simply differentiating the position output. When 
     the magnitude of the true velocity is below min-speed-estimate, the velocity output 
     is 0.
-<board-name>.encoder.<n>.velocity-rpm (HAL_FLOAT)
+<board-name>.encoder.<n>.velocity_rpm (HAL_FLOAT)
     Velocity in scaled units per minute. Simply encoder.N.velocity scaled by a factor 
     of 60 for convenience.
-<board-name>.encoder.<n>.overflow-occurred (HAL_BIT)
+<board-name>.encoder.<n>.overflow_occurred (HAL_BIT)
     Indication that overflow has occurred. This indicates that the position and velocity
     might be less accurate due to rounding errors with floating point.
 
 Parameters
 ----------
-<board-name>.encoder.<n>.position-scale (HAL_FLOAT)
+<board-name>.encoder.<n>.position_scale (HAL_FLOAT)
     Scale factor, in counts per (length) unit. For example, if position-scale is 500, 
     then 1000 counts of the encoder will be reported as a position of 2.0 units.
-<board-name>.encoder.<n>.position-offset (HAL_FLOAT)
+<board-name>.encoder.<n>.position_offset (HAL_FLOAT)
     Position offset in scaled units. When the encoder count is 0, this will be the
     reported position. Can be used to create a digital potentiometer.
 
@@ -189,7 +170,7 @@ the correct version of your board.
 
         # SETUP WATCHDOG
         # ==============
-        setp test_PWM_GPIO.watchdog.timeout-ns 15000000
+        setp test_PWM_GPIO.watchdog.timeout_ns 15000000
 
         # ADD FUNCTIONS TO THREAD
         # =======================
@@ -205,17 +186,17 @@ the correct version of your board.
         # value you want to set the slider value. It is recommended to have configure the
         # FPGA setting the ``minimum_value`` and ``maximum_value`` equal to the boundaries
         # of GMOCCAPY (while taking into account the scale or desired resolution). The ``reset_value``
-        # should be set to 100 / position-scale.
+        # should be set to 100 / position_scale.
         # - feed override
-        setp <board-name>.encoder.0.index-enable        1
-        setp <board-name>.encoder.0.position-scale      0.0008  # 1 / (max_value - min_value)
-        setp <board-name>.encoder.0.position-offset    -0.2     # -1 * min_value * position_scale
+        setp <board-name>.encoder.0.index_enable        1
+        setp <board-name>.encoder.0.position_scale      0.0008  # 1 / (max_value - min_value)
+        setp <board-name>.encoder.0.position_offset    -0.2     # -1 * min_value * position_scale
         setp gmoccapy.feed.feed-override.analog-enable  1
         net <board-name>.encoder.0.position => gmoccapy.feed.feed-override.direct-value
         # - spindle override
-        setp <board-name>.encoder.1.index-enable        1
-        setp <board-name>.encoder.1.position-scale      0.00125 # 1 / (max_value - min_value)
-        setp <board-name>.encoder.1.position-offset    -0.625   # -1 * min_value * position_scale
+        setp <board-name>.encoder.1.index_enable        1
+        setp <board-name>.encoder.1.position_scale      0.00125 # 1 / (max_value - min_value)
+        setp <board-name>.encoder.1.position_offset    -0.625   # -1 * min_value * position_scale
         setp gmoccapy.spindle.spindle-override.analog-enable  1
         net <board-name>.encoder.1.position => gmoccapy.spindle.spindle-override.direct-value    
 

@@ -439,8 +439,7 @@ def add_spi(soc, connection):
     # soc.platform.add_period_constraint(soc.spi_cd.clk, 1e9/125e6)
     # soc.platform.add_false_path_constraints(soc.crg.cd_sys.clk, soc.spi_cd.clk)
 
-    # soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, debug_led=soc.platform.request("user_led_n")))
-    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads))
+    soc.submodules.spibone = ClockDomainsRenamer("clk_125")(SpiWishboneBridge(spi_pads, debug_led=soc.platform.request("user_led_n")))
     soc.add_wb_master(soc.spibone.wishbone)
 
 

@@ -16,7 +16,7 @@ def cli(config, output_directory, build, alias_file):
         from litex.soc.integration.builder import Builder
         from litexcnc.firmware.soc import LitexCNC_Firmware
     except ImportError as e:
-        click.echo(click.style("Error", fg="red") + ": Litex is not installed. Please run 'litexcnc install_litex' first.")
+        click.echo(click.style("Error", fg="red") + ": Litex is not installed. Please run 'litexcnc install_toolchain' first.")
         return -1
     
     # Set the default value for the folder if not set

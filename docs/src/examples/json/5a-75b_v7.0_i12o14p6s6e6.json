@@ -41,16 +41,52 @@
                 {"direction": "out", "pin":"j5:6",  "name":"j5:7" }
             ]
         }, {
-            "module_type": "pwm",
-            "instances": [
-                {"pin":"j6:0", "name":"j6:1"},
-                {"pin":"j6:1", "name":"j6:2"},
-                {"pin":"j6:2", "name":"j6:3"},
-                {"pin":"j6:4", "name":"j6:5"},
-                {"pin":"j6:5", "name":"j6:6"},
-                {"pin":"j6:6", "name":"j6:7"}
-            ]
-        }, {
+      "module_type": "pwm",
+      "instances": [
+        {
+          "pins": {
+            "pwm": "j6:0",
+            "name": "j6:1",
+            "output_type": "single"
+          }
+        },
+        {
+          "pins": {
+            "pwm": "j6:1",
+            "name": "j6:2",
+            "output_type": "single"
+          }
+        },
+        {
+          "pins": {
+            "pwm": "j6:2",
+            "name": "j6:3",
+            "output_type": "single"
+          }
+        },
+        {
+          "pins": {
+            "pwm": "j6:4",
+            "name": "j6:5",
+            "output_type": "single"
+          }
+        },
+        {
+          "pins": {
+            "pwm": "j6:5",
+            "name": "j6:6",
+            "output_type": "single"
+          }
+        },
+        {
+          "pins": {
+            "pwm": "j6:6",
+            "name": "j6:7",
+            "output_type": "single"
+          }
+        }
+      ]
+    }, {
             "module_type": "encoder",
             "instances": [
                 {"pin_A":"j3:0", "pin_B":"j3:1"},

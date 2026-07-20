@@ -224,9 +224,9 @@ The litexcnc driver is loaded with:
 
 .. code-block:: shell
 
-    loadrt litexcnc connections="<connection_string>"
+    loadrt litexcnc_eth connections="<connection_string>"
 
-The placeholder ``<connection_string>`` should be replaced with the `connection <./connections/index>`_
+The placeholder ``<connection_string>`` should be replaced with the `connection <./connection/index>`_
 for your machine. Supported connections at this moment are Ethernet and SPI.
 
 .. info::

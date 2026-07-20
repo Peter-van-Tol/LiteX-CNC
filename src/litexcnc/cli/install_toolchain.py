@@ -30,7 +30,7 @@ def _install_litex(target: str, user: bool) -> int:
     open(os.path.join(target, 'litex_setup.py'), 'wb').write(response.content)
 
     # Run the python file
-    command = "litex_setup.py --init --install --config=standard --tag=2024.12"
+    command = "litex_setup.py --init --install --config=standard --tag=2022.04"
     if user:
         command += " --user"
     command = f'{sys.executable} {os.path.join(target, command)}'  #  --gcc=riscv if SOC with cpu
@@ -86,9 +86,9 @@ def _install_oss_cad_suite(target: str, user: bool, arch: str = None, os_:str = 
     with tempfile.TemporaryDirectory() as tempdirname:
         # Download the toolchain from the source
         click.echo(click.style("INFO", fg="blue") + f": Downloading OSS-CAD-Suite ({os_}/{arch}) ...")
-        download = os.path.join(tempdirname, f'oss-cad-suite-{os_}-{arch}-20241231.tgz')
+        download = os.path.join(tempdirname, f'oss-cad-suite-{os_}-{arch}-20220227.tgz')
         response = requests.get(
-            f'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2024-12-31/oss-cad-suite-{os_}-{arch}-20241231.tgz'
+            f'https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-12-07/oss-cad-suite-{os_}-{arch}-20221207.tgz'
         )
         response.raise_for_status()
         open(download, 'wb').write(response.content)
