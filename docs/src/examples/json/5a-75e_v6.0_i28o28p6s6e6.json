@@ -79,37 +79,37 @@
                     "pin_A": "j12:0",
                     "pin_B": "j12:1",
                     "pin_Z": "j12:2",
-                    "name": "j12:RGB0"
+                    "name": "J12:RGB0"
                 },
                 {
                     "pin_A": "j12:4",
                     "pin_B": "j12:5",
                     "pin_Z": "j12:6",
-                    "name": "j12:RGB1"
+                    "name": "J12:RGB1"
                 },
                 {
                     "pin_A": "j11:0",
                     "pin_B": "j11:1",
                     "pin_Z": "j11:2",
-                    "name": "j11:RGB0"
+                    "name": "J11:RGB0"
                 },
                 {
                     "pin_A": "j11:4",
                     "pin_B": "j11:5",
                     "pin_Z": "j11:6",
-                    "name": "j11:RGB1"
+                    "name": "J11:RGB1"
                 },
                 {
                     "pin_A": "j10:0",
                     "pin_B": "j10:1",
                     "pin_Z": "j10:2",
-                    "name": "j10:RGB0"
+                    "name": "J10:RGB0"
                 },
                 {
                     "pin_A": "j10:4",
                     "pin_B": "j10:5",
                     "pin_Z": "j10:6",
-                    "name": "j10:RGB1"
+                    "name": "J10:RGB1"
                 }
             ]
         },
