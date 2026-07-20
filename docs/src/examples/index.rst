@@ -29,12 +29,15 @@ examples are:
    :header: "Board version", "IP-address", "GPIO (in/out)", "PWM", "Stepgen (type)", "Encoders (type)", "Change buffers", "Link"
    :widths: auto
 
-   "V6.1", "10.0.0.10", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v6.1_i12o14p6s6e6.json>` :download:`pre-built <./json/zipped/5a-75b_v6.1_i12o14p6s6e6.zip>`
-   "V6.1", "10.0.0.10", "24 / 28", "6", "\-", "\-", "U28, U24, U23", :download:`JSON <./json/5a-75b_v6.1_i24o32.json>` :download:`pre-built <./json/zipped/5a-75b_v6.1_i24o32.zip>`
-   "V7.0", "10.0.0.10", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v7.0_i12o14p6s6e6.json>` :download:`pre-built <./json/zipped/5a-75b_v7.0_i12o14p6s6e6.zip>`
-   "V7.0", "10.0.0.10", "24 / 28", "6", "\-", "\-", "U28, U24, U23", :download:`JSON <./json/5a-75b_v7.0_i24o32.json>` :download:`pre-built <./json/zipped/5a-75b_v7.0_i24o32.zip>` 
-   "V8.0", "10.0.0.10", "12 / 14", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v8.0_i12o14p6s6e6.json>` :download:`pre-built <./json/zipped/5a-75b_v8.0_i12o14p6s6e6.zip>` 
-   "V8.0", "10.0.0.10", "24 / 28", "6", "\-", "\-", "U28, U24, U23", :download:`JSON <./json/5a-75b_v8.0_i24o32.json>` :download:`pre-built <./json/zipped/5a-75b_v8.0_i24o32.zip>` 
+   "V6.1", "10.0.0.10", "12 / 12", "6", "6 (step/dir)", "4 (A/B/Z)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v6.1_i12o12p6s6e4.json>`
+   "V6.1", "10.0.0.10", "12 / 12", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v6.1_i12o12p6s6e6.json>`
+   "V6.1", "10.0.0.10", "24 / 30", "\-", "\-", "\-", "U28, U24, U23", :download:`JSON <./json/5a-75b_v6.1_i24o30.json>`
+   "V7.0", "10.0.0.10", "12 / 12", "6", "6 (step/dir)", "4 (A/B/Z)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v7.0_i12o12p6s6e4.json>`
+   "V7.0", "10.0.0.10", "12 / 12", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v7.0_i12o12p6s6e6.json>`
+   "V7.0", "10.0.0.10", "24 / 30", "\-", "\-", "\-", "U28, U24, U23", :download:`JSON <./json/5a-75b_v7.0_i24o30.json>`
+   "V8.0", "10.0.0.10", "12 / 12", "6", "6 (step/dir)", "4 (A/B/Z)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v8.0_i12o12p6s6e4.json>`
+   "V8.0", "10.0.0.10", "12 / 12", "6", "6 (step/dir)", "6 (A/B)", "U28, U24, U23", :download:`JSON <./json/5a-75b_v8.0_i12o12p6s6e6.json>`
+   "V8.0", "10.0.0.10", "24 / 30", "\-", "\-", "\-", "U28, U24, U23", :download:`JSON <./json/5a-75b_v8.0_i24o30.json>`
 
 5A-75E
 ======
@@ -57,7 +60,9 @@ examples are:
    :header: "Board version", "IP-address", "GPIO (in/out)", "PWM", "Stepgen (type)", "Encoders (type)", "Change buffers", "Link"
    :widths: auto
    
-   "V6.0", "10.0.0.10", "30 / 29", "9", "9 (step/dir)", "9 (A/B)", "TBD", :download:`JSON <./json/5a-75e_v6.0_i48o56.json>` :download:`pre-built <./json/zipped/5a-75e_v6.0_i48o56.zip>` 
-   "V6.0", "10.0.0.10", "30 / 32", "6", "6 (step/dir diff.)", "6 (A/B/Z)", "TBD", `index <test.html>`_
-   "V7.1", "10.0.0.10", "30 / 29", "9", "9 (step/dir)", "9 (A/B)", "TBD", :download:`JSON <./json/5a-75e_v6.0_i48o56.json>` :download:`pre-built <./json/zipped/5a-75e_v6.0_i48o56.zip>` 
-   "V7.1", "10.0.0.10", "30 / 32", "6", "6 (step/dir diff.)", "6 (A/B/Z)", "TBD", `index <test.html>`_
+   "V6.0", "10.0.0.10", "28 / 28", "6", "6 (step/dir diff.)", "6 (A/B/Z)", "TBD", :download:`JSON <./json/5a-75e_v6.0_i28o28p6s6e6.json>`
+   "V6.0", "10.0.0.10", "48 / 56", "\-", "\-", "\-", "TBD", :download:`JSON <./json/5a-75e_v6.0_i48o56.json>`
+   "V7.1", "10.0.0.10", "28 / 28", "6", "6 (step/dir diff.)", "6 (A/B/Z)", "TBD", :download:`JSON <./json/5a-75e_v7.1_i28o28p6s6e6.json>`
+   "V7.1", "10.0.0.10", "48 / 56", "\-", "\-", "\-", "TBD", :download:`JSON <./json/5a-75e_v7.1_i48o56.json>`
+   "V8.2", "10.0.0.10", "0 / 100", "4", "\-", "\-", "\-", :download:`JSON <./json/5a-75e_v8.2_o100p4.json>`
+   "V8.2", "10.0.0.10", "0 / 104", "\-", "\-", "\-", "\-", :download:`JSON <./json/5a-75e_v8.2_o104.json>`
